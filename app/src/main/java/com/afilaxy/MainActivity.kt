@@ -165,17 +165,16 @@ fun EmergencyScreen(navController: NavController, modifier: Modifier = Modifier)
     var isLoadingLocation by remember { mutableStateOf(false) }
     var locationError by remember { mutableStateOf<String?>(null) }
     var locationTimestamp by remember { mutableStateOf<Long?>(null) }
-
-    // NOVOS ESTADOS para os ajudantes
     var nearbyHelpers by remember { mutableStateOf<List<Helper>>(emptyList()) }
-    var noHelpersFound by remember { mutableStateOf(false) } // Para indicar explicitamente que a busca terminou sem resultados
+    var noHelpersFound by remember { mutableStateOf(false) }
+
+    // NOVOS ESTADOS para gerenciar a resposta do ajudante
+    var helperResponding by remember { mutableStateOf<Helper?>(null) }
+    var isAwaitingHelperResponse by remember { mutableStateOf(false) } // Indica que estamos na fase de aguardar um ajudante
 
     val fusedLocationClient: FusedLocationProviderClient = remember {
         LocationServices.getFusedLocationProviderClient(context)
     }
-
-    var helperResponding by remember { mutableStateOf<Helper?>(null) }
-    var isAwaitingHelperResponse by remember { mutableStateOf(false) } // Indica que estamos na fase de aguardar um ajudante
 
     fun simulateNearbyHelpersSearch(currentLocation: Location) {
         println("Simulando busca por ajudantes próximos...")
@@ -184,17 +183,17 @@ fun EmergencyScreen(navController: NavController, modifier: Modifier = Modifier)
             Helper(id = "user456", nome = "Ajudante Voluntário B", distanciaEstimada = "aprox. 400m"),
             Helper(id = "user789", nome = "Ajudante Voluntário C", distanciaEstimada = "aprox. 750m")
         )
-        if (System.currentTimeMillis() % 4 == 0L) {
+        if (System.currentTimeMillis() % 4 == 0L) { // Para variar os resultados
             nearbyHelpers = emptyList()
             noHelpersFound = true
-            isAwaitingHelperResponse = false // Não há ninguém para esperar
+            isAwaitingHelperResponse = false
         } else {
             nearbyHelpers = dummyHelpers
             noHelpersFound = false
             isAwaitingHelperResponse = true // Helpers encontrados, agora aguardamos resposta
-            helperResponding = null // Garante que não há um ajudante respondendo de uma busca anterior
+            helperResponding = null
         }
-        isLoadingLocation = false // Terminou a busca inicial (localização + lista de ajudantes)
+        isLoadingLocation = false
     }
 
     fun fetchCurrentUserLocation() {
@@ -204,9 +203,11 @@ fun EmergencyScreen(navController: NavController, modifier: Modifier = Modifier)
         }
         isLoadingLocation = true
         locationError = null
-        userLocation = null // Limpa localização anterior para indicar nova busca
-        nearbyHelpers = emptyList() // Limpa ajudantes anteriores
-        noHelpersFound = false // Reseta o estado de "não encontrado"
+        userLocation = null
+        nearbyHelpers = emptyList()
+        noHelpersFound = false
+        isAwaitingHelperResponse = false // Reseta ao iniciar nova busca
+        helperResponding = null      // Reseta ao iniciar nova busca
 
         val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
         if (!LocationManagerCompat.isLocationEnabled(locationManager)) {
@@ -219,12 +220,11 @@ fun EmergencyScreen(navController: NavController, modifier: Modifier = Modifier)
             val cancellationTokenSource = CancellationTokenSource()
             fusedLocationClient.getCurrentLocation(priority, cancellationTokenSource.token)
                 .addOnSuccessListener { location: Location? ->
-                    // isLoadingLocation será definido como false DENTRO de simulateNearbyHelpersSearch
                     if (location != null) {
                         userLocation = location
                         locationTimestamp = System.currentTimeMillis()
                         println("Localização obtida/atualizada: Lat ${location.latitude}, Lon ${location.longitude}")
-                        simulateNearbyHelpersSearch(location) // Chama a simulação de busca
+                        simulateNearbyHelpersSearch(location)
                     } else {
                         locationError = "Não foi possível obter/atualizar a localização (resultado nulo)."
                         isLoadingLocation = false
@@ -250,7 +250,7 @@ fun EmergencyScreen(navController: NavController, modifier: Modifier = Modifier)
             if (isGranted) {
                 hasLocationPermission = true
                 println("Permissão de Localização CONCEDIDA")
-                if (userLocation == null) { // Busca apenas se não tiver uma localização ainda
+                if (userLocation == null) {
                     fetchCurrentUserLocation()
                 }
             } else {
@@ -261,30 +261,40 @@ fun EmergencyScreen(navController: NavController, modifier: Modifier = Modifier)
         }
     )
 
-// Este LaunchedEffect agora também verificará se a localização é antiga.
-    LaunchedEffect(hasLocationPermission) { // Chave ainda é hasLocationPermission
+    LaunchedEffect(hasLocationPermission) {
         if (hasLocationPermission) {
             val agora = System.currentTimeMillis()
-            val limiteDeTempoMs = 5 * 60 * 1000 // 5 minutos em milissegundos
+            val limiteDeTempoMs = 5 * 60 * 1000 // 5 minutos
 
             val precisaBuscarInicialmente = (userLocation == null)
             val localizacaoEstaAntiga = locationTimestamp?.let { ts ->
                 (agora - ts) > limiteDeTempoMs
-            } ?: precisaBuscarInicialmente // Se não houver timestamp e não tiver localização, considera "antiga" para forçar a busca inicial. Ou apenas true se userLocation for null.
-            // Simplificando: se não tem localização, busca. Se tem, verifica se é antiga.
+            } ?: precisaBuscarInicialmente
 
             if (precisaBuscarInicialmente || localizacaoEstaAntiga) {
                 println("Necessário buscar localização: Inicial? $precisaBuscarInicialmente, Antiga? $localizacaoEstaAntiga")
                 fetchCurrentUserLocation()
             } else {
-                // Localização existe e é recente, não faz nada automaticamente.
-                // Garante que o estado de carregamento esteja desativado se não estiver buscando.
                 isLoadingLocation = false
                 println("Localização existente e recente. Lat ${userLocation!!.latitude}, Lon ${userLocation!!.longitude}")
             }
         } else {
-            // Sem permissão, garante que não está carregando.
             isLoadingLocation = false
+        }
+    }
+
+    // NOVO LaunchedEffect para simular um ajudante respondendo
+    LaunchedEffect(isAwaitingHelperResponse, nearbyHelpers) {
+        if (isAwaitingHelperResponse && nearbyHelpers.isNotEmpty()) {
+            println("Aguardando um ajudante aceitar o pedido...")
+            delay(10000L) // Simula um atraso de 10 segundos
+
+            if (isAwaitingHelperResponse && helperResponding == null && nearbyHelpers.isNotEmpty()) {
+                val respondingHelperFromList = nearbyHelpers.random()
+                helperResponding = respondingHelperFromList
+                isAwaitingHelperResponse = false
+                println("${respondingHelperFromList.nome} aceitou o pedido.")
+            }
         }
     }
 
@@ -292,13 +302,10 @@ fun EmergencyScreen(navController: NavController, modifier: Modifier = Modifier)
         modifier = modifier
             .fillMaxSize()
             .padding(16.dp),
-        verticalArrangement = Arrangement.Top, // Alinhado ao topo para a lista
+        verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            "Tela de Emergência",
-            style = MaterialTheme.typography.headlineMedium
-        )
+        Text("Tela de Emergência", style = MaterialTheme.typography.headlineMedium)
         Spacer(modifier = Modifier.height(16.dp))
 
         if (hasLocationPermission) {
@@ -306,7 +313,7 @@ fun EmergencyScreen(navController: NavController, modifier: Modifier = Modifier)
                 isLoadingLocation -> {
                     CircularProgressIndicator()
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(if (userLocation == null) "Obtendo sua localização..." else "Buscando ajudantes próximos...")
+                    Text(if (userLocation == null && nearbyHelpers.isEmpty()) "Obtendo sua localização..." else "Buscando ajudantes próximos...")
                 }
                 userLocation != null -> {
                     Text("Sua Localização Atual:", style = MaterialTheme.typography.titleSmall)
@@ -321,21 +328,32 @@ fun EmergencyScreen(navController: NavController, modifier: Modifier = Modifier)
                     }
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // EXIBIR AJUDANTES
-                    if (nearbyHelpers.isNotEmpty()) {
-                        Text("Pessoas próximas que podem ajudar:", style = MaterialTheme.typography.titleMedium)
+                    // LÓGICA DE EXIBIÇÃO ATUALIZADA
+                    if (helperResponding != null) {
+                        Text(
+                            "${helperResponding!!.nome} está a caminho!",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text("Localização: ${helperResponding!!.distanciaEstimada}")
+                    } else if (nearbyHelpers.isNotEmpty()) {
+                        Text("Possíveis ajudantes próximos:", style = MaterialTheme.typography.titleMedium)
                         Spacer(modifier = Modifier.height(8.dp))
-                        LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) { // weight(1f) para ocupar espaço disponível
+                        LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f, fill = false)) {
                             items(nearbyHelpers) { helper ->
                                 HelperItem(helper = helper)
                                 Divider()
                             }
                         }
+                        if (isAwaitingHelperResponse) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            CircularProgressIndicator()
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Seu pedido foi enviado. Aguardando um ajudante confirmar...")
+                        }
                     } else if (noHelpersFound) {
                         Text("Nenhuma pessoa com bombinha foi encontrada nas proximidades no momento.")
                     }
-                    // Se nearbyHelpers estiver vazio e noHelpersFound for false, significa que ainda não buscou ou está buscando
-                    // (coberto pelo isLoadingLocation)
                 }
                 locationError != null -> {
                     Text("Erro: $locationError", color = MaterialTheme.colorScheme.error)
@@ -371,17 +389,28 @@ fun EmergencyScreen(navController: NavController, modifier: Modifier = Modifier)
             }
         }
 
-        // Botão Voltar movido para o final ou pode ser gerenciado pelo NavController globalmente
-        if (!isLoadingLocation) { // Evita sobrepor o botão de voltar com o loading ou a lista
-            Spacer(modifier = Modifier.weight(1f, fill = nearbyHelpers.isEmpty() && !noHelpersFound )) // Empurra para baixo se a lista estiver vazia
-            Button(onClick = {
-                navController.popBackStack()
-            }) {
-                Text("Voltar para Tela Inicial")
-            }
+        // Botão Voltar
+        val showSpacerBeforeBackButton = when {
+            isLoadingLocation -> false
+            isAwaitingHelperResponse -> false
+            helperResponding != null -> true
+            nearbyHelpers.isEmpty() && !noHelpersFound && userLocation != null -> true // Se tem localização mas ainda não achou/buscou helpers
+            else -> nearbyHelpers.isEmpty() && !noHelpersFound
+        }
+
+        if (showSpacerBeforeBackButton) {
+            Spacer(modifier = Modifier.weight(1f))
+        }
+
+
+        Button(onClick = {
+            navController.popBackStack()
+        }) {
+            Text("Voltar para Tela Inicial")
         }
     }
 }
+
 
 // 3. Adicione este novo Composable para exibir cada item da lista de ajudantes
 @Composable
