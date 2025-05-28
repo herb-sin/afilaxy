@@ -26,6 +26,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect // Para executar lógica ao compor
 import androidx.compose.runtime.getValue
@@ -36,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext // Para obter o Context
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat // Para verificar permissão
@@ -171,6 +174,7 @@ fun EmergencyScreen(navController: NavController, modifier: Modifier = Modifier)
     // NOVOS ESTADOS para gerenciar a resposta do ajudante
     var helperResponding by remember { mutableStateOf<Helper?>(null) }
     var isAwaitingHelperResponse by remember { mutableStateOf(false) } // Indica que estamos na fase de aguardar um ajudante
+    var showEmergencyInstructions by remember { mutableStateOf(false) }
 
     val fusedLocationClient: FusedLocationProviderClient = remember {
         LocationServices.getFusedLocationProviderClient(context)
@@ -354,6 +358,14 @@ fun EmergencyScreen(navController: NavController, modifier: Modifier = Modifier)
                     } else if (noHelpersFound) {
                         Text("Nenhuma pessoa com bombinha foi encontrada nas proximidades no momento.")
                     }
+                    // NOVO BOTÃO AQUI
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { showEmergencyInstructions = true },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("MOSTRAR INSTRUÇÕES PARA AJUDANTE")
+                    }
                 }
                 locationError != null -> {
                     Text("Erro: $locationError", color = MaterialTheme.colorScheme.error)
@@ -409,6 +421,19 @@ fun EmergencyScreen(navController: NavController, modifier: Modifier = Modifier)
             Text("Voltar para Tela Inicial")
         }
     }
+
+    if (showEmergencyInstructions) {
+        EmergencyInstructionsDialog(
+            userName = "Usuário Afilaxy", // Simulado por enquanto
+            userLocation = userLocation,
+            isLoadingLocation = isLoadingLocation,
+            isAwaitingHelperResponse = isAwaitingHelperResponse,
+            helperResponding = helperResponding,
+            noHelpersFound = noHelpersFound,
+            locationError = locationError,
+            onDismiss = { showEmergencyInstructions = false }
+        )
+    }
 }
 
 
@@ -442,7 +467,6 @@ fun PreviewEmergencyScreenHelpersFound() {
             Helper(id = "2", nome = "Ajudante Preview 2", distanciaEstimada = "300m")
         )
         // Esta é uma forma simplificada de mostrar o estado no preview.
-        // Você pode criar uma `EmergencyScreenContent` que recebe todos os estados como parâmetros.
         Column(modifier = Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.Top, horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Tela de Emergência", style = MaterialTheme.typography.headlineMedium)
             Spacer(modifier = Modifier.height(16.dp))
@@ -504,6 +528,87 @@ fun PreviewEmergencyScreenLocationFoundWithRefresh() {
             Button(onClick = { /* dummy */ }) { Text("Voltar para Tela Inicial") }
         }
     }
+}
+
+// Passo 4.5: Novo Composable para caixa de diálogo da mensagem de ajuda transeunte
+// Coloque esta função no mesmo nível que EmergencyScreen, TelaInicialAfilaxy, etc.
+
+@Composable
+fun EmergencyInstructionsDialog(
+    userName: String,
+    userLocation: Location?,
+    isLoadingLocation: Boolean,
+    isAwaitingHelperResponse: Boolean,
+    helperResponding: Helper?,
+    noHelpersFound: Boolean,
+    locationError: String?,
+    onDismiss: () -> Unit
+) {
+    val appStatusMessage = when {
+        isLoadingLocation && userLocation == null -> "O aplicativo Afilaxy está buscando a localização do paciente."
+        isAwaitingHelperResponse && helperResponding == null -> "O aplicativo Afilaxy encontrou possíveis ajudantes e está aguardando a confirmação de quem trará a bombinha de Asma."
+        helperResponding != null -> "O aplicativo Afilaxy confirmou! ${helperResponding.nome} está trazendo a bombinha e está a ${helperResponding.distanciaEstimada}."
+        noHelpersFound -> "O aplicativo Afilaxy buscou, mas não encontrou ajudantes com bombinha nas proximidades no momento."
+        locationError != null -> "O aplicativo Afilaxy está com dificuldades técnicas: $locationError. Tente verificar as permissões e o GPS."
+        userLocation == null && !isLoadingLocation -> "O aplicativo Afilaxy aguarda o início da busca por localização."
+        else -> "Verificando status do aplicativo Afilaxy..."
+    }
+
+    val locationString = userLocation?.let {
+        "Localização Atual (aproximada): Latitude ${"%.4f".format(it.latitude)}, Longitude ${"%.4f".format(it.longitude)}"
+    } ?: "Localização ainda não obtida pelo aplicativo."
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "!!! EMERGÊNCIA DE ASMA !!!",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.error,
+                fontWeight = FontWeight.Bold // Importe androidx.compose.ui.text.font.FontWeight
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "Esta pessoa está tendo uma crise de Asma e precisa de ajuda URGENTE.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "1. LIGUE IMEDIATAMENTE PARA O SAMU (192).",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    "2. Informe ao SAMU:",
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Column(modifier = Modifier.padding(start = 16.dp)) {
+                    Text("Nome do Paciente: $userName")
+                    Text(locationString)
+                }
+                Text(
+                    "3. Status do Aplicativo Afilaxy:",
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(appStatusMessage, modifier = Modifier.padding(start = 16.dp))
+                Text(
+                    "4. Permaneça com o paciente e aguarde o socorro do SAMU e do ajudante com a bombinha (se um for confirmado pelo app).",
+                    style = MaterialTheme.typography.titleSmall
+                )
+                Text(
+                    "Mantenha a calma e ofereça conforto.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { // Importe androidx.compose.material3.TextButton
+                Text("FECHAR MENSAGEM")
+            }
+        }
+    )
 }
 
 // Passo 5: Atualizar o Preview da TelaInicialAfilaxy (opcional, mas bom para o preview)
