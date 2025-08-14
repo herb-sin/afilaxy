@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator // Para indicador de carregamento
@@ -495,12 +496,9 @@ fun TelaAutocuidadoScreen(navController: NavController, modifier: Modifier = Mod
             Text("Perguntar")
         }
         Spacer(modifier = Modifier.height(24.dp))
-        when (uiState) {
-            is UiState.Loading -> CircularProgressIndicator()
-            is UiState.Success -> Text((uiState as UiState.Success).resumo)
-            is UiState.Error -> Text((uiState as UiState.Error).message, color = MaterialTheme.colorScheme.error)
-            else -> {}
-        }
+
+        RespostaIA(uiState)
+
         Spacer(modifier = Modifier.height(32.dp))
         Button(onClick = { navController.popBackStack() }) {
             Text("Voltar para Tela Inicial")
@@ -691,6 +689,39 @@ fun EmergencyInstructionsDialog(
         }
     )
 }
+
+@Composable
+fun RespostaIA(uiState: UiState) {
+    val scrollState = rememberScrollState()
+
+    when (uiState) {
+        is UiState.Loading -> {
+            CircularProgressIndicator()
+        }
+        is UiState.Success -> {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 100.dp, max = 400.dp) // Limita a altura para permitir rolagem
+                    .verticalScroll(scrollState)
+                    .padding(8.dp)
+            ) {
+                Text(
+                    text = uiState.resumo,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+        is UiState.Error -> {
+            Text(
+                text = "Erro: ${uiState.message}",
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+        else -> {}
+    }
+}
+
 
 // Passo 5: Atualizar o Preview da TelaInicialAfilaxy (opcional, mas bom para o preview)
 @Preview(showBackground = true, widthDp = 360, heightDp = 720)
