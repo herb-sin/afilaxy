@@ -1,15 +1,15 @@
-package com.afilaxy // Ou o nome do seu pacote
+package com.afilaxy
 
-import android.Manifest // Para permissões
-import android.content.Context // Para getSystemService e outros usos de contexto
-import android.content.pm.PackageManager // Para verificar permissões
-import android.location.Location // Para o objeto Location
-import android.location.LocationManager // Para verificar se a localização está ativa
+import android.Manifest // permissões
+import android.content.Context // getSystemService e outros usos de contexto
+import android.content.pm.PackageManager // verificar permissões
+import android.location.Location // objeto Location
+import android.location.LocationManager // verificar se a localização está ativa
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult // Para pedir permissão
+import androidx.activity.compose.rememberLauncherForActivityResult // pedir permissão
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContracts // Para pedir permissão
+import androidx.activity.result.contract.ActivityResultContracts // pedir permissão
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator // Para indicador de carregamento
@@ -47,6 +49,13 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.material3.TextField
 import com.afilaxy.ui.theme.AfilaxyTheme // Seu tema
 import com.google.android.gms.location.FusedLocationProviderClient // Cliente de localização
 import com.google.android.gms.location.LocationServices // Para obter o cliente
@@ -58,6 +67,9 @@ import kotlinx.coroutines.delay
 object AppRoutes {
     const val TELA_INICIAL = "tela_inicial"
     const val TELA_EMERGENCIA = "tela_emergencia"
+    const val TELA_AUTOCUIDADO = "tela_autocuidado"
+
+    const val TELA_PREPARADOR_CONSULTA = "tela_preparador_consulta"
 }
 
 data class Helper(
@@ -89,6 +101,14 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxSize()
                         )
                     }
+                    // Define a tela de Autocuidado
+                    composable(AppRoutes.TELA_AUTOCUIDADO) {
+                        TelaAutocuidadoScreen(
+                            navController = navController,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+
                     // Aqui você pode adicionar outras telas no futuro
                     // composable("outra_tela") { OutraTela(navController) }
                 }
@@ -143,7 +163,7 @@ fun TelaInicialAfilaxy(navController: NavController, modifier: Modifier = Modifi
         OutlinedButton(
             onClick = {
                 println("Botão 'Informações e Autocuidado' clicado!")
-                // navController.navigate("rota_informacoes") // Exemplo para o futuro
+                navController.navigate(AppRoutes.TELA_AUTOCUIDADO)
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -435,7 +455,58 @@ fun EmergencyScreen(navController: NavController, modifier: Modifier = Modifier)
         )
     }
 }
+// Após TelaInicialAfilaxy ou EmergencyScreen
+@Composable
+fun TelaAutocuidadoScreen(navController: NavController, modifier: Modifier = Modifier) {
+    val viewModel: PreparadorConsultaViewModel = viewModel()
+    var pergunta by rememberSaveable { mutableStateOf("") }
+    val uiState by viewModel.uiState.collectAsState()
 
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Top,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Assistente de Autocuidado",
+            style = MaterialTheme.typography.headlineMedium,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(
+            text = "Digite sua dúvida sobre Asma ou DPOC e receba orientações seguras.",
+            style = MaterialTheme.typography.bodyLarge,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(24.dp))
+        TextField(
+            value = pergunta,
+            onValueChange = { pergunta = it },
+            label = { Text("Pergunte sobre Asma ou DPOC") },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = { viewModel.prepararResumoConsulta(pergunta) },
+            enabled = pergunta.isNotBlank()
+        ) {
+            Text("Perguntar")
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+        when (uiState) {
+            is UiState.Loading -> CircularProgressIndicator()
+            is UiState.Success -> Text((uiState as UiState.Success).resumo)
+            is UiState.Error -> Text((uiState as UiState.Error).message, color = MaterialTheme.colorScheme.error)
+            else -> {}
+        }
+        Spacer(modifier = Modifier.height(32.dp))
+        Button(onClick = { navController.popBackStack() }) {
+            Text("Voltar para Tela Inicial")
+        }
+    }
+}
 
 // 3. Adicione este novo Composable para exibir cada item da lista de ajudantes
 @Composable
@@ -565,11 +636,20 @@ fun EmergencyInstructionsDialog(
                 text = "!!! EMERGÊNCIA DE ASMA !!!",
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.error,
-                fontWeight = FontWeight.Bold // Importe androidx.compose.ui.text.font.FontWeight
+                fontWeight = FontWeight.Bold
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            // --- INÍCIO DA ALTERAÇÃO ---
+
+            // 1. Crie o estado de rolagem para a coluna de texto
+            val scrollState = rememberScrollState()
+
+            Column(
+                // 2. Adicione este modificador para tornar a coluna rolável
+                modifier = Modifier.verticalScroll(scrollState),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 Text(
                     "Esta pessoa está tendo uma crise de Asma e precisa de ajuda URGENTE.",
                     style = MaterialTheme.typography.bodyLarge,
@@ -602,9 +682,10 @@ fun EmergencyInstructionsDialog(
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
+            // --- FIM DA ALTERAÇÃO ---
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) { // Importe androidx.compose.material3.TextButton
+            TextButton(onClick = onDismiss) {
                 Text("FECHAR MENSAGEM")
             }
         }
