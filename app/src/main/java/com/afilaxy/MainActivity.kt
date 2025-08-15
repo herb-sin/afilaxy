@@ -19,9 +19,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator // Para indicador de carregamento
@@ -31,6 +36,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect // Para executar lógica ao compor
 import androidx.compose.runtime.getValue
@@ -69,8 +76,7 @@ object AppRoutes {
     const val TELA_INICIAL = "tela_inicial"
     const val TELA_EMERGENCIA = "tela_emergencia"
     const val TELA_AUTOCUIDADO = "tela_autocuidado"
-
-    const val TELA_PREPARADOR_CONSULTA = "tela_preparador_consulta"
+    const val TELA_COMUNIDADE = "tela_comunidade"
 }
 
 data class Helper(
@@ -109,7 +115,10 @@ class MainActivity : ComponentActivity() {
                             modifier = Modifier.fillMaxSize()
                         )
                     }
-
+                    // Define a tela de comunidade (placeholder por enquanto)
+                    composable(AppRoutes.TELA_COMUNIDADE) {
+                        TelaComunidadeScreen(navController = navController, modifier = Modifier.fillMaxSize())
+}
                     // Aqui você pode adicionar outras telas no futuro
                     // composable("outra_tela") { OutraTela(navController) }
                 }
@@ -153,8 +162,7 @@ fun TelaInicialAfilaxy(navController: NavController, modifier: Modifier = Modifi
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedButton(
             onClick = {
-                println("Botão 'Acessar Comunidade' clicado!")
-                // navController.navigate("rota_comunidade") // Exemplo para o futuro
+                navController.navigate(AppRoutes.TELA_COMUNIDADE)
             },
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -497,11 +505,147 @@ fun TelaAutocuidadoScreen(navController: NavController, modifier: Modifier = Mod
         }
         Spacer(modifier = Modifier.height(24.dp))
 
-        RespostaIA(uiState)
+        // Bloco rolável apenas para a resposta da IA
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) {
+            RespostaIA(uiState)
+        }
 
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(onClick = { navController.popBackStack() }) {
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Botão fora do bloco rolável, sempre visível
+        Button(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier.fillMaxWidth()
+        ) {
             Text("Voltar para Tela Inicial")
+        }
+    }
+}
+
+//data class Produto deve vir aqui?!
+// ...código anterior...
+
+//data class Produto deve vir aqui?!
+
+// Adicione os data classes para os carrosseis
+data class Produto(val nome: String, val descricao: String)
+data class Evento(val titulo: String, val data: String)
+data class ProjetoInfo(val titulo: String, val texto: String)
+
+// Adicione a tela da comunidade
+@Composable
+fun TelaComunidadeScreen(navController: NavController, modifier: Modifier = Modifier) {
+    val produtos = listOf(
+        Produto("Bombinha Portátil", "Ideal para emergências"),
+        Produto("Espaçador", "Facilita a inalação"),
+        Produto("Nebulizador", "Para uso doméstico")
+    )
+    val eventos = listOf(
+        Evento("Live: Cuidados com Asma", "20/08/2025"),
+        Evento("Encontro de Pacientes", "05/09/2025"),
+        Evento("Webinar: DPOC", "12/09/2025")
+    )
+    val projetos = listOf(
+        ProjetoInfo("Sobre o Afilaxy", "Projeto social para conectar pacientes e voluntários."),
+        ProjetoInfo("Missão", "Ajudar pessoas em crise de asma rapidamente."),
+        ProjetoInfo("Como funciona?", "Localize ajuda próxima e acesse informações confiáveis.")
+    )
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Top
+    ) {
+        Text("Produtos", style = MaterialTheme.typography.titleLarge)
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(produtos) { produto ->
+                ProdutoCard(produto)
+            }
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text("Eventos", style = MaterialTheme.typography.titleLarge)
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(eventos) { evento ->
+                EventoCard(evento)
+            }
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Text("Sobre o Projeto", style = MaterialTheme.typography.titleLarge)
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            items(projetos) { info ->
+                ProjetoCard(info)
+            }
+        }
+        Spacer(modifier = Modifier.height(32.dp))
+
+        Button(
+            onClick = { navController.popBackStack() },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Voltar para Tela Inicial")
+        }
+    }
+}
+
+// Cards para cada carrossel
+@Composable
+fun ProdutoCard(produto: Produto) {
+    Card(
+        modifier = Modifier
+            .width(180.dp)
+            .heightIn(min = 120.dp)
+            .padding(vertical = 8.dp),
+        shape = MaterialTheme.shapes.medium,
+        elevation = CardDefaults.cardElevation(6.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            // Se quiser imagem, adicione aqui: Image(...)
+            Text(produto.nome, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(produto.descricao, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+fun EventoCard(evento: Evento) {
+    Card(
+        modifier = Modifier
+            .width(180.dp)
+            .heightIn(min = 100.dp)
+            .padding(vertical = 8.dp),
+        shape = MaterialTheme.shapes.medium,
+        elevation = CardDefaults.cardElevation(6.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(evento.titulo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(evento.data, style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+fun ProjetoCard(info: ProjetoInfo) {
+    Card(
+        modifier = Modifier
+            .width(180.dp)
+            .heightIn(min = 100.dp)
+            .padding(vertical = 8.dp),
+        shape = MaterialTheme.shapes.medium,
+        elevation = CardDefaults.cardElevation(6.dp)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(info.titulo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(info.texto, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
