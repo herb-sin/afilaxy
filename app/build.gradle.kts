@@ -1,9 +1,14 @@
 plugins {
-    alias(libs.plugins.android.application)
+    id("com.android.application")
+    id("com.google.gms.google-services")
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.android.libraries.mapsplatform.secrets.gradle.plugin)
-    id("com.google.gms.google-services")
+}
+
+repositories {
+    google()
+    mavenCentral()
 }
 
 android {
@@ -40,9 +45,10 @@ android {
         buildConfig = true
     }
 }
+
 dependencies {
     // Dependências do Firebase
-    implementation("com.google.firebase:firebase-analytics-ktx:21.6.0")
+    implementation("com.google.firebase:firebase-analytics-ktx:21.5.0")
     implementation("com.google.firebase:firebase-firestore-ktx:24.10.3")
 
     // Compose Bill of Materials (BOM) - Gerencia todas as versões do Compose

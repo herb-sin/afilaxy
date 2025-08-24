@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "917624157988",
+    "project_id": "afilaxy-d3e57",
+    "storage_bucket": "afilaxy-d3e57.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:917624157988:android:b52a0573e239cd83ab65b1",
+        "android_client_info": {
+          "package_name": "com.afilaxy"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC9m4yQ3bRJyq0qz7ktMFB7WSHAWc2DPEg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
