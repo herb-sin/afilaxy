@@ -1,5 +1,6 @@
 package com.afilaxy
 
+import com.afilaxy.ui.LoginScreen
 import com.google.firebase.FirebaseApp
 import android.Manifest // permissões
 import android.content.Context // getSystemService e outros usos de contexto
@@ -74,6 +75,7 @@ import kotlinx.coroutines.delay
 
 // Definição das rotas de navegação (boas práticas)
 object AppRoutes {
+    const val TELA_LOGIN = "tela_login"
     const val TELA_INICIAL = "tela_inicial"
     const val TELA_EMERGENCIA = "tela_emergencia"
     const val TELA_AUTOCUIDADO = "tela_autocuidado"
@@ -96,11 +98,21 @@ class MainActivity : ComponentActivity() {
             AfilaxyTheme {
                 val navController = rememberNavController() // Cria o controlador de navegação
 
-                NavHost(navController = navController, startDestination = AppRoutes.TELA_INICIAL) {
+                NavHost(navController = navController, startDestination = AppRoutes.TELA_LOGIN) {
+                    // Define a tela de login
+                    composable(AppRoutes.TELA_LOGIN) {
+                        LoginScreen(
+                            onLoginSuccess = {
+                                navController.navigate(AppRoutes.TELA_INICIAL) {
+                                    popUpTo(AppRoutes.TELA_LOGIN) { inclusive = true }
+                                }
+                            }
+                        )
+                    }
                     // Define a tela inicial
                     composable(AppRoutes.TELA_INICIAL) {
                         TelaInicialAfilaxy(
-                            navController = navController, // Passa o navController para a tela inicial
+                            navController = navController,
                             modifier = Modifier.fillMaxSize()
                         )
                     }
