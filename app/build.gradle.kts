@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.android.libraries.mapsplatform.secrets.gradle.plugin)
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -40,6 +41,10 @@ android {
     }
 }
 dependencies {
+    // Dependências do Firebase
+    implementation("com.google.firebase:firebase-analytics-ktx:21.6.0")
+    implementation("com.google.firebase:firebase-firestore-ktx:24.10.3")
+
     // Compose Bill of Materials (BOM) - Gerencia todas as versões do Compose
     val composeBom = platform("androidx.compose:compose-bom:2024.06.00")
     implementation(composeBom)

@@ -1,5 +1,6 @@
 package com.afilaxy
 
+import com.google.firebase.FirebaseApp
 import android.Manifest // permissões
 import android.content.Context // getSystemService e outros usos de contexto
 import android.content.pm.PackageManager // verificar permissões
@@ -89,6 +90,8 @@ data class Helper(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        FirebaseApp.initializeApp(this) // Inicializa o Firebase
+
         setContent {
             AfilaxyTheme {
                 val navController = rememberNavController() // Cria o controlador de navegação
@@ -499,7 +502,7 @@ fun TelaAutocuidadoScreen(navController: NavController, modifier: Modifier = Mod
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = { viewModel.prepararResumoConsulta(pergunta) },
-            enabled = pergunta.isNotBlank()
+            enabled = pergunta.isNotBlank() 
         ) {
             Text("Perguntar")
         }
