@@ -50,6 +50,7 @@ dependencies {
     // Dependências do Firebase
     implementation("com.google.firebase:firebase-analytics-ktx:21.5.0")
     implementation("com.google.firebase:firebase-firestore-ktx:24.10.3")
+    implementation("com.google.firebase:firebase-auth-ktx:22.3.0")
 
     // Compose Bill of Materials (BOM) - Gerencia todas as versões do Compose
     val composeBom = platform("androidx.compose:compose-bom:2024.06.00")
