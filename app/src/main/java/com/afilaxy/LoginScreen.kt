@@ -67,6 +67,9 @@ fun LoginScreen(
                         .addOnCompleteListener { task ->
                             loading = false
                             if (task.isSuccessful) {
+                                val user = auth.currentUser
+                                auth.setLanguageCode("pt") // Define idioma para português
+                                user?.sendEmailVerification() // Envia e-mail de verificação
                                 onLoginSuccess()
                             } else {
                                 errorMessage = task.exception?.localizedMessage ?: "Erro ao cadastrar"
@@ -98,6 +101,32 @@ fun LoginScreen(
             onClick = { isRegisterMode = !isRegisterMode }
         ) {
             Text(if (isRegisterMode) "Já tem conta? Fazer login" else "Não tem conta? Cadastre-se")
+        }
+
+        if (!isRegisterMode) {
+            TextButton(
+                onClick = {
+                    if (email.isBlank()) {
+                        errorMessage = "Informe um e-mail válido para recuperar a senha."
+                        return@TextButton
+                    }
+                    loading = true
+                    errorMessage = null
+                    val auth = FirebaseAuth.getInstance()
+                    auth.sendPasswordResetEmail(email)
+                        .addOnCompleteListener { task ->
+                            loading = false
+                            if (task.isSuccessful) {
+                                errorMessage = "E-mail de recuperação enviado! Verifique sua caixa de SPAM!"
+                            } else {
+                                errorMessage = task.exception?.localizedMessage ?: "Erro ao enviar recuperação"
+                            }
+                        }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Esqueci a senha")
+            }
         }
 
         errorMessage?.let {
