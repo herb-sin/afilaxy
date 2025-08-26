@@ -72,19 +72,37 @@ fun LoginScreen(
                                 user?.sendEmailVerification() // Envia e-mail de verificação
                                 onLoginSuccess()
                             } else {
-                                errorMessage = task.exception?.localizedMessage ?: "Erro ao cadastrar"
+                                val error = task.exception
+                                errorMessage = when {
+                                    error?.message?.contains("The email address is already in use") == true ||
+                                    error?.message?.contains("email address is already") == true ->
+                                    "Este e-mail já está cadastrado. Faça login ou recupere sua senha."
+                                    else -> error?.localizedMessage ?: "Erro ao cadastrar"
+                                }
                             }
                         }
                 } else {
                     auth.signInWithEmailAndPassword(email, password)
-                        .addOnCompleteListener { task ->
-                            loading = false
-                            if (task.isSuccessful) {
+                    .addOnCompleteListener { task ->
+                        loading = false
+                        if (task.isSuccessful) {
+                            val user = auth.currentUser
+                            if (user?.isEmailVerified == true) {
                                 onLoginSuccess()
-                            } else {
-                                errorMessage = task.exception?.localizedMessage ?: "Erro ao autenticar"
+                                } else {
+                                    errorMessage = "Confirme seu e-mail antes de acessar."
+                                }
+                        } else {
+                            val error = task.exception
+                            errorMessage = when {
+                                error?.message?.contains("The supplied auth credential is incorrect") == true ||
+                                error?.message?.contains("no user record") == true ||
+                                error?.message?.contains("There is no user record") == true -> 
+                                    "E-mail ou senha incorretos, ou usuário não cadastrado."
+                                else -> error?.localizedMessage ?: "Erro ao autenticar"
                             }
                         }
+                    }
                 }
             },
             enabled = !loading,
