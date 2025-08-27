@@ -1,6 +1,6 @@
 # Afilaxy
 
-Afilaxy é um aplicativo Android desenvolvido em Kotlin com Jetpack Compose, integrado ao Firebase para autenticação, gerenciamento de usuários e funcionalidades de localização. O app tem como objetivo conectar pessoas e facilitar pedidos de ajuda entre usuários próximos.
+Afilaxy é um aplicativo Android desenvolvido em Kotlin com Jetpack Compose, integrado ao Firebase para autenticação, gerenciamento de usuários e funcionalidades de localização. O app tem como objetivo conectar pessoas e facilitar pedidos de ajuda entre usuários próximos. Seu desenvolvimento possui auxílio total do Copilot.
 
 ## Funcionalidades
 
@@ -63,5 +63,3 @@ Abra uma issue ou envie um pull request.
 Este projeto está sob a licença MIT.
 
 ---
-
-**Afilaxy** — Conectando pessoas, facilitando ajuda!
