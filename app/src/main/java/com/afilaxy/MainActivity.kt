@@ -33,7 +33,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Box
-import androidx.compose.material3.Divider
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator // Para indicador de carregamento
 import androidx.compose.material3.MaterialTheme
@@ -50,6 +50,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext // Para obter o Context
@@ -95,6 +96,8 @@ data class Helper(
 )
 
 class MainActivity : ComponentActivity() {
+    private var locationCallback: LocationCallback? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         FirebaseApp.initializeApp(this) // Inicializa o Firebase
@@ -114,13 +117,24 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 var showLocationDialog by remember { mutableStateOf(false) }
                 val context = LocalContext.current
+                var isLocationUpdatesActive by remember { mutableStateOf(false) }
 
                 // Launcher para solicitar permissão
                 val requestPermissionLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestPermission(),
                     onResult = { isGranted: Boolean ->
                         if (isGranted) {
-                            saveUserLocation(context)
+                            // Inicia atualização contínua
+                            if (!isLocationUpdatesActive) {
+                                locationCallback = startSignificantMovementUpdates(
+                                    context,
+                                    minDistanceMeters = 50f
+                                ) { lat, lon ->
+                                    // Salve no Firebase aqui!
+                                    saveUserLocationWithCoords(context, lat, lon)
+                                }
+                                isLocationUpdatesActive = true
+                            }
                         }
                     }
                 )
@@ -174,6 +188,15 @@ class MainActivity : ComponentActivity() {
                     }
                     // Aqui você pode adicionar outras telas no futuro
                     // composable("outra_tela") { OutraTela(navController) }
+                }
+                // DisposableEffect para parar atualizações de localização
+                DisposableEffect(isLocationUpdatesActive) {
+                    onDispose {
+                        locationCallback?.let {
+                            stopLocationUpdates(context, it)
+                        }
+                        isLocationUpdatesActive = false
+                    }
                 }
             }
         }
@@ -428,7 +451,7 @@ fun EmergencyScreen(navController: NavController, modifier: Modifier = Modifier)
                         LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f, fill = false)) {
                             items(nearbyHelpers) { helper ->
                                 HelperItem(helper = helper)
-                                Divider()
+                                HorizontalDivider()
                             }
                         }
                         if (isAwaitingHelperResponse) {
@@ -747,7 +770,7 @@ fun PreviewEmergencyScreenHelpersFound() {
             LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 items(dummyHelpers) { helper ->
                     HelperItem(helper = helper)
-                    Divider()
+                    HorizontalDivider()
                 }
             }
             Spacer(modifier = Modifier.weight(1f, fill = false))
