@@ -1,6 +1,9 @@
 package com.afilaxy
 
 import com.afilaxy.ui.LoginScreen
+import com.afilaxy.LocationPermissionDialog
+import com.afilaxy.startSignificantMovementUpdates
+import com.afilaxy.stopLocationUpdates
 import com.google.firebase.FirebaseApp
 import android.Manifest // permissões
 import android.content.Context // getSystemService e outros usos de contexto
@@ -8,6 +11,7 @@ import android.content.pm.PackageManager // verificar permissões
 import android.location.Location // objeto Location
 import android.location.LocationManager // verificar se a localização está ativa
 import android.os.Bundle
+import android.os.Build
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult // pedir permissão
 import androidx.activity.compose.setContent
@@ -71,6 +75,7 @@ import com.google.android.gms.location.FusedLocationProviderClient // Cliente de
 import com.google.android.gms.location.LocationServices // Para obter o cliente
 import com.google.android.gms.location.Priority // Para definir a prioridade da localização
 import com.google.android.gms.tasks.CancellationTokenSource // Para cancelar a requisição
+import com.google.android.gms.location.LocationCallback
 import kotlinx.coroutines.delay
 
 // Definição das rotas de navegação (boas práticas)
@@ -94,20 +99,53 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         FirebaseApp.initializeApp(this) // Inicializa o Firebase
 
+        // Solicita permissão de localização
+        val requestPermissionLauncher = registerForActivityResult(
+            ActivityResultContracts.RequestPermission()
+        ) { isGranted: Boolean ->
+            // Você pode tratar o resultado aqui
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+
         setContent {
             AfilaxyTheme {
-                val navController = rememberNavController() // Cria o controlador de navegação
+                val navController = rememberNavController()
+                var showLocationDialog by remember { mutableStateOf(false) }
+                val context = LocalContext.current
+
+                // Launcher para solicitar permissão
+                val requestPermissionLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestPermission(),
+                    onResult = { isGranted: Boolean ->
+                        if (isGranted) {
+                            saveUserLocation(context)
+                        }
+                    }
+                )
 
                 NavHost(navController = navController, startDestination = AppRoutes.TELA_LOGIN) {
-                    // Define a tela de login
                     composable(AppRoutes.TELA_LOGIN) {
                         LoginScreen(
                             onLoginSuccess = {
-                                navController.navigate(AppRoutes.TELA_INICIAL) {
-                                    popUpTo(AppRoutes.TELA_LOGIN) { inclusive = true }
-                                }
+                                showLocationDialog = true
                             }
                         )
+                        if (showLocationDialog) {
+                            LocationPermissionDialog(
+                                onConfirm = {
+                                    showLocationDialog = false
+                                    requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                                    navController.navigate(AppRoutes.TELA_INICIAL) {
+                                        popUpTo(AppRoutes.TELA_LOGIN) { inclusive = true }
+                                    }
+                                },
+                                onDismiss = {
+                                    showLocationDialog = false
+                                }
+                            )
+                        }
                     }
                     // Define a tela inicial
                     composable(AppRoutes.TELA_INICIAL) {
@@ -133,7 +171,7 @@ class MainActivity : ComponentActivity() {
                     // Define a tela de comunidade (placeholder por enquanto)
                     composable(AppRoutes.TELA_COMUNIDADE) {
                         TelaComunidadeScreen(navController = navController, modifier = Modifier.fillMaxSize())
-}
+                    }
                     // Aqui você pode adicionar outras telas no futuro
                     // composable("outra_tela") { OutraTela(navController) }
                 }
