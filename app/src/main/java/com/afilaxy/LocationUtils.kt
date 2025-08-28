@@ -56,3 +56,18 @@ fun stopLocationUpdates(context: Context, callback: LocationCallback) {
     val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
     fusedLocationClient.removeLocationUpdates(callback)
 }
+
+fun saveUserLocationWithCoords(context: Context, latitude: Double, longitude: Double) {
+    val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+    if (user != null) {
+        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val userLocation = hashMapOf(
+            "uid" to user.uid,
+            "email" to user.email,
+            "latitude" to latitude,
+            "longitude" to longitude,
+            "timestamp" to System.currentTimeMillis()
+        )
+        db.collection("user_locations").document(user.uid).set(userLocation)
+    }
+}
