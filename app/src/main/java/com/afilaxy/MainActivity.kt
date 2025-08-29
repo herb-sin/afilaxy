@@ -119,6 +119,16 @@ class MainActivity : ComponentActivity() {
                 val context = LocalContext.current
                 var isLocationUpdatesActive by remember { mutableStateOf(false) }
 
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    val requestPermissionLauncher = rememberLauncherForActivityResult(
+                        contract = ActivityResultContracts.RequestPermission(),
+                        onResult = { isGranted: Boolean -> /* trate o resultado se quiser */ }
+                        )
+                        LaunchedEffect(Unit) {
+                            requestPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }
+
                 // Launcher para solicitar permissão
                 val requestPermissionLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestPermission(),
@@ -144,6 +154,7 @@ class MainActivity : ComponentActivity() {
                         LoginScreen(
                             onLoginSuccess = {
                                 showLocationDialog = true
+                                saveFcmTokenToFirestore(context)
                             }
                         )
                         if (showLocationDialog) {
