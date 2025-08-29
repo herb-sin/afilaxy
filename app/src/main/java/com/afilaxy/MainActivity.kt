@@ -60,6 +60,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat // Para verificar permissão
 import androidx.core.location.LocationManagerCompat // Para LocationManagerCompat.isLocationEnabled
+import androidx.core.app.ActivityCompat // Para ActivityCompat.requestPermissions
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -106,7 +107,13 @@ class MainActivity : ComponentActivity() {
         val requestPermissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestPermission()
         ) { isGranted: Boolean ->
-            // Você pode tratar o resultado aqui
+            if (isGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION),
+                    1001
+                )
+            }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
