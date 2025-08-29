@@ -17,7 +17,7 @@ android {
 
     defaultConfig {
         applicationId = "com.afilaxy"
-        minSdk = 21
+        minSdk = 23
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
@@ -48,10 +48,12 @@ android {
 
 dependencies {
     // Dependências do Firebase
-    implementation("com.google.firebase:firebase-analytics-ktx:21.5.0")
-    implementation("com.google.firebase:firebase-firestore-ktx:24.10.3")
-    implementation("com.google.firebase:firebase-auth-ktx:22.3.0")
-    implementation("com.google.firebase:firebase-messaging-ktx:24.0.0") // Descomente se precisar de notificações push
+    implementation(platform("com.google.firebase:firebase-bom:33.0.0"))
+    implementation("com.google.firebase:firebase-functions-ktx")
+    implementation("com.google.firebase:firebase-messaging-ktx")
+    implementation("com.google.firebase:firebase-auth-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
+    // Adicione outras dependências Firebase SEM versão
 
     // Compose Bill of Materials (BOM) - Gerencia todas as versões do Compose
     val composeBom = platform("androidx.compose:compose-bom:2024.06.00")
