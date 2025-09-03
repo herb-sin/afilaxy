@@ -21,7 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.afilaxy.presentation.comunidade.components.EventoCard
 import com.afilaxy.presentation.comunidade.components.ProdutoCard
@@ -30,7 +30,7 @@ import com.afilaxy.ui.theme.AfilaxyTheme
 
 @Composable
 fun ComunidadeScreen(
-    navController: NavController,
+    navController: NavHostController,
     modifier: Modifier = Modifier,
     viewModel: ComunidadeViewModel = viewModel()
 ) {
@@ -50,7 +50,9 @@ fun ComunidadeScreen(
     }
 
     if (uiState.errorMessage != null) {
+
         val errorMsg = uiState.errorMessage
+        val errorMessage = uiState.errorMessage
         Column(
             modifier = modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Center,
@@ -58,6 +60,7 @@ fun ComunidadeScreen(
         ) {
             Text(
                 text = "Ocorreu um erro inesperado. Tente novamente.",
+                text = errorMessage,
                 color = MaterialTheme.colorScheme.error
             )
             Spacer(modifier = Modifier.height(16.dp))
