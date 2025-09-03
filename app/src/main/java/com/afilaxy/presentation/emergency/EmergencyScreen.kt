@@ -104,10 +104,11 @@ fun EmergencyScreen(
                         Text("Obtendo sua localização...")
                     }
                     uiState.userLocation != null -> {
+                        val location = uiState.userLocation
                         Text("Sua localização obtida com sucesso!")
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Lat: ${String.format("%.4f", uiState.userLocation.latitude)}")
-                        Text("Lon: ${String.format("%.4f", uiState.userLocation.longitude)}")
+                        Text("Lat: ${location?.latitude?.let { String.format("%.4f", it) } ?: "N/D"}")
+                        Text("Lon: ${location?.longitude?.let { String.format("%.4f", it) } ?: "N/D"}")
                         Spacer(modifier = Modifier.height(16.dp))
 
                         when {
@@ -122,13 +123,14 @@ fun EmergencyScreen(
                                 }
                             }
                             uiState.helperResponding != null -> {
+                                val helper = uiState.helperResponding
                                 Text(
-                                    "✅ ${uiState.helperResponding.nome} está a caminho!",
+                                    "✅ ${helper?.nome ?: "Ajudante"} está a caminho!",
                                     color = MaterialTheme.colorScheme.primary,
                                     style = MaterialTheme.typography.titleMedium
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text("Distância: ${uiState.helperResponding.distanciaEstimada}")
+                                Text("Distância: ${helper?.distanciaEstimada ?: "N/D"}")
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Button(
                                     onClick = { viewModel.showEmergencyInstructions() }
@@ -155,8 +157,9 @@ fun EmergencyScreen(
                         }
                     }
                     uiState.locationError != null -> {
+                        val error = uiState.locationError
                         Text(
-                            text = uiState.locationError,
+                            text = "erro linha 162",
                             color = MaterialTheme.colorScheme.error,
                             textAlign = TextAlign.Center
                         )
