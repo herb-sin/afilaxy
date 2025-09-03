@@ -33,7 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.location.LocationManagerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.afilaxy.domain.model.Location
 import com.afilaxy.presentation.emergency.components.HelperCard
@@ -44,7 +44,7 @@ import com.google.android.gms.tasks.CancellationTokenSource
 
 @Composable
 fun EmergencyScreen(
-    navController: NavController,
+    navController: NavHostController,
     modifier: Modifier = Modifier,
     viewModel: EmergencyViewModel = viewModel()
 ) {
@@ -104,10 +104,11 @@ fun EmergencyScreen(
                         Text("Obtendo sua localização...")
                     }
                     uiState.userLocation != null -> {
+                        val userLocation = uiState.userLocation
                         Text("Sua localização obtida com sucesso!")
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Lat: ${String.format("%.4f", uiState.userLocation.latitude)}")
-                        Text("Lon: ${String.format("%.4f", uiState.userLocation.longitude)}")
+                        Text("Lat: ${String.format("%.4f", userLocation.latitude)}")
+                        Text("Lon: ${String.format("%.4f", userLocation.longitude)}")
                         Spacer(modifier = Modifier.height(16.dp))
 
                         when {
@@ -122,13 +123,14 @@ fun EmergencyScreen(
                                 }
                             }
                             uiState.helperResponding != null -> {
+                                val helperResponding = uiState.helperResponding
                                 Text(
-                                    "✅ ${uiState.helperResponding.nome} está a caminho!",
+                                    "✅ ${helperResponding.nome} está a caminho!",
                                     color = MaterialTheme.colorScheme.primary,
                                     style = MaterialTheme.typography.titleMedium
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text("Distância: ${uiState.helperResponding.distanciaEstimada}")
+                                Text("Distância: ${helperResponding.distanciaEstimada}")
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Button(
                                     onClick = { viewModel.showEmergencyInstructions() }
@@ -155,8 +157,9 @@ fun EmergencyScreen(
                         }
                     }
                     uiState.locationError != null -> {
+                        val locationError = uiState.locationError
                         Text(
-                            text = uiState.locationError,
+                            text = locationError,
                             color = MaterialTheme.colorScheme.error,
                             textAlign = TextAlign.Center
                         )
