@@ -104,6 +104,11 @@ fun EmergencyScreen(
                         Text("Obtendo sua localização...")
                     }
                     uiState.userLocation != null -> {
+                        val location = uiState.userLocation
+                        Text("Sua localização obtida com sucesso!")
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Lat: ${location?.latitude?.let { String.format("%.4f", it) } ?: "N/D"}")
+                        Text("Lon: ${location?.longitude?.let { String.format("%.4f", it) } ?: "N/D"}")
                         val userLocation = uiState.userLocation
                         Text("Sua localização obtida com sucesso!")
                         Spacer(modifier = Modifier.height(8.dp))
@@ -123,6 +128,9 @@ fun EmergencyScreen(
                                 }
                             }
                             uiState.helperResponding != null -> {
+                                val helper = uiState.helperResponding
+                                Text(
+                                    "✅ ${helper?.nome ?: "Ajudante"} está a caminho!",
                                 val helperResponding = uiState.helperResponding
                                 Text(
                                     "✅ ${helperResponding.nome} está a caminho!",
@@ -130,6 +138,7 @@ fun EmergencyScreen(
                                     style = MaterialTheme.typography.titleMedium
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
+                                Text("Distância: ${helper?.distanciaEstimada ?: "N/D"}")
                                 Text("Distância: ${helperResponding.distanciaEstimada}")
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Button(
@@ -157,6 +166,9 @@ fun EmergencyScreen(
                         }
                     }
                     uiState.locationError != null -> {
+                        val error = uiState.locationError
+                        Text(
+                            text = "erro linha 162",
                         val locationError = uiState.locationError
                         Text(
                             text = locationError,

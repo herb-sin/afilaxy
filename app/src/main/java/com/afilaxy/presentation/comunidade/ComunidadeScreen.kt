@@ -50,6 +50,8 @@ fun ComunidadeScreen(
     }
 
     if (uiState.errorMessage != null) {
+
+        val errorMsg = uiState.errorMessage
         val errorMessage = uiState.errorMessage
         Column(
             modifier = modifier.fillMaxSize(),
@@ -57,6 +59,7 @@ fun ComunidadeScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
+                text = "Ocorreu um erro inesperado. Tente novamente.",
                 text = errorMessage,
                 color = MaterialTheme.colorScheme.error
             )
