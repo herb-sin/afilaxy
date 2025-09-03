@@ -8,7 +8,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.navigation.NavController
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -23,7 +23,7 @@ import com.afilaxy.saveFcmTokenToFirestore
 @Composable
 fun AppNavigation(
     modifier: Modifier = Modifier,
-    navController: NavController = rememberNavController(),
+    navController: NavHostController = rememberNavController(),
     onLocationCallbackUpdate: (Any?) -> Unit = {}
 ) {
     var showLocationDialog by remember { mutableStateOf(false) }
