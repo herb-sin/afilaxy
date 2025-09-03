@@ -29,9 +29,16 @@ fun EventoCard(evento: Evento) {
         elevation = CardDefaults.cardElevation(6.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(evento.titulo, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(
+                text = evento.titulo, 
+                style = MaterialTheme.typography.titleMedium, 
+                fontWeight = FontWeight.Bold
+            )
             Spacer(modifier = Modifier.height(4.dp))
-            Text(evento.data, style = MaterialTheme.typography.bodySmall)
+            Text(
+                text = evento.data, 
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }
