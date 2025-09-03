@@ -1,4 +1,4 @@
-package com.afilaxy.ui
+package com.afilaxy.presentation.login
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.Image
