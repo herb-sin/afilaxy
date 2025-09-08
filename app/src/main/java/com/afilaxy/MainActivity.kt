@@ -21,6 +21,7 @@ import androidx.core.app.ActivityCompat
 import androidx.navigation.compose.rememberNavController
 import com.afilaxy.presentation.common.navigation.AppNavigation
 import com.afilaxy.ui.theme.AfilaxyTheme
+import com.afilaxy.ui.RequestNotificationPermission
 import com.google.android.gms.location.LocationCallback
 import com.google.firebase.FirebaseApp
 
@@ -48,6 +49,7 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
+            RequestNotificationPermission()
             AfilaxyTheme {
                 val navController = rememberNavController()
                 val context = LocalContext.current
