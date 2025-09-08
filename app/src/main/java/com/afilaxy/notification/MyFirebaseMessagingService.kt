@@ -1,4 +1,4 @@
-package com.afilaxy
+package com.afilaxy.notification
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -7,27 +7,27 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.app.NotificationCompat
+import com.afilaxy.MainActivity
+import com.afilaxy.R
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 
-class AfilaxyMessagingService : FirebaseMessagingService() {
+class MyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
-        val title = remoteMessage.notification?.title ?: "Alerta Afilaxy"
-        val body = remoteMessage.notification?.body ?: "Alguém próximo precisa de uma bombinha!"
-
-        sendNotification(title, body)
+        remoteMessage.notification?.let {
+            sendNotification(it.title ?: "Afilaxy", it.body ?: "")
+        }
     }
 
     private fun sendNotification(title: String, message: String) {
-        val channelId = "afilaxy_alerts"
+        val channelId = "afilaxy_channel"
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // Cria canal de notificação para Android 8+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "Afilaxy Alerts",
-                NotificationManager.IMPORTANCE_HIGH
+                "Afilaxy Notificações",
+                NotificationManager.IMPORTANCE_DEFAULT
             )
             notificationManager.createNotificationChannel(channel)
         }
@@ -38,7 +38,7 @@ class AfilaxyMessagingService : FirebaseMessagingService() {
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle(title)
             .setContentText(message)
-            .setSmallIcon(R.drawable.afilaxy_logo)
+            .setSmallIcon(R.drawable.ic_notification) // Adicione um ícone ao seu projeto
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .build()
