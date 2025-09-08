@@ -161,8 +161,8 @@ Contribuições são muito bem-vindas! Este projeto tem um impacto social import
 - [x] Sistema de autenticação
 - [x] Interface com Jetpack Compose
 - [x] Tela da comunidade
-- [ ] Implementação completa de geolocalização
-- [ ] Sistema de notificações push
+- [x] Implementação completa de geolocalização
+- [x] Sistema de notificações push
 - [ ] Integração com mapas
 - [ ] Testes automatizados
 - [ ] Publicação na Play Store
