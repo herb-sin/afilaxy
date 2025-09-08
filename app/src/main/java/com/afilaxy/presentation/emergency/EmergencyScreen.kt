@@ -24,6 +24,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -35,6 +36,7 @@ import androidx.core.location.LocationManagerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.afilaxy.presentation.location.LocationViewModel
 import com.afilaxy.domain.model.Location
 import com.afilaxy.presentation.emergency.components.HelperCard
 import com.afilaxy.ui.theme.AfilaxyTheme
@@ -50,6 +52,18 @@ fun EmergencyScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
+    val locationViewModel: LocationViewModel = viewModel()
+    val location by locationViewModel.location.collectAsState()
+
+    // Inicia/paralisa atualizações de localização conforme ciclo de vida do Composable
+    LaunchedEffect(Unit) {
+        locationViewModel.startLocationUpdates(context)
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            locationViewModel.stopLocationUpdates(context)
+        }
+    }
 
     // Check location permission
     val hasLocationPermission = remember {
@@ -109,11 +123,6 @@ fun EmergencyScreen(
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("Lat: ${location?.latitude?.let { String.format("%.4f", it) } ?: "N/D"}")
                         Text("Lon: ${location?.longitude?.let { String.format("%.4f", it) } ?: "N/D"}")
-                        val userLocation = uiState.userLocation
-                        Text("Sua localização obtida com sucesso!")
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Lat: ${String.format("%.4f", userLocation.latitude)}")
-                        Text("Lon: ${String.format("%.4f", userLocation.longitude)}")
                         Spacer(modifier = Modifier.height(16.dp))
 
                         when {
@@ -131,15 +140,11 @@ fun EmergencyScreen(
                                 val helper = uiState.helperResponding
                                 Text(
                                     "✅ ${helper?.nome ?: "Ajudante"} está a caminho!",
-                                val helperResponding = uiState.helperResponding
-                                Text(
-                                    "✅ ${helperResponding.nome} está a caminho!",
                                     color = MaterialTheme.colorScheme.primary,
                                     style = MaterialTheme.typography.titleMedium
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text("Distância: ${helper?.distanciaEstimada ?: "N/D"}")
-                                Text("Distância: ${helperResponding.distanciaEstimada}")
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Button(
                                     onClick = { viewModel.showEmergencyInstructions() }
@@ -169,9 +174,6 @@ fun EmergencyScreen(
                         val error = uiState.locationError
                         Text(
                             text = "erro linha 162",
-                        val locationError = uiState.locationError
-                        Text(
-                            text = locationError,
                             color = MaterialTheme.colorScheme.error,
                             textAlign = TextAlign.Center
                         )
