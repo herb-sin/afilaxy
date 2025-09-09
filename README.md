@@ -17,7 +17,7 @@
 
 ## 📱 Sobre o Projeto
 
-O **Afilaxy** é um aplicativo Android inovador que identifica a pessoa mais próxima com uma "bombinha" de asma em casos emergenciais. Desenvolvido para alcançar pacientes fora do ambiente clínico, o app entrega boas práticas médicas, engajando pacientes no tratamento disponibilizado pelo SUS.
+O **Afilaxy** é um aplicativo Android que identifica a pessoa mais próxima com uma "bombinha" de asma em casos emergenciais. Desenvolvido para alcançar pacientes fora do ambiente clínico, o app entrega boas práticas médicas, engajando pacientes no tratamento disponibilizado pelo SUS.
 
 ### 🎯 Missão
 Facilitar o acesso a medicamentos de emergência para asma e promover o engajamento de pacientes ao tratamento através da tecnologia.
@@ -171,10 +171,10 @@ Contribuições são muito bem-vindas! Este projeto tem um impacto social import
 
 O Afilaxy representa uma ponte tecnológica entre pacientes com asma e o Sistema Único de Saúde (SUS), promovendo:
 
-- **Acesso rápido** a medicamentos em emergências
+- **Acesso rápido** ao medicamento em emergências
 - **Educação em saúde** através da comunidade
 - **Engajamento** no tratamento contínuo
-- **Solidariedade** entre pessoas com a mesma condição
+- **Solidariedade** entre pacientes
 
 ## 📄 Licença
 
@@ -185,7 +185,3 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICE
 Desenvolvido com ❤️ por [@herb-sin](https://github.com/herb-sin)
 
 ---
-
-<p align="center">
-  <strong>🫁 Respirar é um direito, ajudar é uma escolha 💙</strong>
-</p>
