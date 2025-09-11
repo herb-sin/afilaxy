@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -185,11 +186,19 @@ fun EmergencyScreen(
                         }
                     }
                     else -> {
-                        Text("Preparando para buscar localização...")
                         Button(
-                            onClick = { fetchCurrentUserLocation(context, viewModel) }
+                            onClick = { fetchCurrentUserLocation(context, viewModel) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(80.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.error
+                            )
                         ) {
-                            Text("Buscar Minha Localização")
+                            Text(
+                                "🚨 SOS - PRECISO DE BOMBINHA",
+                                style = MaterialTheme.typography.titleLarge
+                            )
                         }
                     }
                 }

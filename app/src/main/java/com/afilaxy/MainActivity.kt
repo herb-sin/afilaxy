@@ -25,6 +25,7 @@ import com.afilaxy.ui.RequestNotificationPermission
 import com.google.android.gms.location.LocationCallback
 import com.google.firebase.FirebaseApp
 
+
 class MainActivity : ComponentActivity() {
     private var locationCallback: LocationCallback? = null
 
