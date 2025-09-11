@@ -60,7 +60,6 @@ fun ComunidadeScreen(
         ) {
             Text(
                 text = "Ocorreu um erro inesperado. Tente novamente.",
-                text = errorMessage,
                 color = MaterialTheme.colorScheme.error
             )
             Spacer(modifier = Modifier.height(16.dp))
