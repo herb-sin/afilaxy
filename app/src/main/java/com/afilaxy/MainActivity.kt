@@ -53,6 +53,13 @@ class MainActivity : ComponentActivity() {
             RequestNotificationPermission()
             AfilaxyTheme {
                 val navController = rememberNavController()
+                
+                // Verificar se app foi aberto por notificação de emergência
+                LaunchedEffect(Unit) {
+                    if (intent.getBooleanExtra("open_emergency", false)) {
+                        navController.navigate("tela_helper_response")
+                    }
+                }
                 val context = LocalContext.current
                 var isLocationUpdatesActive by remember { mutableStateOf(false) }
 
