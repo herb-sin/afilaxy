@@ -17,6 +17,7 @@ import com.afilaxy.LocationPermissionDialog
 import com.afilaxy.presentation.autocuidado.AutocuidadoScreen
 import com.afilaxy.presentation.comunidade.ComunidadeScreen
 import com.afilaxy.presentation.emergency.EmergencyScreen
+import com.afilaxy.presentation.helper.HelperResponseScreen
 import com.afilaxy.presentation.home.HomeScreen
 import com.afilaxy.presentation.login.LoginScreen
 import com.afilaxy.saveFcmTokenToFirestore
@@ -79,6 +80,13 @@ fun AppNavigation(
         
         composable(AppRoutes.TELA_COMUNIDADE) {
             ComunidadeScreen(
+                navController = navController,
+                modifier = modifier
+            )
+        }
+        
+        composable(AppRoutes.TELA_HELPER_RESPONSE) {
+            HelperResponseScreen(
                 navController = navController,
                 modifier = modifier
             )
