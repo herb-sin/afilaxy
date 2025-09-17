@@ -84,6 +84,15 @@ fun HomeScreen(
         ) {
             Text("Informações e Autocuidado")
         }
+        Spacer(modifier = Modifier.height(16.dp))
+        OutlinedButton(
+            onClick = {
+                navController.navigate(AppRoutes.TELA_HELPER_RESPONSE)
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("🧪 TESTE: Tela Helper")
+        }
     }
 }
 

@@ -6,4 +6,5 @@ object AppRoutes {
     const val TELA_EMERGENCIA = "tela_emergencia"
     const val TELA_AUTOCUIDADO = "tela_autocuidado"
     const val TELA_COMUNIDADE = "tela_comunidade"
+    const val TELA_HELPER_RESPONSE = "tela_helper_response"
 }
