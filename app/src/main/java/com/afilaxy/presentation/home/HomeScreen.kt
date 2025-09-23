@@ -2,14 +2,18 @@ package com.afilaxy.presentation.home
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -52,11 +56,48 @@ fun HomeScreen(
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "Sua comunidade de apoio e autocuidado para Asma.",
+            text = if (uiState.userName?.contains("Teste") == true) 
+                "Modo teste - Use o botão abaixo para simular emergência" 
+            else "Sua comunidade de apoio e autocuidado para Asma.",
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center
         )
-        Spacer(modifier = Modifier.height(48.dp))
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        // Card com switch de helper
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Disponível para ajudar",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Text(
+                        text = if (uiState.isHelper) "Você receberá pedidos de emergência" 
+                               else "Você não receberá pedidos de emergência",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = uiState.isHelper,
+                    onCheckedChange = { viewModel.toggleHelperStatus() }
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
 
         Button(
             onClick = {
@@ -91,7 +132,16 @@ fun HomeScreen(
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("🧪 TESTE: Tela Helper")
+            Text("🚨 SIMULAR: Receber Emergência")
+        }
+        
+        uiState.errorMessage?.let { error ->
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = error,
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }
