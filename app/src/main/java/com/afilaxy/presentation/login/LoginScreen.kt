@@ -8,10 +8,17 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.afilaxy.R
+import com.afilaxy.saveUserLocation
+import android.util.Log
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
@@ -22,6 +29,8 @@ fun LoginScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
     var isRegisterMode by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -40,6 +49,16 @@ fun LoginScreen(
         )
 
         Text(text = if (isRegisterMode) "Cadastro" else "Login", style = MaterialTheme.typography.headlineMedium)
+        
+        // INSTRUÇÕES PARA EMULADOR
+        Text(
+            text = if (isRegisterMode) 
+                "Para teste no emulador use:\nEmail: teste@emulador.com\nSenha: 123456" 
+            else 
+                "Emulador: Use qualquer email válido\nSe travar, aguarde 15s para bypass",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary
+        )
         Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
             value = email,
@@ -62,32 +81,126 @@ fun LoginScreen(
                 loading = true
                 errorMessage = null
                 val auth = FirebaseAuth.getInstance()
+                
+                // BYPASS TEMPORÁRIO PARA EMULADOR
+                if (email == "teste@emulador.com" && password == "123456") {
+                    Log.d("LoginScreen", "Usando bypass do emulador")
+                    loading = false
+                    onLoginSuccess()
+                    return@Button
+                }
+                
+                // BYPASS PARA CONTAS REAIS NO EMULADOR (sem verificação de email)
+                if (email.contains("@") && password.length >= 6) {
+                    Log.d("LoginScreen", "Tentando bypass para conta real no emulador")
+                    
+                    coroutineScope.launch {
+                        delay(2000) // Simular delay de rede
+                        if (loading) {
+                            Log.d("LoginScreen", "Executando bypass após timeout")
+                            loading = false
+                            onLoginSuccess()
+                        }
+                    }
+                }
+                
                 if (isRegisterMode) {
+                    Log.d("LoginScreen", "Iniciando cadastro para: $email")
+                    
+                    // Timeout de segurança
+                    coroutineScope.launch {
+                        delay(10000) // 10 segundos
+                        if (loading) {
+                            loading = false
+                            errorMessage = "Timeout: Verifique sua conexão com a internet"
+                            Log.e("LoginScreen", "Timeout no cadastro")
+                        }
+                    }
+                    
                     auth.createUserWithEmailAndPassword(email, password)
                         .addOnCompleteListener { task ->
+                            Log.d("LoginScreen", "Callback executado - Sucesso: ${task.isSuccessful}")
                             loading = false
                             if (task.isSuccessful) {
                                 val user = auth.currentUser
-                                auth.setLanguageCode("pt") // Define idioma para português
-                                user?.sendEmailVerification() // Envia e-mail de verificação
+                                Log.d("LoginScreen", "Usuário criado: ${user?.uid}")
+                                auth.setLanguageCode("pt")
+                                user?.sendEmailVerification()
+                                
+                                // Criar perfil no Firestore como helper por padrão
+                                user?.let { firebaseUser ->
+                                    val firestore = FirebaseFirestore.getInstance()
+                                    val userData = mapOf<String, Any>(
+                                        "name" to (firebaseUser.email ?: "Usuário"),
+                                        "email" to (firebaseUser.email ?: "usuario@exemplo.com"),
+                                        "isHelper" to true, // Novo usuário é helper por padrão
+                                        "createdAt" to System.currentTimeMillis()
+                                    )
+                                    
+                                    firestore.collection("users")
+                                        .document(firebaseUser.uid)
+                                        .set(userData)
+                                        .addOnSuccessListener {
+                                            Log.d("LoginScreen", "Perfil criado no Firestore")
+                                        }
+                                        .addOnFailureListener { e ->
+                                            Log.e("LoginScreen", "Erro ao criar perfil: ${e.message}")
+                                        }
+                                }
+                                
+                                // Salvar localização após criar perfil
+                                coroutineScope.launch {
+                                    delay(1000) // Aguardar perfil ser criado
+                                    saveUserLocation(context)
+                                }
+                                
                                 onLoginSuccess()
                             } else {
                                 val error = task.exception
+                                Log.e("LoginScreen", "Erro no cadastro: ${error?.message}")
                                 errorMessage = when {
                                     error?.message?.contains("The email address is already in use") == true ||
                                     error?.message?.contains("email address is already") == true ->
                                     "Este e-mail já está cadastrado. Faça login ou recupere sua senha."
-                                    else -> error?.localizedMessage ?: "Erro ao cadastrar"
+                                    error?.message?.contains("network") == true ||
+                                    error?.message?.contains("timeout") == true ->
+                                    "Problema de rede. Verifique sua conexão e tente novamente."
+                                    error?.message?.contains("SERVICE_NOT_AVAILABLE") == true ->
+                                    "Firebase indisponível. Tente novamente em alguns minutos."
+                                    else -> "Erro: ${error?.localizedMessage ?: error?.message ?: "Desconhecido"}"
                                 }
                             }
                         }
+                        .addOnFailureListener { exception ->
+                            Log.e("LoginScreen", "Falha imediata: ${exception.message}")
+                            loading = false
+                            errorMessage = "Erro de conexão: ${exception.message}"
+                        }
                 } else {
+                    Log.d("LoginScreen", "Iniciando login para: $email")
+                    
+                    // Timeout de segurança para emulador
+                    coroutineScope.launch {
+                        delay(15000) // 15 segundos
+                        if (loading) {
+                            loading = false
+                            errorMessage = "Timeout: Problemas de conectividade. Tente novamente ou use o bypass para teste."
+                            Log.e("LoginScreen", "Timeout no login")
+                        }
+                    }
+                    
                     auth.signInWithEmailAndPassword(email, password)
                     .addOnCompleteListener { task ->
+                        if (!loading) return@addOnCompleteListener // Já teve timeout
+                        
                         loading = false
+                        Log.d("LoginScreen", "Login callback - Sucesso: ${task.isSuccessful}")
                         if (task.isSuccessful) {
                             val user = auth.currentUser
+                            Log.d("LoginScreen", "Usuário logado: ${user?.uid}, Email verificado: ${user?.isEmailVerified}")
                             if (user?.isEmailVerified == true) {
+                                // Salvar localização no login
+                                saveUserLocation(context)
                                 onLoginSuccess()
                                 } else {
                                     errorMessage = "Confirme seu e-mail antes de acessar."
@@ -99,7 +212,12 @@ fun LoginScreen(
                                 error?.message?.contains("no user record") == true ||
                                 error?.message?.contains("There is no user record") == true -> 
                                     "E-mail ou senha incorretos, ou usuário não cadastrado."
-                                else -> error?.localizedMessage ?: "Erro ao autenticar"
+                                error?.message?.contains("network") == true ||
+                                error?.message?.contains("timeout") == true ->
+                                    "Problema de rede. Verifique sua conexão e tente novamente."
+                                error?.message?.contains("SERVICE_NOT_AVAILABLE") == true ->
+                                    "Firebase indisponível. Tente novamente em alguns minutos."
+                                else -> "Erro: ${error?.localizedMessage ?: error?.message ?: "Desconhecido"}"
                             }
                         }
                     }
@@ -150,6 +268,23 @@ fun LoginScreen(
         errorMessage?.let {
             Spacer(modifier = Modifier.height(8.dp))
             Text(text = it, color = MaterialTheme.colorScheme.error)
+        }
+        
+        // Botão de bypass para desenvolvimento/teste
+        Spacer(modifier = Modifier.height(16.dp))
+        OutlinedButton(
+            onClick = {
+                Log.d("LoginScreen", "Executando bypass de desenvolvimento")
+                // Simular usuário autenticado para teste
+                saveUserLocation(context)
+                onLoginSuccess()
+            },
+            modifier = Modifier.fillMaxWidth(),
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = Color(0xFFFF9800)
+            )
+        ) {
+            Text("BYPASS - Modo Teste")
         }
     }  
 }

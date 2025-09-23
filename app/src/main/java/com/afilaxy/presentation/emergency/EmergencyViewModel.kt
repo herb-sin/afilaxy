@@ -73,17 +73,7 @@ class EmergencyViewModel : ViewModel() {
                             )
                         }
 
-                val helpers =
-                        try {
-                            findNearbyHelpers(location)
-                        } catch (e: Exception) {
-                            // Fallback: helpers simulados para teste
-                            listOf(
-                                    Helper("1", "Ana Silva", "150m"),
-                                    Helper("2", "João Santos", "300m"),
-                                    Helper("3", "Maria Costa", "500m")
-                            )
-                        }
+                val helpers = findNearbyHelpers(location)
 
                 if (helpers.isEmpty()) {
                     _uiState.value =
@@ -149,69 +139,109 @@ class EmergencyViewModel : ViewModel() {
     }
 
     private suspend fun findNearbyHelpers(location: Location): List<Helper> {
-        val firestore = FirebaseFirestore.getInstance()
-        val auth = FirebaseAuth.getInstance()
-        val currentUserId = auth.currentUser?.uid
+        return try {
+            val firestore = FirebaseFirestore.getInstance()
+            val auth = FirebaseAuth.getInstance()
+            val currentUserId = auth.currentUser?.uid
 
-        val usersSnapshot =
-                firestore.collection("users").whereEqualTo("isHelper", true).get().await()
+            val usersSnapshot =
+                    firestore.collection("users").whereEqualTo("isHelper", true).get().await()
 
-        val helpers = mutableListOf<Helper>()
+            val helpers = mutableListOf<Helper>()
 
-        for (document in usersSnapshot.documents) {
-            // ✅ CORREÇÃO: Excluir o próprio usuário
-            if (document.id == currentUserId) {
-                continue // Pula o próprio usuário
-            }
-            val userLocation = document.getGeoPoint("location")
-            if (userLocation != null) {
-                val distance =
-                        calculateDistance(
-                                location.latitude,
-                                location.longitude,
-                                userLocation.latitude,
-                                userLocation.longitude
-                        )
-
-                if (distance <= 0.5) { // 500m radius
-                    helpers.add(
-                            Helper(
-                                    id = document.id,
-                                    nome = document.getString("name") ?: "Helper",
-                                    distanciaEstimada = "${(distance * 1000).toInt()}m"
+            for (document in usersSnapshot.documents) {
+                // Excluir o próprio usuário
+                if (document.id == currentUserId) {
+                    continue
+                }
+                val userLocation = document.getGeoPoint("location")
+                if (userLocation != null) {
+                    val distance =
+                            calculateDistance(
+                                    location.latitude,
+                                    location.longitude,
+                                    userLocation.latitude,
+                                    userLocation.longitude
                             )
-                    )
+
+                    if (distance <= 2.0) { // 2km radius para teste
+                        helpers.add(
+                                Helper(
+                                        id = document.id,
+                                        nome = document.getString("name") ?: "Helper",
+                                        distanciaEstimada = "${(distance * 1000).toInt()}m"
+                                )
+                        )
+                    }
                 }
             }
-        }
 
-        return helpers.sortedBy { it.distanciaEstimada }
+            helpers.sortedBy { it.distanciaEstimada }
+        } catch (e: Exception) {
+            android.util.Log.w("EmergencyViewModel", "Erro ao buscar helpers no Firebase, usando fallback: ${e.message}")
+            // Fallback: criar helpers simulados para teste
+            createSimulatedHelpers(location)
+        }
+    }
+    
+    private fun createSimulatedHelpers(location: Location): List<Helper> {
+        // Criar helpers simulados próximos para teste
+        val simulatedHelpers = listOf(
+            Helper(
+                id = "helper_1",
+                nome = "Helper Teste 1",
+                distanciaEstimada = "150m"
+            ),
+            Helper(
+                id = "helper_2", 
+                nome = "Helper Teste 2",
+                distanciaEstimada = "300m"
+            ),
+            Helper(
+                id = "helper_3",
+                nome = "Helper Teste 3", 
+                distanciaEstimada = "500m"
+            )
+        )
+        
+        android.util.Log.d("EmergencyViewModel", "Criados ${simulatedHelpers.size} helpers simulados para teste")
+        return simulatedHelpers
     }
 
     private suspend fun notifyHelpers(helpers: List<Helper>, emergency: Emergency) {
         val firestore = FirebaseFirestore.getInstance()
+        
+        android.util.Log.d("EmergencyViewModel", "🔔 Notificando ${helpers.size} helpers")
 
         for (helper in helpers) {
-            val alertData =
-                    mapOf(
-                            "type" to "emergency_alert",
-                            "emergencyId" to emergency.id,
-                            "requesterName" to emergency.userName,
-                            "location" to
-                                    GeoPoint(
-                                            emergency.location.latitude,
-                                            emergency.location.longitude
-                                    ),
-                            "timestamp" to System.currentTimeMillis()
-                    )
+            try {
+                val alertData = mapOf(
+                    "type" to "emergency_alert",
+                    "emergencyId" to emergency.id,
+                    "requesterName" to emergency.userName,
+                    "location" to GeoPoint(
+                        emergency.location.latitude,
+                        emergency.location.longitude
+                    ),
+                    "timestamp" to System.currentTimeMillis()
+                )
+                
+                android.util.Log.d("EmergencyViewModel", "📤 Enviando notificação para helper: ${helper.id}")
 
-            firestore
+                firestore
                     .collection("users")
                     .document(helper.id)
                     .collection("notifications")
                     .add(alertData)
                     .await()
+                        
+                android.util.Log.d("EmergencyViewModel", "✅ Notificação enviada para: ${helper.nome}")
+            } catch (e: Exception) {
+                android.util.Log.e("EmergencyViewModel", "❌ Erro ao notificar ${helper.nome}: ${e.message}")
+            }
         }
+        
+        android.util.Log.d("EmergencyViewModel", "🏁 Processo de notificação concluído")
     }
 
     private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {

@@ -22,16 +22,58 @@ import androidx.navigation.compose.rememberNavController
 import com.afilaxy.presentation.common.navigation.AppNavigation
 import com.afilaxy.ui.theme.AfilaxyTheme
 import com.afilaxy.ui.RequestNotificationPermission
+import com.afilaxy.utils.FirebaseDiagnostic
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import com.google.android.gms.location.LocationCallback
 import com.google.firebase.FirebaseApp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 
 
 class MainActivity : ComponentActivity() {
     private var locationCallback: LocationCallback? = null
+    private var notificationListener: ListenerRegistration? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        FirebaseApp.initializeApp(this)
+        
+        // Inicializar Firebase com configurações específicas
+        try {
+            FirebaseApp.initializeApp(this)
+            
+            // Configurar Firebase para emulador se necessário
+            val auth = FirebaseAuth.getInstance()
+            val firestore = FirebaseFirestore.getInstance()
+            
+            // Detectar se está rodando no emulador
+            val isEmulator = android.os.Build.FINGERPRINT.contains("generic") ||
+                           android.os.Build.MODEL.contains("Emulator") ||
+                           android.os.Build.MANUFACTURER.contains("Genymotion")
+            
+            if (isEmulator) {
+                android.util.Log.d("MainActivity", "🔧 Configurando Firebase para emulador")
+                // Configurações específicas para emulador
+                try {
+                    auth.useEmulator("10.0.2.2", 9099)
+                    firestore.useEmulator("10.0.2.2", 8080)
+                    android.util.Log.d("MainActivity", "✅ Emulador Firebase configurado")
+                } catch (e: Exception) {
+                    android.util.Log.w("MainActivity", "⚠️ Erro ao configurar emulador: ${e.message}")
+                }
+            }
+            
+            android.util.Log.d("MainActivity", "✅ Firebase inicializado com sucesso")
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "❌ Erro ao inicializar Firebase: ${e.message}")
+        }
+        
+        // Executar diagnóstico Firebase
+        CoroutineScope(Dispatchers.IO).launch {
+            FirebaseDiagnostic.runFullDiagnostic(this@MainActivity)
+        }
 
         // Solicita permissão de localização
         val requestPermissionLauncher = registerForActivityResult(
@@ -54,9 +96,64 @@ class MainActivity : ComponentActivity() {
             AfilaxyTheme {
                 val navController = rememberNavController()
                 
+                // Listener para notificações de emergência em tempo real
+                LaunchedEffect(Unit) {
+                    val auth = FirebaseAuth.getInstance()
+                    val firestore = FirebaseFirestore.getInstance()
+                    val currentUser = auth.currentUser
+                    
+                    if (currentUser != null) {
+                        android.util.Log.d("MainActivity", "🔍 ✅ Configurando listener para: ${currentUser.uid} (${currentUser.email})")
+                        
+                        notificationListener = firestore
+                            .collection("users")
+                            .document(currentUser.uid)
+                            .collection("notifications")
+                            .whereEqualTo("type", "emergency_alert")
+                            .addSnapshotListener { snapshot, error ->
+                                if (error != null) {
+                                    android.util.Log.e("MainActivity", "❌ Erro no listener: ${error.message}")
+                                    return@addSnapshotListener
+                                }
+                                
+                                android.util.Log.d("MainActivity", "📨 ✅ Listener ATIVO - Documentos: ${snapshot?.documents?.size ?: 0}")
+                                
+                                snapshot?.documentChanges?.forEach { change ->
+                                    android.util.Log.d("MainActivity", "🔄 🔥 MUDANÇA: ${change.type}")
+                                    
+                                    if (change.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
+                                        android.util.Log.d("MainActivity", "🎆 🚨 EMERGÊNCIA DETECTADA!")
+                                        
+                                        val emergencyId = change.document.getString("emergencyId")
+                                        val requesterName = change.document.getString("requesterName")
+                                        val requesterId = change.document.getString("requesterId")
+                                        
+                                        android.util.Log.d("MainActivity", "🎯 ID: $emergencyId, De: $requesterName, RequesterId: $requesterId")
+                                        android.util.Log.d("MainActivity", "👤 Current User: ${currentUser.uid}")
+                                        
+                                        // Verificar se não é o próprio usuário
+                                        if (requesterId != currentUser.uid) {
+                                            android.util.Log.d("MainActivity", "✅ Emergência de outro usuário - navegando")
+                                            if (emergencyId != null) {
+                                                navController.navigate("tela_helper_response/$emergencyId")
+                                            } else {
+                                                navController.navigate("tela_helper_response")
+                                            }
+                                        } else {
+                                            android.util.Log.d("MainActivity", "🚫 Emergência própria - ignorando")
+                                        }
+                                    }
+                                }
+                            }
+                    } else {
+                        android.util.Log.e("MainActivity", "❌ Usuário NÃO autenticado")
+                    }
+                }
+                
                 // Verificar se app foi aberto por notificação de emergência
                 LaunchedEffect(Unit) {
                     if (intent.getBooleanExtra("open_emergency", false)) {
+                        android.util.Log.d("MainActivity", "📨 App aberto por notificação de emergência")
                         navController.navigate("tela_helper_response")
                     }
                 }
@@ -104,12 +201,13 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
-                // Cleanup location updates
+                // Cleanup location updates e listener
                 DisposableEffect(isLocationUpdatesActive) {
                     onDispose {
                         locationCallback?.let {
                             stopLocationUpdates(context, it)
                         }
+                        notificationListener?.remove()
                         isLocationUpdatesActive = false
                     }
                 }

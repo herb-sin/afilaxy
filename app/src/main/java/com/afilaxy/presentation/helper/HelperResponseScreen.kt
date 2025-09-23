@@ -83,28 +83,16 @@ fun HelperResponseScreen(
                     }
                     
                     else -> {
-                        // Dados de teste quando não há emergência real
                         Text(
-                            text = "Maria Silva precisa de bombinha!",
+                            text = "Nenhuma emergência ativa",
                             style = MaterialTheme.typography.titleLarge,
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Distância: ~250m",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Há 2min",
+                            text = "Aguardando pedidos de ajuda...",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "(MODO TESTE)",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
