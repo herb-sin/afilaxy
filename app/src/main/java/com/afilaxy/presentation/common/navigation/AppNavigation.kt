@@ -13,6 +13,8 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import androidx.navigation.NavType
 import com.afilaxy.LocationPermissionDialog
 import com.afilaxy.presentation.autocuidado.AutocuidadoScreen
 import com.afilaxy.presentation.comunidade.ComunidadeScreen
@@ -85,6 +87,19 @@ fun AppNavigation(
             )
         }
         
+        composable(
+            route = "${AppRoutes.TELA_HELPER_RESPONSE}/{emergencyId}",
+            arguments = listOf(navArgument("emergencyId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val emergencyId = backStackEntry.arguments?.getString("emergencyId")
+            HelperResponseScreen(
+                navController = navController,
+                emergencyId = emergencyId,
+                modifier = modifier
+            )
+        }
+        
+        // Rota sem parâmetro para compatibilidade
         composable(AppRoutes.TELA_HELPER_RESPONSE) {
             HelperResponseScreen(
                 navController = navController,
