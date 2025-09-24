@@ -36,8 +36,10 @@ class HomeViewModel : ViewModel() {
                     
                     Log.d("HomeViewModel", "Documento existe: ${userDoc.exists()}")
                     
+                    val isHelper: Boolean
+                    val userName: String
+                    
                     if (!userDoc.exists()) {
-                        // Criar perfil se não existir
                         Log.d("HomeViewModel", "Criando perfil no Firestore")
                         val userData = mapOf<String, Any>(
                             "name" to (user.email ?: "Usuário"),
@@ -52,13 +54,13 @@ class HomeViewModel : ViewModel() {
                             .await()
                         
                         Log.d("HomeViewModel", "Perfil criado com sucesso")
+                        
+                        isHelper = true
+                        userName = user.email ?: "Usuário"
+                    } else {
+                        isHelper = userDoc.getBoolean("isHelper") ?: true
+                        userName = userDoc.getString("name") ?: user.email ?: "Usuário"
                     }
-                    
-                    // TODO: Solicitar localização atual e salvar
-                    // Isso deve ser feito na MainActivity com permissões adequadas
-                    
-                    val isHelper = userDoc.getBoolean("isHelper") ?: true
-                    val userName = userDoc.getString("name") ?: user.email ?: "Usuário"
                     
                     Log.d("HomeViewModel", "Dados carregados - Nome: $userName, Helper: $isHelper")
                     
@@ -68,32 +70,9 @@ class HomeViewModel : ViewModel() {
                         isHelper = isHelper
                     )
                 } else {
-                    Log.e("HomeViewModel", "Usuário não autenticado - criando perfil de teste")
-                    // Criar perfil simulado no Firestore para teste
-                    try {
-                        val firestore = FirebaseFirestore.getInstance()
-                        val testUserId = "test_user_emulator_${System.currentTimeMillis()}"
-                        val userData = mapOf<String, Any>(
-                            "name" to "Usuário Teste (Emulador)",
-                            "email" to "teste@emulador.com",
-                            "isHelper" to true,
-                            "location" to com.google.firebase.firestore.GeoPoint(-23.6209, -46.6707), // Localização do emulador
-                            "createdAt" to System.currentTimeMillis()
-                        )
-                        
-                        firestore.collection("users")
-                            .document(testUserId)
-                            .set(userData)
-                            .await()
-                        
-                        Log.d("HomeViewModel", "Perfil de teste criado: $testUserId")
-                    } catch (e: Exception) {
-                        Log.e("HomeViewModel", "Erro ao criar perfil de teste: ${e.message}")
-                    }
-                    
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        userName = "Usuário Teste (Emulador)",
+                        userName = "Usuário Teste",
                         isHelper = true,
                         errorMessage = null
                     )
@@ -101,40 +80,15 @@ class HomeViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e("HomeViewModel", "Erro ao carregar dados: ${e.message}", e)
                 
-                // Fallback: usar dados locais se Firestore falhar
                 val auth = FirebaseAuth.getInstance()
                 val user = auth.currentUser
                 
-                // Criar perfil simulado se necessário
-                try {
-                    val firestore = FirebaseFirestore.getInstance()
-                    val userId = user?.uid ?: "fallback_user_${System.currentTimeMillis()}"
-                    val userData = mapOf<String, Any>(
-                        "name" to (user?.email?.substringBefore("@") ?: "Usuário Fallback"),
-                        "email" to (user?.email ?: "fallback@teste.com"),
-                        "isHelper" to true,
-                        "location" to com.google.firebase.firestore.GeoPoint(-23.6209, -46.6707),
-                        "createdAt" to System.currentTimeMillis()
-                    )
-                    
-                    firestore.collection("users")
-                        .document(userId)
-                        .set(userData)
-                        .await()
-                    
-                    Log.d("HomeViewModel", "Perfil fallback criado: $userId")
-                } catch (fallbackError: Exception) {
-                    Log.e("HomeViewModel", "Erro ao criar perfil fallback: ${fallbackError.message}")
-                }
-                
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    userName = user?.email ?: "Usuário Teste (Emulador)",
+                    userName = user?.email ?: "Usuário Teste",
                     isHelper = true,
                     errorMessage = null
                 )
-                
-                Log.d("HomeViewModel", "Usando fallback offline")
             }
         }
     }
@@ -151,19 +105,30 @@ class HomeViewModel : ViewModel() {
                 val firestore = FirebaseFirestore.getInstance()
                 val user = auth.currentUser
                 
-                if (user != null) {
-                    firestore.collection("users")
-                        .document(user.uid)
-                        .update("isHelper", newHelperStatus)
-                        .await()
-                    
-                    Log.d("HomeViewModel", "Status atualizado com sucesso")
-                    _uiState.value = _uiState.value.copy(isHelper = newHelperStatus)
-                } else {
-                    // Modo teste: apenas atualizar localmente
-                    Log.d("HomeViewModel", "Atualizando status em modo teste")
-                    _uiState.value = _uiState.value.copy(isHelper = newHelperStatus)
+                if (user == null) {
+                    Log.e("HomeViewModel", "Tentativa de alterar status de helper sem autenticação")
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = "Usuário deve estar autenticado para alterar status de helper"
+                    )
+                    return@launch
                 }
+                
+                if (!user.isEmailVerified) {
+                    Log.e("HomeViewModel", "Tentativa de alterar status de helper com email não verificado")
+                    _uiState.value = _uiState.value.copy(
+                        errorMessage = "Email deve estar verificado para alterar status de helper"
+                    )
+                    return@launch
+                }
+                
+                firestore.collection("users")
+                    .document(user.uid)
+                    .update("isHelper", newHelperStatus)
+                    .await()
+                
+                Log.d("HomeViewModel", "Status atualizado com sucesso")
+                _uiState.value = _uiState.value.copy(isHelper = newHelperStatus)
+                
             } catch (e: Exception) {
                 Log.e("HomeViewModel", "Erro ao atualizar status: ${e.message}", e)
                 _uiState.value = _uiState.value.copy(
@@ -182,8 +147,6 @@ class HomeViewModel : ViewModel() {
                 val firestore = FirebaseFirestore.getInstance()
                 val currentUser = auth.currentUser
                 
-                android.util.Log.d("HomeViewModel", "👤 Usuário atual: ${currentUser?.uid} (${currentUser?.email})")
-                
                 if (currentUser == null) {
                     android.util.Log.e("HomeViewModel", "❌ 🚨 USUÁRIO NÃO AUTENTICADO!")
                     _uiState.value = _uiState.value.copy(
@@ -192,28 +155,15 @@ class HomeViewModel : ViewModel() {
                     return@launch
                 }
                 
-                android.util.Log.d("HomeViewModel", "🔍 Buscando helpers no Firestore...")
-                
-                // Buscar todos os helpers exceto o usuário atual
                 val usersSnapshot = firestore.collection("users")
                     .whereEqualTo("isHelper", true)
                     .get()
                     .await()
                 
-                android.util.Log.d("HomeViewModel", "👥 ✅ ENCONTRADOS ${usersSnapshot.documents.size} USUÁRIOS HELPERS")
-                
                 var notificationsSent = 0
                 
                 for (document in usersSnapshot.documents) {
-                    val helperEmail = document.getString("email") ?: "Helper"
-                    android.util.Log.d("HomeViewModel", "🔍 Verificando: ${document.id} ($helperEmail)")
-                    
-                    if (document.id == currentUser.uid) {
-                        android.util.Log.d("HomeViewModel", "⏭️ Pulando próprio usuário")
-                        continue
-                    }
-                    
-                    android.util.Log.d("HomeViewModel", "📤 🔥 ENVIANDO PARA: ${document.id} ($helperEmail)")
+                    if (document.id == currentUser.uid) continue
                     
                     val alertData = mapOf(
                         "type" to "emergency_alert",
@@ -223,9 +173,7 @@ class HomeViewModel : ViewModel() {
                         "timestamp" to System.currentTimeMillis()
                     )
                     
-                    android.util.Log.d("HomeViewModel", "📝 Dados da notificação: $alertData")
-                    
-                    val docRef = firestore
+                    firestore
                         .collection("users")
                         .document(document.id)
                         .collection("notifications")
@@ -233,11 +181,7 @@ class HomeViewModel : ViewModel() {
                         .await()
                     
                     notificationsSent++
-                    android.util.Log.d("HomeViewModel", "✅ 🎉 NOTIFICAÇÃO ENVIADA! Doc: ${docRef.id}")
-                    android.util.Log.d("HomeViewModel", "📍 Caminho: users/${document.id}/notifications/${docRef.id}")
                 }
-                
-                android.util.Log.d("HomeViewModel", "🏁 ✅ TESTE CONCLUÍDO! $notificationsSent notificações enviadas")
                 
                 _uiState.value = _uiState.value.copy(
                     errorMessage = "Teste: $notificationsSent notificações enviadas"
@@ -245,7 +189,6 @@ class HomeViewModel : ViewModel() {
                 
             } catch (e: Exception) {
                 android.util.Log.e("HomeViewModel", "❌ 🚨 ERRO GRAVE NO TESTE: ${e.message}")
-                e.printStackTrace()
                 _uiState.value = _uiState.value.copy(
                     errorMessage = "Erro no teste: ${e.message}"
                 )

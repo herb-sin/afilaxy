@@ -58,6 +58,18 @@ class EmergencyViewModel : ViewModel() {
     private fun searchNearbyHelpers(location: Location) {
         viewModelScope.launch {
             try {
+                // Verificação crítica de autenticação
+                val auth = FirebaseAuth.getInstance()
+                val user = auth.currentUser
+                if (user == null) {
+                    android.util.Log.e("EmergencyViewModel", "Tentativa de buscar helpers sem autenticação")
+                    _uiState.value = _uiState.value.copy(
+                        locationError = "Usuário deve estar autenticado para buscar ajuda",
+                        isLoadingLocation = false
+                    )
+                    return@launch
+                }
+                
                 // Tentar Firebase primeiro, fallback para simulação
                 val emergency =
                         try {
@@ -66,8 +78,8 @@ class EmergencyViewModel : ViewModel() {
                             // Fallback: emergência local para teste
                             Emergency(
                                     id = "local_${System.currentTimeMillis()}",
-                                    userId = "test_user",
-                                    userName = "Usuário Teste",
+                                    userId = user.uid,
+                                    userName = user.email ?: "Usuário Teste",
                                     location = location,
                                     status = EmergencyStatus.ACTIVE
                             )
@@ -93,12 +105,16 @@ class EmergencyViewModel : ViewModel() {
                                     emergencyId = emergency.id
                             )
 
-                    // Tentar notificar helpers (pode falhar se Firestore não estiver ativo)
+                    // Tentar notificar helpers
                     try {
                         notifyHelpers(helpers, emergency)
                     } catch (e: Exception) {
-                        // Ignorar erro de notificação para teste
+                        android.util.Log.e("EmergencyViewModel", "Erro crítico ao notificar helpers: ${e.message}")
+                        // Manter estado de aguardando resposta mesmo com erro de notificação
                     }
+                    
+                    // Iniciar listener para respostas dos helpers
+                    startListeningForHelperResponse(emergency.id)
                 }
             } catch (e: Exception) {
                 _uiState.value =
@@ -114,13 +130,27 @@ class EmergencyViewModel : ViewModel() {
         val auth = FirebaseAuth.getInstance()
         val firestore = FirebaseFirestore.getInstance()
 
-        val user = auth.currentUser ?: throw Exception("Usuário não autenticado")
+        // Verificação crítica de autenticação
+        val user = auth.currentUser 
+        if (user == null) {
+            android.util.Log.e("EmergencyViewModel", "Tentativa de criar emergência sem autenticação")
+            throw SecurityException("Usuário deve estar autenticado para criar emergência")
+        }
+        
+        if (!user.isEmailVerified) {
+            android.util.Log.e("EmergencyViewModel", "Tentativa de criar emergência com email não verificado")
+            throw SecurityException("Email deve estar verificado para criar emergência")
+        }
 
+        // Buscar nome do usuário no Firestore
+        val userDoc = firestore.collection("users").document(user.uid).get().await()
+        val userName = userDoc.getString("name") ?: user.email ?: "Usuário"
+        
         val emergency =
                 Emergency(
                         id = "",
                         userId = user.uid,
-                        userName = user.email ?: "Usuário",
+                        userName = userName,
                         location = location,
                         status = EmergencyStatus.ACTIVE
                 )
@@ -143,15 +173,22 @@ class EmergencyViewModel : ViewModel() {
             val firestore = FirebaseFirestore.getInstance()
             val auth = FirebaseAuth.getInstance()
             val currentUserId = auth.currentUser?.uid
+            
+            android.util.Log.d("EmergencyViewModel", "🔍 Buscando helpers próximos para usuário: $currentUserId")
 
             val usersSnapshot =
                     firestore.collection("users").whereEqualTo("isHelper", true).get().await()
+                    
+            android.util.Log.d("EmergencyViewModel", "📊 Total de helpers encontrados: ${usersSnapshot.documents.size}")
 
             val helpers = mutableListOf<Helper>()
 
             for (document in usersSnapshot.documents) {
+                android.util.Log.d("EmergencyViewModel", "👤 Verificando helper: [ID_SANITIZED] ([NAME_SANITIZED])")
+                
                 // Excluir o próprio usuário
                 if (document.id == currentUserId) {
+                    android.util.Log.d("EmergencyViewModel", "⏭️ Pulando próprio usuário")
                     continue
                 }
                 val userLocation = document.getGeoPoint("location")
@@ -163,20 +200,30 @@ class EmergencyViewModel : ViewModel() {
                                     userLocation.latitude,
                                     userLocation.longitude
                             )
+                    
+                    android.util.Log.d("EmergencyViewModel", "📏 Distância calculada: ${(distance * 1000).toInt()}m")
 
-                    if (distance <= 2.0) { // 2km radius para teste
-                        helpers.add(
-                                Helper(
-                                        id = document.id,
-                                        nome = document.getString("name") ?: "Helper",
-                                        distanciaEstimada = "${(distance * 1000).toInt()}m"
-                                )
+                    if (distance <= 0.3) { // 300m radius
+                        val distanciaMetros = distance * 1000
+                        val helper = Helper(
+                                id = document.id,
+                                nome = document.getString("name") ?: "Helper",
+                                distanciaEstimada = "${distanciaMetros.toInt()}m",
+                                distanciaMetros = distanciaMetros
                         )
+                        helpers.add(helper)
+                        android.util.Log.d("EmergencyViewModel", "✅ Helper adicionado: ${helper.nome.replace("[\r\n\t]".toRegex(), "_")}")
+                    } else {
+                        android.util.Log.d("EmergencyViewModel", "❌ Helper muito distante: ${(distance * 1000).toInt()}m")
                     }
+                } else {
+                    android.util.Log.d("EmergencyViewModel", "⚠️ Helper sem localização salva")
                 }
             }
+            
+            android.util.Log.d("EmergencyViewModel", "🎯 Total de helpers próximos: ${helpers.size}")
 
-            helpers.sortedBy { it.distanciaEstimada }
+            helpers.sortedBy { it.distanciaMetros }
         } catch (e: Exception) {
             android.util.Log.w("EmergencyViewModel", "Erro ao buscar helpers no Firebase, usando fallback: ${e.message}")
             // Fallback: criar helpers simulados para teste
@@ -209,6 +256,13 @@ class EmergencyViewModel : ViewModel() {
     }
 
     private suspend fun notifyHelpers(helpers: List<Helper>, emergency: Emergency) {
+        // Verificar autenticação antes de operação crítica
+        val auth = FirebaseAuth.getInstance()
+        if (auth.currentUser == null) {
+            android.util.Log.e("EmergencyViewModel", "Usuário não autenticado para notificar helpers")
+            return
+        }
+        
         val firestore = FirebaseFirestore.getInstance()
         
         android.util.Log.d("EmergencyViewModel", "🔔 Notificando ${helpers.size} helpers")
@@ -219,6 +273,7 @@ class EmergencyViewModel : ViewModel() {
                     "type" to "emergency_alert",
                     "emergencyId" to emergency.id,
                     "requesterName" to emergency.userName,
+                    "requesterId" to emergency.userId,
                     "location" to GeoPoint(
                         emergency.location.latitude,
                         emergency.location.longitude
@@ -226,7 +281,7 @@ class EmergencyViewModel : ViewModel() {
                     "timestamp" to System.currentTimeMillis()
                 )
                 
-                android.util.Log.d("EmergencyViewModel", "📤 Enviando notificação para helper: ${helper.id}")
+                android.util.Log.d("EmergencyViewModel", "📤 Enviando notificação para helper: ${helper.id.take(8)}")
 
                 firestore
                     .collection("users")
@@ -235,9 +290,9 @@ class EmergencyViewModel : ViewModel() {
                     .add(alertData)
                     .await()
                         
-                android.util.Log.d("EmergencyViewModel", "✅ Notificação enviada para: ${helper.nome}")
+                android.util.Log.d("EmergencyViewModel", "✅ Notificação enviada para helper")
             } catch (e: Exception) {
-                android.util.Log.e("EmergencyViewModel", "❌ Erro ao notificar ${helper.nome}: ${e.message}")
+                android.util.Log.e("EmergencyViewModel", "❌ Erro ao notificar helper: ${e.message}")
             }
         }
         
@@ -266,7 +321,67 @@ class EmergencyViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(showEmergencyInstructions = false)
     }
 
+    fun startListeningForHelperResponse(emergencyId: String) {
+        val auth = FirebaseAuth.getInstance()
+        val currentUser = auth.currentUser
+        
+        if (currentUser == null) {
+            android.util.Log.w("EmergencyViewModel", "Não é possível escutar respostas sem autenticação")
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                val firestore = FirebaseFirestore.getInstance()
+                
+                // Listener para notificações de confirmação
+                firestore.collection("users")
+                    .document(currentUser.uid)
+                    .collection("notifications")
+                    .whereEqualTo("type", "helper_responding")
+                    .whereEqualTo("emergencyId", emergencyId)
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) {
+                            android.util.Log.e("EmergencyViewModel", "Erro no listener: ${error.message}")
+                            return@addSnapshotListener
+                        }
+                        
+                        snapshot?.documentChanges?.forEach { change ->
+                            if (change.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
+                                val doc = change.document
+                                val helperName = doc.getString("helperName") ?: "Helper"
+                                
+                                android.util.Log.d("EmergencyViewModel", "✅ Helper respondeu: $helperName")
+                                
+                                val helper = Helper(
+                                    id = "responding_helper",
+                                    nome = helperName,
+                                    distanciaEstimada = "A caminho"
+                                )
+                                
+                                _uiState.value = _uiState.value.copy(
+                                    helperResponding = helper,
+                                    isAwaitingHelperResponse = false
+                                )
+                                
+                                // Marcar como processado
+                                doc.reference.update("processed", true)
+                            }
+                        }
+                    }
+            } catch (e: Exception) {
+                android.util.Log.e("EmergencyViewModel", "Erro ao configurar listener: ${e.message}")
+            }
+        }
+    }
+
     fun resetEmergencyState() {
+        // Verificação de autenticação para operações de estado
+        val auth = FirebaseAuth.getInstance()
+        if (auth.currentUser == null) {
+            android.util.Log.w("EmergencyViewModel", "Reset de estado sem autenticação")
+        }
+        
         _uiState.value =
                 EmergencyUiState(hasLocationPermission = _uiState.value.hasLocationPermission)
     }
