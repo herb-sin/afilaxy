@@ -4,6 +4,7 @@ data class Helper(
     val id: String,
     val nome: String,
     val distanciaEstimada: String,
+    val distanciaMetros: Double = 0.0,
     val latitude: Double? = null,
     val longitude: Double? = null,
     val isAvailable: Boolean = true,

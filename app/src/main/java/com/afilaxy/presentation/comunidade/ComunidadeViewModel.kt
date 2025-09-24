@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import com.afilaxy.domain.model.Produto
 import com.afilaxy.domain.model.Evento
@@ -20,7 +21,7 @@ class ComunidadeViewModel : ViewModel() {
     
     private fun loadComunidadeData() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true)
+            _uiState.update { it.copy(isLoading = true) }
             
             try {
                 // TODO: Substituir por chamadas ao repositório
@@ -42,17 +43,17 @@ class ComunidadeViewModel : ViewModel() {
                     ProjetoInfo(titulo = "Como funciona?", texto = "Localize ajuda próxima e acesse informações confiáveis.")
                 )
                 
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     produtos = produtos,
                     eventos = eventos,
                     projetos = projetos,
                     isLoading = false
-                )
+                ) }
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
+                _uiState.update { it.copy(
                     isLoading = false,
                     errorMessage = "Erro ao carregar dados da comunidade: ${e.message}"
-                )
+                ) }
             }
         }
     }

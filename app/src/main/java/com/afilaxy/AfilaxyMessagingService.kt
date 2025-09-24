@@ -43,6 +43,7 @@ class AfilaxyMessagingService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .build()
 
-        notificationManager.notify(0, notification)
+        val notificationId = System.currentTimeMillis().toInt()
+        notificationManager.notify(notificationId, notification)
     }
 }

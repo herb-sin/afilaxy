@@ -102,8 +102,24 @@ class HelperResponseViewModel : ViewModel() {
                 val emergency = _uiState.value.emergency
                 val currentUser = auth.currentUser
                 
-                // Simular delay de rede
-                delay(1500)
+                // Verificação crítica de autenticação
+                if (currentUser == null) {
+                    android.util.Log.e("HelperResponseViewModel", "Tentativa de aceitar emergência sem autenticação")
+                    _uiState.value = _uiState.value.copy(
+                        error = "Usuário deve estar autenticado para aceitar emergência",
+                        isAccepting = false
+                    )
+                    return@launch
+                }
+                
+                if (!currentUser.isEmailVerified) {
+                    android.util.Log.e("HelperResponseViewModel", "Tentativa de aceitar emergência com email não verificado")
+                    _uiState.value = _uiState.value.copy(
+                        error = "Email deve estar verificado para aceitar emergência",
+                        isAccepting = false
+                    )
+                    return@launch
+                }
                 
                 if (emergency != null && currentUser != null) {
                     try {
@@ -178,7 +194,14 @@ class HelperResponseViewModel : ViewModel() {
         }
     }
     
-    private suspend fun calculateDistance(location: com.afilaxy.domain.model.Location): String {
+    private fun calculateDistance(location: com.afilaxy.domain.model.Location): String {
+        // Verificação de autenticação para cálculos de localização
+        val auth = FirebaseAuth.getInstance()
+        if (auth.currentUser == null) {
+            android.util.Log.w("HelperResponseViewModel", "Cálculo de distância sem autenticação")
+            return "N/D"
+        }
+        
         // Simular localização do helper para cálculo
         // Em produção, pegar localização real do helper
         return "~300m"

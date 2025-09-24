@@ -1,5 +1,7 @@
 package com.afilaxy.presentation.helper
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -7,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -24,9 +27,30 @@ fun HelperResponseScreen(
     viewModel: HelperResponseViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     
     LaunchedEffect(emergencyId) {
         emergencyId?.let { viewModel.loadEmergency(it) }
+    }
+    
+    // Função para abrir navegação usando remember
+    val openNavigation = remember {
+        { lat: Double, lon: Double ->
+            try {
+                val gmmIntentUri = Uri.parse("google.navigation:q=$lat,$lon")
+                val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
+                mapIntent.setPackage("com.google.android.apps.maps")
+                context.startActivity(mapIntent)
+            } catch (e: Exception) {
+                try {
+                    val browserUri = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=$lat,$lon")
+                    val browserIntent = Intent(Intent.ACTION_VIEW, browserUri)
+                    context.startActivity(browserIntent)
+                } catch (e2: Exception) {
+                    android.util.Log.e("Navigation", "Erro ao abrir navegação: ${e2.message}")
+                }
+            }
+        }
     }
 
     Column(
@@ -130,7 +154,13 @@ fun HelperResponseScreen(
             
             else -> {
                 Button(
-                    onClick = { viewModel.acceptEmergency() },
+                    onClick = { 
+                        viewModel.acceptEmergency()
+                        // Abrir navegação automaticamente
+                        uiState.emergency?.let { emergency ->
+                            openNavigation(emergency.location.latitude, emergency.location.longitude)
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(60.dp),
@@ -139,7 +169,7 @@ fun HelperResponseScreen(
                     )
                 ) {
                     Text(
-                        "✋ ACEITAR AJUDA",
+                        "✋ ACEITAR E NAVEGAR",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )

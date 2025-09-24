@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import com.afilaxy.PreparadorConsultaViewModel
 import com.afilaxy.UiState
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class AutocuidadoViewModel : ViewModel() {
@@ -23,20 +25,37 @@ class AutocuidadoViewModel : ViewModel() {
         val pergunta = _uiState.value.pergunta
         if (pergunta.isBlank()) return
         
-        viewModelScope.launch {
+        // Verificação crítica de autenticação
+        val auth = FirebaseAuth.getInstance()
+        val user = auth.currentUser
+        if (user == null) {
+            android.util.Log.e("AutocuidadoViewModel", "Tentativa de usar IA sem autenticação")
             _uiState.value = _uiState.value.copy(
-                resposta = UiState.Loading,
-                isLoading = true
+                resposta = UiState.Error("Usuário deve estar autenticado para usar a IA")
             )
-            
-            // Usar o PreparadorConsultaViewModel existente
-            preparadorViewModel.prepararResumoConsulta(pergunta)
-            
-            // Escutar mudanças no estado do preparador
-            preparadorViewModel.uiState.collect { resposta ->
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                _uiState.value = _uiState.value.copy(
+                    resposta = UiState.Loading,
+                    isLoading = true
+                )
+                
+                // Usar o PreparadorConsultaViewModel existente
+                preparadorViewModel.prepararResumoConsulta(pergunta)
+                
+                // Obter primeira resposta do preparador
+                val resposta = preparadorViewModel.uiState.first { it !is UiState.Loading }
                 _uiState.value = _uiState.value.copy(
                     resposta = resposta,
-                    isLoading = resposta is UiState.Loading
+                    isLoading = false
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    resposta = UiState.Error("Erro ao processar pergunta: ${e.message}"),
+                    isLoading = false
                 )
             }
         }

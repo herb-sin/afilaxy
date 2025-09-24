@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.afilaxy.startSignificantMovementUpdates
 import com.afilaxy.stopLocationUpdates
 import com.google.android.gms.location.LocationCallback
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -16,11 +17,25 @@ class LocationViewModel : ViewModel() {
     val location: StateFlow<Pair<Double, Double>?> = _location
 
     fun startLocationUpdates(context: Context) {
+        // Verificação crítica de autenticação
+        val auth = FirebaseAuth.getInstance()
+        val user = auth.currentUser
+        if (user == null) {
+            android.util.Log.e("LocationViewModel", "Tentativa de iniciar localização sem autenticação")
+            return
+        }
+        
         if (locationCallback == null) {
-            locationCallback = startSignificantMovementUpdates(context) { lat, lon ->
-                viewModelScope.launch {
-                    _location.value = lat to lon
+            try {
+                locationCallback = startSignificantMovementUpdates(context) { lat, lon ->
+                    viewModelScope.launch {
+                        _location.value = lat to lon
+                    }
                 }
+            } catch (e: SecurityException) {
+                android.util.Log.e("LocationViewModel", "Erro de permissão ao iniciar localização: ${e.message}")
+            } catch (e: Exception) {
+                android.util.Log.e("LocationViewModel", "Erro ao iniciar atualizações de localização: ${e.message}")
             }
         }
     }

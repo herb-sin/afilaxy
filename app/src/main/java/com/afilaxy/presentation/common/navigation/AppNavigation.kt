@@ -1,11 +1,10 @@
 package com.afilaxy.presentation.common.navigation
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavHostController
@@ -32,10 +31,39 @@ fun AppNavigation(
 ) {
     var showLocationDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    var isCheckingAuth by remember { mutableStateOf(true) }
+    var startDestination by remember { mutableStateOf(AppRoutes.TELA_LOGIN) }
+    
+    // Verificar se usuário já está logado
+    LaunchedEffect(Unit) {
+        try {
+            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+            startDestination = if (currentUser != null && currentUser.isEmailVerified) {
+                AppRoutes.TELA_INICIAL
+            } else {
+                AppRoutes.TELA_LOGIN
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AppNavigation", "Erro ao verificar autenticação: ${e.message}")
+            startDestination = AppRoutes.TELA_LOGIN
+        }
+        isCheckingAuth = false
+    }
+    
+    if (isCheckingAuth) {
+        // Tela de loading enquanto verifica autenticação
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
 
     NavHost(
         navController = navController, 
-        startDestination = AppRoutes.TELA_LOGIN
+        startDestination = startDestination
     ) {
         composable(AppRoutes.TELA_LOGIN) {
             LoginScreen(
@@ -102,6 +130,13 @@ fun AppNavigation(
         // Rota sem parâmetro para compatibilidade
         composable(AppRoutes.TELA_HELPER_RESPONSE) {
             HelperResponseScreen(
+                navController = navController,
+                modifier = modifier
+            )
+        }
+        
+        composable("perfil") {
+            com.afilaxy.presentation.profile.ProfileScreen(
                 navController = navController,
                 modifier = modifier
             )
