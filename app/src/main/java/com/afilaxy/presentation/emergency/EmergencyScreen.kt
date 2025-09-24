@@ -66,16 +66,12 @@ fun EmergencyScreen(
         }
     }
 
-    // Check location permission
-    val hasLocationPermission = remember {
-        ContextCompat.checkSelfPermission(
+    // Check location permission dinamicamente
+    LaunchedEffect(Unit) {
+        val hasLocationPermission = ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.ACCESS_FINE_LOCATION
         ) == PackageManager.PERMISSION_GRANTED
-    }
-
-    // Update permission state in ViewModel
-    LaunchedEffect(hasLocationPermission) {
         viewModel.updateLocationPermission(hasLocationPermission)
     }
 
@@ -174,7 +170,7 @@ fun EmergencyScreen(
                     uiState.locationError != null -> {
                         val error = uiState.locationError
                         Text(
-                            text = "erro linha 162",
+                            text = error ?: "Erro desconhecido",
                             color = MaterialTheme.colorScheme.error,
                             textAlign = TextAlign.Center
                         )

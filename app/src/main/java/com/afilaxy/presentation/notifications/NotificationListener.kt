@@ -30,7 +30,10 @@ class NotificationListener : ViewModel() {
             .collection("notifications")
             .whereEqualTo("type", "emergency_alert")
             .addSnapshotListener { snapshot, error ->
-                if (error != null) return@addSnapshotListener
+                if (error != null) {
+                    android.util.Log.e("NotificationListener", "Erro no listener de notificações: ${error.message}", error)
+                    return@addSnapshotListener
+                }
                 
                 snapshot?.documentChanges?.forEach { change ->
                     if (change.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {

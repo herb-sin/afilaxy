@@ -2,11 +2,13 @@ package com.afilaxy.presentation.login
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.Image
+
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -20,6 +22,19 @@ import kotlinx.coroutines.delay
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 
+fun translateFirebaseError(error: String): String {
+    return when {
+        error.contains("The email address is badly formatted") -> "Formato de e-mail inválido"
+        error.contains("Password should be at least 6 characters") -> "A senha deve ter pelo menos 6 caracteres"
+        error.contains("The password is invalid") -> "Senha inválida"
+        error.contains("There is no user record") -> "Usuário não encontrado"
+        error.contains("The email address is already in use") -> "E-mail já cadastrado"
+        error.contains("A network error") -> "Erro de rede"
+        error.contains("An internal error has occurred") -> "Erro interno do servidor"
+        else -> error
+    }
+}
+
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit
@@ -29,6 +44,8 @@ fun LoginScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(false) }
     var isRegisterMode by remember { mutableStateOf(false) }
+    var showRegistrationSuccess by remember { mutableStateOf(false) }
+    var passwordVisible by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -49,17 +66,7 @@ fun LoginScreen(
         )
 
         Text(text = if (isRegisterMode) "Cadastro" else "Login", style = MaterialTheme.typography.headlineMedium)
-        
-        // INSTRUÇÕES PARA EMULADOR
-        Text(
-            text = if (isRegisterMode) 
-                "Para teste no emulador use:\nEmail: teste@emulador.com\nSenha: 123456" 
-            else 
-                "Emulador: Use qualquer email válido\nSe travar, aguarde 15s para bypass",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(32.dp))
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
@@ -72,7 +79,17 @@ fun LoginScreen(
             onValueChange = { password = it },
             label = { Text("Senha") },
             modifier = Modifier.fillMaxWidth(),
-            visualTransformation = PasswordVisualTransformation()
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            trailingIcon = {
+                TextButton(
+                    onClick = { passwordVisible = !passwordVisible }
+                ) {
+                    Text(
+                        text = if (passwordVisible) "👁️" else "🙈",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            }
         )
         Spacer(modifier = Modifier.height(16.dp))
 
@@ -154,7 +171,7 @@ fun LoginScreen(
                                     saveUserLocation(context)
                                 }
                                 
-                                onLoginSuccess()
+                                showRegistrationSuccess = true
                             } else {
                                 val error = task.exception
                                 Log.e("LoginScreen", "Erro no cadastro: ${error?.message}")
@@ -162,12 +179,16 @@ fun LoginScreen(
                                     error?.message?.contains("The email address is already in use") == true ||
                                     error?.message?.contains("email address is already") == true ->
                                     "Este e-mail já está cadastrado. Faça login ou recupere sua senha."
+                                    error?.message?.contains("The email address is badly formatted") == true ->
+                                    "Formato de e-mail inválido. Verifique se digitou corretamente."
+                                    error?.message?.contains("Password should be at least 6 characters") == true ->
+                                    "A senha deve ter pelo menos 6 caracteres."
                                     error?.message?.contains("network") == true ||
                                     error?.message?.contains("timeout") == true ->
                                     "Problema de rede. Verifique sua conexão e tente novamente."
                                     error?.message?.contains("SERVICE_NOT_AVAILABLE") == true ->
                                     "Firebase indisponível. Tente novamente em alguns minutos."
-                                    else -> "Erro: ${error?.localizedMessage ?: error?.message ?: "Desconhecido"}"
+                                    else -> "Erro: ${translateFirebaseError(error?.message ?: "Desconhecido")}"
                                 }
                             }
                         }
@@ -212,12 +233,14 @@ fun LoginScreen(
                                 error?.message?.contains("no user record") == true ||
                                 error?.message?.contains("There is no user record") == true -> 
                                     "E-mail ou senha incorretos, ou usuário não cadastrado."
+                                error?.message?.contains("The email address is badly formatted") == true ->
+                                    "Formato de e-mail inválido. Verifique se digitou corretamente."
                                 error?.message?.contains("network") == true ||
                                 error?.message?.contains("timeout") == true ->
                                     "Problema de rede. Verifique sua conexão e tente novamente."
                                 error?.message?.contains("SERVICE_NOT_AVAILABLE") == true ->
                                     "Firebase indisponível. Tente novamente em alguns minutos."
-                                else -> "Erro: ${error?.localizedMessage ?: error?.message ?: "Desconhecido"}"
+                                else -> "Erro: ${translateFirebaseError(error?.message ?: "Desconhecido")}"
                             }
                         }
                     }
@@ -270,21 +293,39 @@ fun LoginScreen(
             Text(text = it, color = MaterialTheme.colorScheme.error)
         }
         
-        // Botão de bypass para desenvolvimento/teste
-        Spacer(modifier = Modifier.height(16.dp))
-        OutlinedButton(
-            onClick = {
-                Log.d("LoginScreen", "Executando bypass de desenvolvimento")
-                // Simular usuário autenticado para teste
-                saveUserLocation(context)
-                onLoginSuccess()
-            },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.outlinedButtonColors(
-                contentColor = Color(0xFFFF9800)
-            )
-        ) {
-            Text("BYPASS - Modo Teste")
+        // Mensagem de sucesso no cadastro
+        if (showRegistrationSuccess) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFF4CAF50).copy(alpha = 0.1f)
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = "✅ Conta criada com sucesso!",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color(0xFF4CAF50)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Verifique sua caixa de entrada (e SPAM) para confirmar seu e-mail. Após confirmar, faça logout e login novamente para atualizar sua localização.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(
+                        onClick = { 
+                            showRegistrationSuccess = false
+                            isRegisterMode = false
+                        }
+                    ) {
+                        Text("Entendi, fazer login")
+                    }
+                }
+            }
         }
     }  
 }
