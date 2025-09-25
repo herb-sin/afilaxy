@@ -7,17 +7,19 @@ import com.google.android.gms.location.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
+// Instâncias Firebase reutilizáveis para melhor performance
+private val firebaseAuth by lazy { FirebaseAuth.getInstance() }
+private val firebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+
 @SuppressLint("MissingPermission")
 fun saveUserLocation(context: Context) {
     android.util.Log.d("LocationUtils", "📍 Iniciando salvamento de localização")
     
     val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-    val user = FirebaseAuth.getInstance().currentUser
+    val user = firebaseAuth.currentUser
     
     if (user == null) {
-        android.util.Log.w("LocationUtils", "⚠️ Usuário não autenticado, usando localização simulada")
-        // Salvar localização simulada para teste
-        saveSimulatedLocation()
+        android.util.Log.w("LocationUtils", "⚠️ Usuário não autenticado - operação cancelada")
         return
     }
     
@@ -26,7 +28,7 @@ fun saveUserLocation(context: Context) {
             if (location != null) {
                 android.util.Log.d("LocationUtils", "✅ Localização obtida: ${location.latitude}, ${location.longitude}")
                 
-                val db = FirebaseFirestore.getInstance()
+                val db = firebaseFirestore
                 val locationData = mapOf<String, Any>(
                     "location" to com.google.firebase.firestore.GeoPoint(location.latitude, location.longitude),
                     "lastLocationUpdate" to System.currentTimeMillis()
@@ -63,7 +65,7 @@ fun requestNewLocation(context: Context, user: com.google.firebase.auth.Firebase
             result.lastLocation?.let { location ->
                 android.util.Log.d("LocationUtils", "✅ Nova localização obtida: ${location.latitude}, ${location.longitude}")
                 
-                val db = FirebaseFirestore.getInstance()
+                val db = firebaseFirestore
                 val locationData = mapOf<String, Any>(
                     "location" to com.google.firebase.firestore.GeoPoint(location.latitude, location.longitude),
                     "lastLocationUpdate" to System.currentTimeMillis()
@@ -122,9 +124,9 @@ fun stopLocationUpdates(context: Context, callback: LocationCallback) {
 }
 
 fun saveUserLocationWithCoords(context: Context, latitude: Double, longitude: Double) {
-    val user = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
+    val user = firebaseAuth.currentUser
     if (user != null) {
-        val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+        val db = firebaseFirestore
         val locationData = mapOf<String, Any>(
             "location" to com.google.firebase.firestore.GeoPoint(latitude, longitude),
             "lastLocationUpdate" to System.currentTimeMillis()

@@ -12,7 +12,13 @@ fun RequestNotificationPermission() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         val notificationPermissionLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
-            onResult = { /* feedback opcional */ }
+            onResult = { isGranted ->
+                if (isGranted) {
+                    android.util.Log.d("NotificationPermission", "Permissão de notificação concedida")
+                } else {
+                    android.util.Log.w("NotificationPermission", "Permissão de notificação negada - funcionalidades de emergência podem ser limitadas")
+                }
+            }
         )
         LaunchedEffect(Unit) {
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
