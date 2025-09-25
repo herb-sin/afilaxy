@@ -1,6 +1,6 @@
 package com.afilaxy
 
-import android.graphics.BitmapFactory
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
@@ -110,11 +110,11 @@ fun BakingScreen(
 
             Button(
                 onClick = {
-                    val bitmap = BitmapFactory.decodeResource(
+                    bakingViewModel.sendPromptWithResource(
                         context.resources,
-                        images[selectedImage.intValue]
+                        images[selectedImage.intValue],
+                        prompt
                     )
-                    bakingViewModel.sendPrompt(bitmap, prompt)
                 },
                 enabled = prompt.isNotEmpty(),
                 modifier = Modifier

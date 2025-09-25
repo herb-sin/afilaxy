@@ -32,10 +32,36 @@ setGlobalOptions({ maxInstances: 10 });
 // });
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
+
+// Inicializar admin no topo para evitar lazy loading
 admin.initializeApp();
 
 exports.sendAfilaxyAlert = functions.https.onCall(async (data, context) => {
+    // Validação crítica de entrada
+    if (!data || typeof data !== 'object') {
+        throw new functions.https.HttpsError('invalid-argument', 'Dados inválidos fornecidos');
+    }
+    
     const { tokens, nomePaciente, latitude, longitude } = data;
+    
+    // Validar tokens
+    if (!Array.isArray(tokens) || tokens.length === 0) {
+        throw new functions.https.HttpsError('invalid-argument', 'Tokens deve ser um array não vazio');
+    }
+    
+    // Validar nome do paciente
+    if (!nomePaciente || typeof nomePaciente !== 'string' || nomePaciente.trim().length === 0) {
+        throw new functions.https.HttpsError('invalid-argument', 'Nome do paciente é obrigatório');
+    }
+    
+    // Validar coordenadas
+    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+        throw new functions.https.HttpsError('invalid-argument', 'Latitude e longitude devem ser números');
+    }
+    
+    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
+        throw new functions.https.HttpsError('invalid-argument', 'Coordenadas inválidas');
+    }
 
     const message = {
         notification: {
