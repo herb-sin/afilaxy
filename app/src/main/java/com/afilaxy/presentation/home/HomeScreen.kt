@@ -8,19 +8,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Switch
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -29,7 +25,10 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.afilaxy.presentation.common.navigation.AppRoutes
 import com.afilaxy.ui.theme.AfilaxyTheme
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     navController: NavHostController,
@@ -37,18 +36,82 @@ fun HomeScreen(
     viewModel: HomeViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val drawerState = rememberDrawerState(DrawerValue.Closed)
+    val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     
     LaunchedEffect(Unit) {
         viewModel.loadUserData()
     }
     
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            ModalDrawerSheet {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        "Menu",
+                        style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                    
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Person, contentDescription = null) },
+                        label = { Text("Perfil") },
+                        selected = false,
+                        onClick = { 
+                            scope.launch { drawerState.close() }
+                            navController.navigate("perfil")
+                        }
+                    )
+                    
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.ExitToApp, contentDescription = null) },
+                        label = { Text("Logout") },
+                        selected = false,
+                        onClick = {
+                            try {
+                                FirebaseAuth.getInstance().signOut()
+                                navController.navigate(AppRoutes.TELA_LOGIN) {
+                                    popUpTo(0) { inclusive = true }
+                                }
+                            } catch (e: Exception) {
+                                android.util.Log.e("HomeScreen", "Erro ao fazer logout: ${e.message}")
+                            }
+                        }
+                    )
+                }
+            }
+        }
     ) {
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Afilaxy") },
+                    navigationIcon = {
+                        IconButton(
+                            onClick = {
+                                scope.launch {
+                                    drawerState.open()
+                                }
+                            }
+                        ) {
+                            Icon(Icons.Default.Menu, contentDescription = "Menu")
+                        }
+                    }
+                )
+            }
+        ) { paddingValues ->
+            Column(
+                modifier = modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
         Text(
             text = "Bem-vindo(a) ao Afilaxy!",
             style = MaterialTheme.typography.headlineLarge,
@@ -125,23 +188,17 @@ fun HomeScreen(
         ) {
             Text("Informações e Autocuidado")
         }
-        Spacer(modifier = Modifier.height(16.dp))
-        OutlinedButton(
-            onClick = {
-                navController.navigate(AppRoutes.TELA_HELPER_RESPONSE)
-            },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("🚨 SIMULAR: Receber Emergência")
-        }
+
         
-        uiState.errorMessage?.let { error ->
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = error,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodySmall
-            )
+                uiState.errorMessage?.let { error ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
         }
     }
 }
