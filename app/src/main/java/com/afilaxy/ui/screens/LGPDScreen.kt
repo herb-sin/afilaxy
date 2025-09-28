@@ -1,15 +1,35 @@
 package com.afilaxy.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavController
 import com.afilaxy.privacy.PrivacyInfo
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LGPDScreen() {
-    Column(modifier = Modifier.padding(24.dp)) {
+fun LGPDScreen(navController: NavController? = null) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Política de Privacidade") },
+                navigationIcon = {
+                    IconButton(onClick = { navController?.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .padding(24.dp)
+        ) {
         Text(
             text = "Política de Privacidade e LGPD",
             style = MaterialTheme.typography.headlineSmall
@@ -41,6 +61,7 @@ fun LGPDScreen() {
 
         Text("Incidentes de segurança serão comunicados por e-mail e pelo app.")
         Text("Dados sensíveis só são tratados mediante consentimento explícito.")
-        Text("Exclusão dos dados pode ser solicitada pelo canal de atendimento.")
+            Text("Exclusão dos dados pode ser solicitada pelo canal de atendimento.")
+        }
     }
 }
