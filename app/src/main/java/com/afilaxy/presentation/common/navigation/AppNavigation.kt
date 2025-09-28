@@ -141,5 +141,13 @@ fun AppNavigation(
                 modifier = modifier
             )
         }
+        
+        composable(AppRoutes.TELA_TERMOS) {
+            com.afilaxy.ui.screens.TermsScreen(navController)
+        }
+        
+        composable(AppRoutes.TELA_LGPD) {
+            com.afilaxy.ui.screens.LGPDScreen(navController)
+        }
     }
 }

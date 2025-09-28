@@ -12,6 +12,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -64,6 +67,26 @@ fun HomeScreen(
                         onClick = { 
                             scope.launch { drawerState.close() }
                             navController.navigate("perfil")
+                        }
+                    )
+                    
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Info, contentDescription = null) },
+                        label = { Text("Termos de Uso") },
+                        selected = false,
+                        onClick = { 
+                            scope.launch { drawerState.close() }
+                            navController.navigate(AppRoutes.TELA_TERMOS)
+                        }
+                    )
+                    
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                        label = { Text("Política de Privacidade") },
+                        selected = false,
+                        onClick = { 
+                            scope.launch { drawerState.close() }
+                            navController.navigate(AppRoutes.TELA_LGPD)
                         }
                     )
                     
