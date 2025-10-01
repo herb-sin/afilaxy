@@ -19,6 +19,12 @@ import kotlinx.coroutines.tasks.await
 class EmergencyViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(EmergencyUiState())
     val uiState: StateFlow<EmergencyUiState> = _uiState.asStateFlow()
+    private var listenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
+    
+    override fun onCleared() {
+        super.onCleared()
+        listenerRegistration?.remove()
+    }
 
     fun updateLocationPermission(hasPermission: Boolean) {
         _uiState.value = _uiState.value.copy(hasLocationPermission = hasPermission)
@@ -174,7 +180,7 @@ class EmergencyViewModel : ViewModel() {
             val auth = FirebaseAuth.getInstance()
             val currentUserId = auth.currentUser?.uid
             
-            android.util.Log.d("EmergencyViewModel", "🔍 Buscando helpers próximos para usuário: $currentUserId")
+            android.util.Log.d("EmergencyViewModel", "🔍 Buscando helpers próximos")
 
             val usersSnapshot =
                     firestore.collection("users").whereEqualTo("isHelper", true).get().await()
@@ -184,7 +190,7 @@ class EmergencyViewModel : ViewModel() {
             val helpers = mutableListOf<Helper>()
 
             for (document in usersSnapshot.documents) {
-                android.util.Log.d("EmergencyViewModel", "👤 Verificando helper: [ID_SANITIZED] ([NAME_SANITIZED])")
+                android.util.Log.d("EmergencyViewModel", "👤 Verificando helper disponível")
                 
                 // Excluir o próprio usuário
                 if (document.id == currentUserId) {
@@ -212,7 +218,7 @@ class EmergencyViewModel : ViewModel() {
                                 distanciaMetros = distanciaMetros
                         )
                         helpers.add(helper)
-                        android.util.Log.d("EmergencyViewModel", "✅ Helper adicionado: ${helper.nome.replace("[\r\n\t]".toRegex(), "_")}")
+                        android.util.Log.d("EmergencyViewModel", "✅ Helper adicionado na lista")
                     } else {
                         android.util.Log.d("EmergencyViewModel", "❌ Helper muito distante: ${(distance * 1000).toInt()}m")
                     }
@@ -281,7 +287,7 @@ class EmergencyViewModel : ViewModel() {
                     "timestamp" to System.currentTimeMillis()
                 )
                 
-                android.util.Log.d("EmergencyViewModel", "📤 Enviando notificação para helper: ${helper.id.take(8)}")
+                android.util.Log.d("EmergencyViewModel", "📤 Enviando notificação para helper")
 
                 firestore
                     .collection("users")
@@ -335,7 +341,7 @@ class EmergencyViewModel : ViewModel() {
                 val firestore = FirebaseFirestore.getInstance()
                 
                 // Listener para notificações de confirmação
-                firestore.collection("users")
+                listenerRegistration = firestore.collection("users")
                     .document(currentUser.uid)
                     .collection("notifications")
                     .whereEqualTo("type", "helper_responding")
@@ -351,7 +357,7 @@ class EmergencyViewModel : ViewModel() {
                                 val doc = change.document
                                 val helperName = doc.getString("helperName") ?: "Helper"
                                 
-                                android.util.Log.d("EmergencyViewModel", "✅ Helper respondeu: $helperName")
+                                android.util.Log.d("EmergencyViewModel", "✅ Helper respondeu positivamente")
                                 
                                 val helper = Helper(
                                     id = "responding_helper",

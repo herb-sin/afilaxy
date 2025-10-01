@@ -15,17 +15,19 @@ class HomeViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
     
+    // Instâncias Firebase reutilizáveis
+    private val auth = FirebaseAuth.getInstance()
+    private val firestore = FirebaseFirestore.getInstance()
+    
     fun loadUserData() {
         Log.d("HomeViewModel", "Iniciando carregamento de dados do usuário")
         _uiState.value = _uiState.value.copy(isLoading = true)
         
         viewModelScope.launch {
             try {
-                val auth = FirebaseAuth.getInstance()
-                val firestore = FirebaseFirestore.getInstance()
                 val user = auth.currentUser
                 
-                Log.d("HomeViewModel", "Usuário atual: ${user?.uid}")
+                Log.d("HomeViewModel", "Usuário atual autenticado")
                 
                 if (user != null) {
                     Log.d("HomeViewModel", "Buscando documento do usuário no Firestore")
@@ -62,7 +64,7 @@ class HomeViewModel : ViewModel() {
                         userName = userDoc.getString("name") ?: user.email ?: "Usuário"
                     }
                     
-                    Log.d("HomeViewModel", "Dados carregados - Nome: $userName, Helper: $isHelper")
+                    Log.d("HomeViewModel", "Dados carregados com sucesso")
                     
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -80,7 +82,6 @@ class HomeViewModel : ViewModel() {
             } catch (e: Exception) {
                 Log.e("HomeViewModel", "Erro ao carregar dados: ${e.message}", e)
                 
-                val auth = FirebaseAuth.getInstance()
                 val user = auth.currentUser
                 
                 _uiState.value = _uiState.value.copy(
@@ -97,12 +98,10 @@ class HomeViewModel : ViewModel() {
         val currentState = _uiState.value
         val newHelperStatus = !currentState.isHelper
         
-        Log.d("HomeViewModel", "Alterando status de helper para: $newHelperStatus")
+        Log.d("HomeViewModel", "Alterando status de helper")
         
         viewModelScope.launch {
             try {
-                val auth = FirebaseAuth.getInstance()
-                val firestore = FirebaseFirestore.getInstance()
                 val user = auth.currentUser
                 
                 if (user == null) {
@@ -143,8 +142,6 @@ class HomeViewModel : ViewModel() {
         
         viewModelScope.launch {
             try {
-                val auth = FirebaseAuth.getInstance()
-                val firestore = FirebaseFirestore.getInstance()
                 val currentUser = auth.currentUser
                 
                 if (currentUser == null) {
