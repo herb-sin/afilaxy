@@ -19,7 +19,11 @@ import java.io.InputStreamReader
 @Composable
 fun TermsScreen(navController: NavController? = null) {
     val context = LocalContext.current
-    val termsText = remember { loadMarkdownFromAssets(context, "TERMOS_DE_USO.md") }
+    var termsText by remember { mutableStateOf("Carregando...") }
+    
+    LaunchedEffect(Unit) {
+        termsText = loadMarkdownFromAssets(context, "TERMOS_DE_USO.md")
+    }
 
     Scaffold(
         topBar = {

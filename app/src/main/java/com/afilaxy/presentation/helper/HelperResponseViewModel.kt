@@ -42,7 +42,12 @@ class HelperResponseViewModel : ViewModel() {
                             longitude = geoPoint?.longitude ?: 0.0
                         ),
                         timestamp = doc.getLong("timestamp") ?: System.currentTimeMillis(),
-                        status = EmergencyStatus.valueOf(doc.getString("status") ?: "ACTIVE")
+                        status = try {
+                            EmergencyStatus.valueOf(doc.getString("status") ?: "ACTIVE")
+                        } catch (e: IllegalArgumentException) {
+                            android.util.Log.w("HelperResponseViewModel", "Status inválido: ${doc.getString("status")}, usando ACTIVE")
+                            EmergencyStatus.ACTIVE
+                        }
                     )
                     
                     val timeAgo = calculateTimeAgo(emergency.timestamp)

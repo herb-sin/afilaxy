@@ -72,6 +72,9 @@ fun requestNewLocation(context: Context, user: com.google.firebase.auth.Firebase
                 )
                 
                 db.collection("users").document(user.uid).update(locationData)
+                    .addOnFailureListener { e ->
+                        android.util.Log.e("LocationUtils", "❌ Erro ao atualizar localização: ${e.message}")
+                    }
             }
         }
     }
@@ -132,5 +135,8 @@ fun saveUserLocationWithCoords(context: Context, latitude: Double, longitude: Do
             "lastLocationUpdate" to System.currentTimeMillis()
         )
         db.collection("users").document(user.uid).update(locationData)
+            .addOnFailureListener { e ->
+                android.util.Log.e("LocationUtils", "❌ Erro ao salvar coordenadas: ${e.message}")
+            }
     }
 }

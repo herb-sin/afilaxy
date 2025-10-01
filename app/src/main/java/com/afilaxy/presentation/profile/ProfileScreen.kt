@@ -26,7 +26,13 @@ fun ProfileScreen(
     val currentUser = auth.currentUser
     
     LaunchedEffect(Unit) {
-        currentUser?.let { user ->
+        if (currentUser == null) {
+            isLoading = false
+            message = "Usuário não autenticado"
+            return@LaunchedEffect
+        }
+        
+        currentUser.let { user ->
             firestore.collection("users")
                 .document(user.uid)
                 .get()
@@ -98,7 +104,13 @@ fun ProfileScreen(
                         isSaving = true
                         message = null
                         
-                        currentUser?.let { user ->
+                        if (currentUser == null) {
+                            message = "Usuário não autenticado"
+                            isSaving = false
+                            return@Button
+                        }
+                        
+                        currentUser.let { user ->
                             firestore.collection("users")
                                 .document(user.uid)
                                 .update("name", userName)
