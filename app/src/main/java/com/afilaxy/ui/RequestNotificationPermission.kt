@@ -10,6 +10,12 @@ import androidx.compose.runtime.LaunchedEffect
 @Composable
 fun RequestNotificationPermission() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val hasPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.POST_NOTIFICATIONS
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        
         val notificationPermissionLauncher = rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
             onResult = { isGranted ->
@@ -20,8 +26,11 @@ fun RequestNotificationPermission() {
                 }
             }
         )
-        LaunchedEffect(Unit) {
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        
+        LaunchedEffect(hasPermission) {
+            if (!hasPermission) {
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
     }
 }

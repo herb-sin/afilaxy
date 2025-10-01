@@ -34,8 +34,10 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     private fun sendEmergencyNotification(title: String, message: String) {
-        val channelId = "afilaxy_emergency"
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        try {
+            val channelId = "afilaxy_emergency"
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+                ?: return
 
         // Canal de emergência com máxima prioridade
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -60,11 +62,13 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
         }
 
         // Vibração intensa
-        val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 1000, 500, 1000), -1))
-        } else {
-            vibrator.vibrate(longArrayOf(0, 1000, 500, 1000), -1)
+        val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        vibrator?.let {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                it.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 1000, 500, 1000), -1))
+            } else {
+                it.vibrate(longArrayOf(0, 1000, 500, 1000), -1)
+            }
         }
 
         val intent = Intent(this, MainActivity::class.java).apply {
@@ -85,7 +89,16 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             .addAction(R.drawable.ic_notification, "ACEITAR AJUDA", pendingIntent)
             .build()
 
-        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+        notificationManager.notify(generateNotificationId(), notification)
+        } catch (e: SecurityException) {
+            android.util.Log.e("MyFirebaseMessagingService", "Permissão negada para notificação: ${e.message}")
+        } catch (e: Exception) {
+            android.util.Log.e("MyFirebaseMessagingService", "Erro ao enviar notificação de emergência: ${e.message}")
+        }
+    }
+    
+    private fun generateNotificationId(): Int {
+        return (System.currentTimeMillis() % Int.MAX_VALUE).toInt()
     }
 
     private fun sendNotification(title: String, message: String) {

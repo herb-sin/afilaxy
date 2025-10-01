@@ -38,10 +38,10 @@ object FirebaseDiagnostic {
     suspend fun testFirebaseAuth(): Boolean {
         return try {
             val auth = FirebaseAuth.getInstance()
-            Log.d("FirebaseDiagnostic", "🔐 Firebase Auth inicializado: ${auth.app.name}")
+            Log.d("FirebaseDiagnostic", "🔐 Firebase Auth inicializado")
             
             val currentUser = auth.currentUser
-            Log.d("FirebaseDiagnostic", "👤 Usuário atual: ${currentUser?.uid ?: "null"}")
+            Log.d("FirebaseDiagnostic", "👤 Usuário atual: ${if (currentUser != null) "autenticado" else "não autenticado"}")
             
             true
         } catch (e: Exception) {
@@ -53,7 +53,7 @@ object FirebaseDiagnostic {
     suspend fun testFirestore(): Boolean {
         return try {
             val firestore = FirebaseFirestore.getInstance()
-            Log.d("FirebaseDiagnostic", "🗄️ Firestore inicializado: ${firestore.app.name}")
+            Log.d("FirebaseDiagnostic", "🗄️ Firestore inicializado")
             
             val testDoc = firestore.collection("test").document("connectivity")
             testDoc.get().await()

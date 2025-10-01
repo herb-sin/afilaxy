@@ -75,8 +75,12 @@ class BakingViewModel : ViewModel() {
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
-                // Decodificar bitmap em background thread
-                val bitmap = BitmapFactory.decodeResource(resources, resourceId)
+                // Decodificar bitmap com opções para evitar OutOfMemoryError
+                val options = BitmapFactory.Options().apply {
+                    inSampleSize = 2 // Reduz o tamanho pela metade
+                    inJustDecodeBounds = false
+                }
+                val bitmap = BitmapFactory.decodeResource(resources, resourceId, options)
                 
                 val response = generativeModel.generateContent(
                     content {
