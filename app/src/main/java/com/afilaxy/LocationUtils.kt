@@ -16,7 +16,6 @@ fun saveUserLocation(context: Context) {
             val db = FirebaseFirestore.getInstance()
             val userLocation = hashMapOf(
                 "uid" to user.uid,
-                "email" to user.email,
                 "latitude" to location.latitude,
                 "longitude" to location.longitude,
                 "timestamp" to System.currentTimeMillis()
@@ -63,7 +62,6 @@ fun saveUserLocationWithCoords(context: Context, latitude: Double, longitude: Do
         val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
         val userLocation = hashMapOf(
             "uid" to user.uid,
-            "email" to user.email,
             "latitude" to latitude,
             "longitude" to longitude,
             "timestamp" to System.currentTimeMillis()
