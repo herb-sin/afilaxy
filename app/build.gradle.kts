@@ -64,6 +64,7 @@ dependencies {
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.1")
     implementation("androidx.activity:activity-compose:1.9.0")
+    implementation("androidx.fragment:fragment-ktx:1.8.2")
 
     // Bibliotecas da Interface Gráfica do Compose
     implementation("androidx.compose.ui:ui")
