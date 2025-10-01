@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.ai.client.generativeai.GenerativeModel
 import com.google.ai.client.generativeai.type.content
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +20,15 @@ class PreparadorConsultaViewModel : ViewModel() {
 )
 
     fun prepararResumoConsulta(input: String) {
+        // Verificação crítica de autenticação
+        val auth = FirebaseAuth.getInstance()
+        val user = auth.currentUser
+        if (user == null) {
+            android.util.Log.e("PreparadorConsultaViewModel", "Tentativa de usar IA sem autenticação")
+            _uiState.value = UiState.Error("Usuário deve estar autenticado para usar a IA")
+            return
+        }
+        
         _uiState.value = UiState.Loading
         viewModelScope.launch(Dispatchers.IO) {
             try {
