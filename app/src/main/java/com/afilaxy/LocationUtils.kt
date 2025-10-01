@@ -75,6 +75,9 @@ fun requestNewLocation(context: Context, user: com.google.firebase.auth.Firebase
                     .addOnFailureListener { e ->
                         android.util.Log.e("LocationUtils", "❌ Erro ao atualizar localização: ${e.message}")
                     }
+                
+                // Remover callback após uso
+                fusedLocationClient.removeLocationUpdates(this)
             }
         }
     }

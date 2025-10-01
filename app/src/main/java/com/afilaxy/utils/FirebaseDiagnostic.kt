@@ -55,8 +55,9 @@ object FirebaseDiagnostic {
             val firestore = FirebaseFirestore.getInstance()
             Log.d("FirebaseDiagnostic", "🗄️ Firestore inicializado")
             
-            val testDoc = firestore.collection("test").document("connectivity")
-            testDoc.get().await()
+            // Teste de conectividade sem consumir quota
+            firestore.disableNetwork().await()
+            firestore.enableNetwork().await()
             
             Log.d("FirebaseDiagnostic", "✅ Firestore conectado com sucesso")
             true
