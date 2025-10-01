@@ -13,3 +13,11 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Firebase config files
+app/google-services.json
+google-services.json
+
+# API Keys
+*.properties
+!gradle.properties
