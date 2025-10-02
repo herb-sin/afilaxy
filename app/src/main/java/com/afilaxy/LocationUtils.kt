@@ -8,6 +8,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.afilaxy.security.AuthValidator
 import com.afilaxy.security.InputSanitizer
+import com.afilaxy.utils.ErrorHandler
 
 // Instâncias Firebase reutilizáveis para melhor performance
 private val firebaseAuth by lazy { FirebaseAuth.getInstance() }
@@ -42,7 +43,7 @@ fun saveUserLocation(context: Context) {
                         android.util.Log.d("LocationUtils", "Localização salva no Firestore")
                     }
                     .addOnFailureListener { e ->
-                        android.util.Log.e("LocationUtils", "Erro ao salvar localização")
+                        android.util.Log.e("LocationUtils", "Erro ao salvar localização: ${InputSanitizer.sanitizeForLog(e.message)}")
                     }
             } else {
                 android.util.Log.w("LocationUtils", "Localização nula, tentando obter nova localização")
@@ -50,7 +51,7 @@ fun saveUserLocation(context: Context) {
             }
         }
         .addOnFailureListener { e ->
-            android.util.Log.e("LocationUtils", "Erro ao obter localização: ${e.message}")
+            android.util.Log.e("LocationUtils", "Erro ao obter localização: ${InputSanitizer.sanitizeForLog(e.message)}")
         }
 }
 
@@ -75,7 +76,7 @@ fun requestNewLocation(context: Context, user: com.google.firebase.auth.Firebase
                 user?.let { u ->
                     db.collection("users").document(u.uid).update(locationData)
                         .addOnFailureListener { e ->
-                            android.util.Log.e("LocationUtils", "Erro ao atualizar localização")
+                            android.util.Log.e("LocationUtils", "Erro ao atualizar localização: ${InputSanitizer.sanitizeForLog(e.message)}")
                         }
                 }
                 
@@ -126,8 +127,13 @@ fun stopLocationUpdates(context: Context, callback: LocationCallback) {
 }
 
 fun saveUserLocationWithCoords(context: Context, latitude: Double, longitude: Double) {
-    if (AuthValidator.isUserAuthenticated()) {
-        val user = firebaseAuth.currentUser!!
+    ErrorHandler.safeCall(
+        operation = "saveUserLocationWithCoords",
+        onError = { error ->
+            android.util.Log.w("LocationUtils", "Falha ao salvar localização: ${error.userMessage}")
+        }
+    ) {
+        val user = AuthValidator.requireAuthentication()
         val db = firebaseFirestore
         val locationData = mapOf<String, Any>(
             "location" to com.google.firebase.firestore.GeoPoint(latitude, longitude),
@@ -135,7 +141,8 @@ fun saveUserLocationWithCoords(context: Context, latitude: Double, longitude: Do
         )
         db.collection("users").document(user.uid).update(locationData)
             .addOnFailureListener { e ->
-                android.util.Log.e("LocationUtils", "Erro ao salvar coordenadas")
+                val errorResult = ErrorHandler.handleError(e, "updateLocation")
+                android.util.Log.e("LocationUtils", errorResult.logMessage)
             }
     }
 }

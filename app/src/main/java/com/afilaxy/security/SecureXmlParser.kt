@@ -12,6 +12,9 @@ object SecureXmlParser {
         // Desabilitar processamento de entidades externas para prevenir XXE
         factory.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, false)
         factory.setFeature(XmlPullParser.FEATURE_PROCESS_NAMESPACES, false)
+        factory.setFeature("http://xml.org/sax/features/external-general-entities", false)
+        factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+        factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
         
         return factory.newPullParser()
     }

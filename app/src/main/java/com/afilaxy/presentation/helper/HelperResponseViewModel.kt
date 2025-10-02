@@ -12,19 +12,33 @@ import com.afilaxy.domain.model.Emergency
 import com.afilaxy.domain.model.EmergencyStatus
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.afilaxy.security.AuthValidator
+import com.afilaxy.security.InputSanitizer
+import com.afilaxy.security.RateLimiter
+import com.afilaxy.utils.ErrorHandler
 import kotlin.math.*
 
 class HelperResponseViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(HelperResponseUiState())
     val uiState: StateFlow<HelperResponseUiState> = _uiState.asStateFlow()
     
-    private val firestore = FirebaseFirestore.getInstance()
-    private val auth = FirebaseAuth.getInstance()
+    // Instâncias Firebase otimizadas com lazy loading
+    private val firestore by lazy { FirebaseFirestore.getInstance() }
+    private val auth by lazy { FirebaseAuth.getInstance() }
     
     fun loadEmergency(emergencyId: String) {
         viewModelScope.launch {
-            try {
-                _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            
+            ErrorHandler.safeSuspendCall(
+                operation = "loadEmergency",
+                onError = { error ->
+                    _uiState.value = _uiState.value.copy(
+                        error = error.userMessage,
+                        isLoading = false
+                    )
+                }
+            ) {
                 
                 val doc = firestore.collection("emergencies")
                     .document(emergencyId)
@@ -65,12 +79,6 @@ class HelperResponseViewModel : ViewModel() {
                         isLoading = false
                     )
                 }
-            } catch (e: Exception) {
-                android.util.Log.e("HelperResponseViewModel", "Erro ao carregar emergência: ${e.message}")
-                _uiState.value = _uiState.value.copy(
-                    error = "Erro ao carregar emergência: ${e.message}",
-                    isLoading = false
-                )
             }
         }
     }
@@ -78,26 +86,38 @@ class HelperResponseViewModel : ViewModel() {
     
     fun acceptEmergency() {
         viewModelScope.launch {
-            try {
-                _uiState.value = _uiState.value.copy(isAccepting = true, error = null)
+            _uiState.value = _uiState.value.copy(isAccepting = true, error = null)
+            
+            ErrorHandler.safeSuspendCall(
+                operation = "acceptEmergency",
+                onError = { error ->
+                    _uiState.value = _uiState.value.copy(
+                        error = error.userMessage,
+                        isAccepting = false
+                    )
+                }
+            ) {
                 
                 val emergency = _uiState.value.emergency
                 val currentUser = auth.currentUser
                 
                 // Verificação crítica de autenticação
-                if (currentUser == null) {
-                    android.util.Log.e("HelperResponseViewModel", "Tentativa de aceitar emergência sem autenticação")
+                val verifiedUser = try {
+                    AuthValidator.requireVerifiedEmail()
+                } catch (e: SecurityException) {
+                    android.util.Log.e("HelperResponseViewModel", "Falha na autenticação: ${InputSanitizer.sanitizeForLog(e.message)}")
                     _uiState.value = _uiState.value.copy(
-                        error = "Usuário deve estar autenticado para aceitar emergência",
+                        error = "Usuário deve estar autenticado e verificado",
                         isAccepting = false
                     )
                     return@launch
                 }
                 
-                if (!currentUser.isEmailVerified) {
-                    android.util.Log.e("HelperResponseViewModel", "Tentativa de aceitar emergência com email não verificado")
+                // Rate limiting para aceitação de ajuda
+                if (!RateLimiter.canAcceptHelp(verifiedUser.uid)) {
+                    val remainingTime = RateLimiter.getRemainingTime(verifiedUser.uid, "accept")
                     _uiState.value = _uiState.value.copy(
-                        error = "Email deve estar verificado para aceitar emergência",
+                        error = "Aguarde ${remainingTime / 1000}s antes de aceitar outra emergência",
                         isAccepting = false
                     )
                     return@launch
@@ -108,10 +128,11 @@ class HelperResponseViewModel : ViewModel() {
                         // Buscar nome do helper no Firestore
                         val userDoc = firestore.collection("users").document(currentUser.uid).get().await()
                         val helperName = userDoc.getString("name")
-                        val displayName = if (helperName.isNullOrBlank() || helperName.contains("@")) {
+                        val sanitizedName = InputSanitizer.sanitizeText(helperName)
+                        val displayName = if (sanitizedName.isBlank() || sanitizedName.contains("@")) {
                             "Ajudante"
                         } else {
-                            helperName
+                            sanitizedName
                         }
                         
                         // Tentar atualizar no Firebase
@@ -121,7 +142,7 @@ class HelperResponseViewModel : ViewModel() {
                                 mapOf(
                                     "status" to EmergencyStatus.HELPER_RESPONDING.name,
                                     "assignedHelperId" to currentUser.uid,
-                                    "helperName" to displayName
+                                    "helperName" to InputSanitizer.sanitizeForFirestore(displayName)
                                 )
                             )
                             .await()
@@ -140,13 +161,6 @@ class HelperResponseViewModel : ViewModel() {
                 )
                 
                 android.util.Log.d("HelperResponseViewModel", "Emergência aceita com sucesso")
-                
-            } catch (e: Exception) {
-                android.util.Log.e("HelperResponseViewModel", "Erro ao aceitar emergência: ${e.message}")
-                _uiState.value = _uiState.value.copy(
-                    error = "Erro ao aceitar: ${e.message}",
-                    isAccepting = false
-                )
             }
         }
     }
@@ -226,8 +240,7 @@ class HelperResponseViewModel : ViewModel() {
     
     private fun calculateDistance(location: com.afilaxy.domain.model.Location): String {
         // Verificação de autenticação para cálculos de localização
-        val auth = FirebaseAuth.getInstance()
-        if (auth.currentUser == null) {
+        if (!AuthValidator.isUserAuthenticated()) {
             android.util.Log.w("HelperResponseViewModel", "Cálculo de distância sem autenticação")
             return "N/D"
         }

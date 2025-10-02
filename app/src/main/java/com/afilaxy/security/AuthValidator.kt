@@ -6,10 +6,18 @@ import com.google.firebase.auth.FirebaseUser
 object AuthValidator {
     
     fun requireAuthentication(): FirebaseUser {
-        val user = FirebaseAuth.getInstance().currentUser
-        if (user == null) {
-            throw SecurityException("Operação requer autenticação")
+        val auth = FirebaseAuth.getInstance()
+        val user = auth.currentUser
+        
+        if (user == null || user.uid.isBlank()) {
+            throw SecurityException("Operação requer autenticação válida")
         }
+        
+        // Verificar se o token ainda é válido
+        user.getIdToken(false).addOnFailureListener {
+            throw SecurityException("Token de autenticação inválido")
+        }
+        
         return user
     }
     
@@ -22,7 +30,21 @@ object AuthValidator {
     }
     
     fun isUserAuthenticated(): Boolean {
-        return FirebaseAuth.getInstance().currentUser != null
+        val user = FirebaseAuth.getInstance().currentUser
+        return user != null && user.uid.isNotBlank()
+    }
+    
+    fun getCurrentUserId(): String? {
+        return try {
+            requireAuthentication().uid
+        } catch (e: SecurityException) {
+            null
+        }
+    }
+    
+    fun validateUserAccess(targetUserId: String): Boolean {
+        val currentUserId = getCurrentUserId()
+        return currentUserId != null && currentUserId == targetUserId
     }
     
     fun isEmailVerified(): Boolean {
