@@ -143,12 +143,77 @@ fun HelperResponseScreen(
                     text = "A pessoa foi notificada que você está a caminho.",
                     textAlign = TextAlign.Center
                 )
+                
+                // Mostrar localização de destino
+                uiState.emergency?.let { emergency ->
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "📍 Localização de Destino",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Lat: ${String.format("%.6f", emergency.location.latitude)}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = "Lon: ${String.format("%.6f", emergency.location.longitude)}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Distância: ${uiState.distance ?: "N/D"}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+                
                 Spacer(modifier = Modifier.height(24.dp))
-                Button(
-                    onClick = { navController.popBackStack() },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Voltar")
+                
+                // Botões para navegação
+                uiState.emergency?.let { emergency ->
+                    Button(
+                        onClick = { 
+                            openNavigation(emergency.location.latitude, emergency.location.longitude)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text("🗺️ Abrir Navegação")
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    OutlinedButton(
+                        onClick = { 
+                            viewModel.finishHelp()
+                            navController.popBackStack() 
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Finalizar Ajuda")
+                    }
+                } ?: run {
+                    Button(
+                        onClick = { navController.popBackStack() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Voltar")
+                    }
                 }
             }
             
@@ -156,9 +221,11 @@ fun HelperResponseScreen(
                 Button(
                     onClick = { 
                         viewModel.acceptEmergency()
-                        // Abrir navegação automaticamente
+                        // Navegar para tela de navegação integrada
                         uiState.emergency?.let { emergency ->
-                            openNavigation(emergency.location.latitude, emergency.location.longitude)
+                            navController.navigate(
+                                "navigation/${emergency.location.latitude}/${emergency.location.longitude}/Pessoa"
+                            )
                         }
                     },
                     modifier = Modifier

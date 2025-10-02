@@ -20,13 +20,19 @@ android {
         minSdk = 23
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0"
+        versionName = "0.1.0-alpha"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
+        debug {
+            isDebuggable = true
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -80,6 +86,17 @@ dependencies {
     // Biblioteca do Google Generative AI (Gemini)
     implementation("com.google.ai.client.generativeai:generativeai:0.6.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
+    
+    // Google Maps SDK
+    implementation("com.google.android.gms:play-services-maps:18.2.0")
+    implementation("com.google.maps.android:maps-compose:4.3.3")
+    
+    // Networking seguro
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    
+    // Remover Crashlytics temporariamente para Alpha
+    // implementation("com.google.firebase:firebase-crashlytics-ktx")
+    // implementation("com.google.firebase:firebase-analytics-ktx")
 
     // Bibliotecas de Teste (Padrão)
     testImplementation("junit:junit:4.13.2")

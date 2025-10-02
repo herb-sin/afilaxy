@@ -142,12 +142,52 @@ fun AppNavigation(
             )
         }
         
+        composable(
+            route = "navigation/{latitude}/{longitude}/{title}",
+            arguments = listOf(
+                navArgument("latitude") { type = NavType.StringType },
+                navArgument("longitude") { type = NavType.StringType },
+                navArgument("title") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val latitude = backStackEntry.arguments?.getString("latitude")?.toDoubleOrNull() ?: 0.0
+            val longitude = backStackEntry.arguments?.getString("longitude")?.toDoubleOrNull() ?: 0.0
+            val title = backStackEntry.arguments?.getString("title") ?: "Destino"
+            
+            com.afilaxy.presentation.map.MapScreen(
+                navController = navController,
+                latitude = latitude,
+                longitude = longitude,
+                title = title
+            )
+        }
+        
         composable(AppRoutes.TELA_TERMOS) {
             com.afilaxy.ui.screens.TermsScreen(navController)
         }
         
         composable(AppRoutes.TELA_LGPD) {
             com.afilaxy.ui.screens.LGPDScreen(navController)
+        }
+        
+        composable(
+            route = "navigation/{lat}/{lng}/{name}",
+            arguments = listOf(
+                navArgument("lat") { type = NavType.StringType },
+                navArgument("lng") { type = NavType.StringType },
+                navArgument("name") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val lat = backStackEntry.arguments?.getString("lat")?.toDoubleOrNull() ?: 0.0
+            val lng = backStackEntry.arguments?.getString("lng")?.toDoubleOrNull() ?: 0.0
+            val name = backStackEntry.arguments?.getString("name") ?: "Pessoa em emergência"
+            
+            com.afilaxy.presentation.navigation.NavigationScreen(
+                destinationLat = lat,
+                destinationLng = lng,
+                destinationName = name,
+                onBackPressed = { navController.popBackStack() }
+            )
         }
     }
 }

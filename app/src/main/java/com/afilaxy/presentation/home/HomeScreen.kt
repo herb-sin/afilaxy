@@ -142,9 +142,7 @@ fun HomeScreen(
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = if (uiState.userName?.contains("Teste") == true) 
-                "Modo teste - Use o botão abaixo para simular emergência" 
-            else "Sua comunidade de apoio e autocuidado para Asma.",
+            text = "Sua comunidade de apoio e autocuidado para Asma.",
             style = MaterialTheme.typography.titleMedium,
             textAlign = TextAlign.Center
         )

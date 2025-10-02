@@ -60,44 +60,21 @@ class HelperResponseViewModel : ViewModel() {
                         isLoading = false
                     )
                 } else {
-                    // Fallback: criar emergência simulada para teste
-                    android.util.Log.w("HelperResponseViewModel", "Emergência não encontrada, criando dados simulados")
-                    createSimulatedEmergency(emergencyId)
+                    _uiState.value = _uiState.value.copy(
+                        error = "Emergência não encontrada",
+                        isLoading = false
+                    )
                 }
             } catch (e: Exception) {
                 android.util.Log.e("HelperResponseViewModel", "Erro ao carregar emergência: ${e.message}")
-                // Fallback: criar emergência simulada
-                createSimulatedEmergency(emergencyId)
+                _uiState.value = _uiState.value.copy(
+                    error = "Erro ao carregar emergência: ${e.message}",
+                    isLoading = false
+                )
             }
         }
     }
-    
-    private fun createSimulatedEmergency(emergencyId: String) {
-        val simulatedEmergency = Emergency(
-            id = emergencyId,
-            userId = "test_user",
-            userName = "Usuário Teste",
-            location = com.afilaxy.domain.model.Location(
-                latitude = -23.6209,
-                longitude = -46.6707
-            ),
-            timestamp = System.currentTimeMillis() - (2 * 60 * 1000), // 2 minutos atrás
-            status = EmergencyStatus.ACTIVE
-        )
-        
-        val timeAgo = calculateTimeAgo(simulatedEmergency.timestamp)
-        val distance = "275m" // Distância conhecida entre os dispositivos
-        
-        _uiState.value = _uiState.value.copy(
-            emergency = simulatedEmergency,
-            timeAgo = timeAgo,
-            distance = distance,
-            isLoading = false,
-            error = null
-        )
-        
-        android.util.Log.d("HelperResponseViewModel", "Emergência simulada criada para teste")
-    }
+
     
     fun acceptEmergency() {
         viewModelScope.launch {
@@ -128,6 +105,15 @@ class HelperResponseViewModel : ViewModel() {
                 
                 if (emergency != null && currentUser != null) {
                     try {
+                        // Buscar nome do helper no Firestore
+                        val userDoc = firestore.collection("users").document(currentUser.uid).get().await()
+                        val helperName = userDoc.getString("name")
+                        val displayName = if (helperName.isNullOrBlank() || helperName.contains("@")) {
+                            "Ajudante"
+                        } else {
+                            helperName
+                        }
+                        
                         // Tentar atualizar no Firebase
                         firestore.collection("emergencies")
                             .document(emergency.id)
@@ -135,15 +121,15 @@ class HelperResponseViewModel : ViewModel() {
                                 mapOf(
                                     "status" to EmergencyStatus.HELPER_RESPONDING.name,
                                     "assignedHelperId" to currentUser.uid,
-                                    "helperName" to (currentUser.email ?: "Helper")
+                                    "helperName" to displayName
                                 )
                             )
                             .await()
                         
                         // Notificar usuário
-                        notifyUser(emergency, currentUser.email ?: "Helper")
+                        notifyUser(emergency, displayName)
                     } catch (e: Exception) {
-                        android.util.Log.w("HelperResponseViewModel", "Erro ao atualizar Firebase, continuando em modo teste: ${e.message}")
+                        android.util.Log.e("HelperResponseViewModel", "Erro ao atualizar Firebase: ${e.message}")
                     }
                 }
                 
@@ -171,7 +157,7 @@ class HelperResponseViewModel : ViewModel() {
                 "type" to "helper_responding",
                 "emergencyId" to emergency.id,
                 "helperName" to helperName,
-                "message" to "$helperName está a caminho para ajudar!",
+                "message" to "$helperName está a caminho!",
                 "timestamp" to System.currentTimeMillis()
             )
             
@@ -196,6 +182,45 @@ class HelperResponseViewModel : ViewModel() {
             minutes < 1 -> "menos de 1 minuto"
             minutes < 60 -> "${minutes}min"
             else -> "${minutes / 60}h ${minutes % 60}min"
+        }
+    }
+    
+    fun finishHelp() {
+        viewModelScope.launch {
+            try {
+                val emergency = _uiState.value.emergency
+                val currentUser = auth.currentUser
+                
+                if (emergency != null && currentUser != null) {
+                    // Buscar nome do helper
+                    val userDoc = firestore.collection("users").document(currentUser.uid).get().await()
+                    val helperName = userDoc.getString("name")
+                    val displayName = if (helperName.isNullOrBlank() || helperName.contains("@")) {
+                        "Ajudante"
+                    } else {
+                        helperName
+                    }
+                    
+                    // Notificar remetente que ajuda foi finalizada
+                    val notificationData = mapOf(
+                        "type" to "help_completed",
+                        "emergencyId" to emergency.id,
+                        "helperName" to displayName,
+                        "message" to "$displayName finalizou a ajuda. Esperamos que esteja bem!",
+                        "timestamp" to System.currentTimeMillis()
+                    )
+                    
+                    firestore.collection("users")
+                        .document(emergency.userId)
+                        .collection("notifications")
+                        .add(notificationData)
+                        .await()
+                        
+                    android.util.Log.d("HelperResponseViewModel", "Notificação de finalização enviada")
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("HelperResponseViewModel", "Erro ao finalizar ajuda: ${e.message}")
+            }
         }
     }
     
