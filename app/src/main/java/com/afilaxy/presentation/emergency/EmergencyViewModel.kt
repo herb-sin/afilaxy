@@ -120,7 +120,6 @@ class EmergencyViewModel : ViewModel() {
                         notifyHelpers(helpers, emergency)
                     } catch (e: Exception) {
                         android.util.Log.e("EmergencyViewModel", "Erro crítico ao notificar helpers: ${InputSanitizer.sanitizeForLog(e.message)}")
-                        // Manter estado de aguardando resposta mesmo com erro de notificação
                     }
                     
                     // Iniciar listener para respostas dos helpers
@@ -169,7 +168,7 @@ class EmergencyViewModel : ViewModel() {
         val usersSnapshot =
                 firebaseFirestore.collection("users").whereEqualTo("isHelper", true).get().await()
                 
-        android.util.Log.d("EmergencyViewModel", "Total de helpers encontrados: ${usersSnapshot.documents.size}")
+        android.util.Log.d("EmergencyViewModel", "Total de helpers encontrados: ${InputSanitizer.sanitizeForLog(usersSnapshot.documents.size.toString())}")
 
         val helpers = mutableListOf<Helper>()
 
@@ -191,7 +190,7 @@ class EmergencyViewModel : ViewModel() {
                                 userLocation.longitude
                         )
                 
-                android.util.Log.d("EmergencyViewModel", "Distância calculada: ${(distance * 1000).toInt()}m")
+                android.util.Log.d("EmergencyViewModel", "Distância calculada: ${InputSanitizer.sanitizeForLog((distance * 1000).toInt().toString())}m")
 
                 if (distance <= 0.3) { // 300m radius
                     val distanciaMetros = distance * 1000
@@ -211,14 +210,14 @@ class EmergencyViewModel : ViewModel() {
                     helpers.add(helper)
                     android.util.Log.d("EmergencyViewModel", "Helper adicionado na lista")
                 } else {
-                    android.util.Log.d("EmergencyViewModel", "Helper muito distante: ${(distance * 1000).toInt()}m")
+                    android.util.Log.d("EmergencyViewModel", "Helper muito distante: ${InputSanitizer.sanitizeForLog((distance * 1000).toInt().toString())}m")
                 }
             } else {
                 android.util.Log.d("EmergencyViewModel", "Helper sem localização salva")
             }
         }
         
-        android.util.Log.d("EmergencyViewModel", "Total de helpers próximos: ${helpers.size}")
+        android.util.Log.d("EmergencyViewModel", "Total de helpers próximos: ${InputSanitizer.sanitizeForLog(helpers.size.toString())}")
 
         return helpers.sortedBy { it.distanciaMetros }
     }

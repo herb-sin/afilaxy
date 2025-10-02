@@ -3,7 +3,7 @@ package com.afilaxy.security
 import java.util.concurrent.ConcurrentHashMap
 
 object RateLimiter {
-    private val operationTimestamps = ConcurrentHashMap<String, Long>()
+    private val operationTimestamps = ConcurrentHashMap<String, Long>(16, 0.75f, 2)
     
     // Intervalos mínimos em milissegundos
     private const val EMERGENCY_CREATION_INTERVAL = 60_000L // 1 minuto
@@ -28,10 +28,19 @@ object RateLimiter {
         
         return if (lastOperation == null || (now - lastOperation) >= intervalMs) {
             operationTimestamps[key] = now
+            // Limpeza periódica para evitar vazamento de memória
+            if (operationTimestamps.size > 100) {
+                cleanupOldEntries(now)
+            }
             true
         } else {
             false
         }
+    }
+    
+    private fun cleanupOldEntries(currentTime: Long) {
+        val cutoffTime = currentTime - 3600000L // 1 hora
+        operationTimestamps.entries.removeIf { it.value < cutoffTime }
     }
     
     fun getRemainingTime(userId: String, operation: String): Long {

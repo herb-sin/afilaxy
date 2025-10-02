@@ -13,6 +13,8 @@ import android.os.Vibrator
 import androidx.core.app.NotificationCompat
 import com.afilaxy.MainActivity
 import com.afilaxy.R
+import com.afilaxy.security.AuthValidator
+import com.afilaxy.security.InputSanitizer
 import com.afilaxy.utils.ErrorHandler
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -40,7 +42,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
     
     private fun handleEmergencyMessage(remoteMessage: RemoteMessage) {
-        val requesterName = remoteMessage.data["requesterName"] ?: "Alguém"
+        if (!AuthValidator.isUserAuthenticated()) {
+            android.util.Log.w("MessagingService", "Usuário não autenticado - ignorando notificação")
+            return
+        }
+        
+        val requesterName = InputSanitizer.sanitizeText(remoteMessage.data["requesterName"]) ?: "Alguém"
         sendEmergencyNotification(
             "🚨 EMERGÊNCIA AFILAXY",
             "$requesterName precisa de bombinha próximo a você!"
@@ -48,11 +55,15 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
     
     private fun handleRegularMessage(remoteMessage: RemoteMessage) {
+        if (!AuthValidator.isUserAuthenticated()) {
+            android.util.Log.w("MessagingService", "Usuário não autenticado - ignorando notificação")
+            return
+        }
+        
         remoteMessage.notification?.let { notification ->
-            sendNotification(
-                notification.title ?: "Afilaxy",
-                notification.body ?: ""
-            )
+            val title = InputSanitizer.sanitizeText(notification.title) ?: "Afilaxy"
+            val body = InputSanitizer.sanitizeText(notification.body) ?: ""
+            sendNotification(title, body)
         }
     }
 

@@ -20,32 +20,40 @@ object SecureXmlParser {
     }
     
     fun parseSecurely(inputStream: InputStream): Map<String, String> {
-        val parser = createSecureParser()
-        parser.setInput(inputStream, "UTF-8")
-        
-        val result = mutableMapOf<String, String>()
-        var eventType = parser.eventType
-        var currentTag = ""
-        
-        while (eventType != XmlPullParser.END_DOCUMENT) {
-            when (eventType) {
-                XmlPullParser.START_TAG -> {
-                    currentTag = parser.name
-                }
-                XmlPullParser.TEXT -> {
-                    if (currentTag.isNotEmpty()) {
-                        // Sanitizar texto para prevenir injection
-                        val sanitizedText = InputSanitizer.sanitizeText(parser.text)
-                        result[currentTag] = sanitizedText
+        return try {
+            val parser = createSecureParser()
+            parser.setInput(inputStream, "UTF-8")
+            
+            val result = mutableMapOf<String, String>()
+            var eventType = parser.eventType
+            var currentTag = ""
+            var elementCount = 0
+            
+            while (eventType != XmlPullParser.END_DOCUMENT && elementCount < 1000) {
+                when (eventType) {
+                    XmlPullParser.START_TAG -> {
+                        currentTag = InputSanitizer.sanitizeText(parser.name) ?: ""
+                        elementCount++
+                    }
+                    XmlPullParser.TEXT -> {
+                        if (currentTag.isNotEmpty() && parser.text.length < 10000) {
+                            val sanitizedText = InputSanitizer.sanitizeText(parser.text)
+                            if (sanitizedText.isNotBlank()) {
+                                result[currentTag] = sanitizedText
+                            }
+                        }
+                    }
+                    XmlPullParser.END_TAG -> {
+                        currentTag = ""
                     }
                 }
-                XmlPullParser.END_TAG -> {
-                    currentTag = ""
-                }
+                eventType = parser.next()
             }
-            eventType = parser.next()
+            
+            result
+        } catch (e: Exception) {
+            android.util.Log.e("SecureXmlParser", "Erro ao processar XML: ${e.message}")
+            emptyMap()
         }
-        
-        return result
     }
 }

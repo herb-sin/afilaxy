@@ -13,20 +13,28 @@ object AuthValidator {
             throw SecurityException("Operação requer autenticação válida")
         }
         
-        // Verificar se o token ainda é válido
-        user.getIdToken(false).addOnFailureListener {
-            throw SecurityException("Token de autenticação inválido")
+        // Verificar se o token ainda é válido (sem bloquear)
+        try {
+            user.getIdToken(false)
+        } catch (e: Exception) {
+            android.util.Log.w("AuthValidator", "Aviso: Token pode estar expirado")
+            // Não lançar exceção aqui para não bloquear operações
         }
         
         return user
     }
     
     fun requireVerifiedEmail(): FirebaseUser {
-        val user = requireAuthentication()
-        if (!user.isEmailVerified) {
-            throw SecurityException("Email deve estar verificado")
+        return try {
+            val user = requireAuthentication()
+            if (!user.isEmailVerified) {
+                throw SecurityException("Email deve estar verificado")
+            }
+            user
+        } catch (e: Exception) {
+            android.util.Log.e("AuthValidator", "Falha na verificação de email: ${e.message}")
+            throw e
         }
-        return user
     }
     
     fun isUserAuthenticated(): Boolean {

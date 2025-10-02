@@ -110,4 +110,13 @@ object ErrorHandler {
             null
         }
     }
+    
+    inline fun <T> safeOperation(block: () -> T): T? {
+        return try {
+            block()
+        } catch (e: Exception) {
+            android.util.Log.e("ErrorHandler", "Safe operation failed: ${e.message}")
+            null
+        }
+    }
 }

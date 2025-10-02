@@ -11,6 +11,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.afilaxy.security.InputValidator
 import com.afilaxy.security.AuthValidator
+import com.afilaxy.utils.ErrorHandler
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -24,8 +25,8 @@ fun ProfileScreen(
     var message by remember { mutableStateOf<String?>(null) }
     
     // Instâncias Firebase otimizadas com lazy loading
-    val auth by remember { lazy { FirebaseAuth.getInstance() } }
-    val firestore by remember { lazy { FirebaseFirestore.getInstance() } }
+    val auth = remember { FirebaseAuth.getInstance() }
+    val firestore = remember { FirebaseFirestore.getInstance() }
     val currentUser = auth.currentUser
     
     LaunchedEffect(Unit) {
@@ -128,21 +129,30 @@ fun ProfileScreen(
                         
 
                         
-                        currentUser?.let { user ->
-                            firestore.collection("users")
-                                .document(user.uid)
-                                .update("name", userName)
-                                .addOnSuccessListener {
-                                    isSaving = false
-                                    message = "Nome atualizado com sucesso!"
-                                }
-                                .addOnFailureListener { e ->
-                                    isSaving = false
-                                    message = "Erro ao atualizar: ${e.message}"
-                                }
-                        } ?: run {
-                            isSaving = false
-                            message = "Usuário não autenticado"
+                                        ErrorHandler.safeCall(
+                            operation = "updateUserProfile",
+                            onError = { error ->
+                                isSaving = false
+                                message = error.userMessage
+                            }
+                        ) {
+                            currentUser?.let { user ->
+                                firestore.collection("users")
+                                    .document(user.uid)
+                                    .update("name", userName)
+                                    .addOnSuccessListener {
+                                        isSaving = false
+                                        message = "Nome atualizado com sucesso!"
+                                    }
+                                    .addOnFailureListener { e ->
+                                        val errorResult = ErrorHandler.handleError(e, "updateProfile")
+                                        isSaving = false
+                                        message = errorResult.userMessage
+                                    }
+                            } ?: run {
+                                isSaving = false
+                                message = "Usuário não autenticado"
+                            }
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
