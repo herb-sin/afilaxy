@@ -30,3 +30,5 @@ google-services.json
 # Arquivos de configuração sensíveis
 app/src/main/assets/credentials.json
 app/src/main/res/raw/credentials.json
+local.properties
+local.properties.temp
