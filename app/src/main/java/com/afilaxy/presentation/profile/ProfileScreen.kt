@@ -9,6 +9,8 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.afilaxy.security.InputValidator
+import com.afilaxy.security.AuthValidator
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -21,8 +23,9 @@ fun ProfileScreen(
     var isSaving by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     
-    val auth = remember { FirebaseAuth.getInstance() }
-    val firestore = remember { FirebaseFirestore.getInstance() }
+    // Instâncias Firebase otimizadas com lazy loading
+    val auth by remember { lazy { FirebaseAuth.getInstance() } }
+    val firestore by remember { lazy { FirebaseFirestore.getInstance() } }
     val currentUser = auth.currentUser
     
     LaunchedEffect(Unit) {
@@ -76,10 +79,19 @@ fun ProfileScreen(
                 
                 OutlinedTextField(
                     value = userName,
-                    onValueChange = { userName = it },
+                    onValueChange = { newValue ->
+                        // Sanitizar entrada em tempo real
+                        val sanitized = newValue.filter { it.isLetter() || it.isWhitespace() }
+                        if (sanitized.length <= 50) {
+                            userName = sanitized
+                        }
+                    },
                     label = { Text("Nome") },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !isSaving
+                    enabled = !isSaving,
+                    supportingText = {
+                        Text("${userName.length}/50 caracteres")
+                    }
                 )
                 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -96,19 +108,25 @@ fun ProfileScreen(
                 
                 Button(
                     onClick = {
-                        if (userName.isBlank()) {
-                            message = "Nome não pode estar vazio"
+                        // Validar entrada
+                        val nameValidation = InputValidator.validateName(userName)
+                        if (!nameValidation.isValid) {
+                            message = nameValidation.errorMessage
+                            return@Button
+                        }
+                        
+                        // Verificar autenticação
+                        try {
+                            AuthValidator.requireAuthentication()
+                        } catch (e: SecurityException) {
+                            message = "Usuário deve estar autenticado"
                             return@Button
                         }
                         
                         isSaving = true
                         message = null
                         
-                        if (currentUser == null) {
-                            message = "Usuário não autenticado"
-                            isSaving = false
-                            return@Button
-                        }
+
                         
                         currentUser.let { user ->
                             firestore.collection("users")

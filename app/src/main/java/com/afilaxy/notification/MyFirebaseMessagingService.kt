@@ -13,33 +13,69 @@ import android.os.Vibrator
 import androidx.core.app.NotificationCompat
 import com.afilaxy.MainActivity
 import com.afilaxy.R
+import com.afilaxy.utils.ErrorHandler
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 
 class MyFirebaseMessagingService : FirebaseMessagingService() {
+    
+    companion object {
+        private const val EMERGENCY_CHANNEL_ID = "afilaxy_emergency"
+        private const val DEFAULT_CHANNEL_ID = "afilaxy_channel"
+        private const val EMERGENCY_TYPE = "emergency_alert"
+    }
+    
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
-        val isEmergency = remoteMessage.data["type"] == "emergency_alert"
-        
-        if (isEmergency) {
-            val requesterName = remoteMessage.data["requesterName"] ?: "Alguém"
-            sendEmergencyNotification(
-                "🚨 EMERGÊNCIA AFILAXY",
-                "$requesterName precisa de bombinha próximo a você!"
-            )
-        } else {
-            remoteMessage.notification?.let {
-                sendNotification(it.title ?: "Afilaxy", it.body ?: "")
+        ErrorHandler.safeCall(
+            operation = "onMessageReceived",
+            onError = { error ->
+                android.util.Log.e("MessagingService", "Erro ao processar mensagem: ${error.logMessage}")
             }
+        ) {
+            when (remoteMessage.data["type"]) {
+                EMERGENCY_TYPE -> handleEmergencyMessage(remoteMessage)
+                else -> handleRegularMessage(remoteMessage)
+            }
+        }
+    }
+    
+    private fun handleEmergencyMessage(remoteMessage: RemoteMessage) {
+        val requesterName = remoteMessage.data["requesterName"] ?: "Alguém"
+        sendEmergencyNotification(
+            "🚨 EMERGÊNCIA AFILAXY",
+            "$requesterName precisa de bombinha próximo a você!"
+        )
+    }
+    
+    private fun handleRegularMessage(remoteMessage: RemoteMessage) {
+        remoteMessage.notification?.let { notification ->
+            sendNotification(
+                notification.title ?: "Afilaxy",
+                notification.body ?: ""
+            )
         }
     }
 
     private fun sendEmergencyNotification(title: String, message: String) {
-        try {
-            val channelId = "afilaxy_emergency"
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-                ?: return
-
-        // Canal de emergência com máxima prioridade
+        ErrorHandler.safeCall(
+            operation = "sendEmergencyNotification",
+            onError = { error ->
+                android.util.Log.e("MessagingService", "Falha na notificação de emergência: ${error.logMessage}")
+            }
+        ) {
+            val notificationManager = getNotificationManager() ?: return@safeCall
+            
+            createEmergencyChannel(notificationManager)
+            triggerEmergencyVibration()
+            
+            val pendingIntent = createEmergencyIntent()
+            val notification = buildEmergencyNotification(title, message, pendingIntent)
+            
+            notificationManager.notify(generateNotificationId(), notification)
+        }
+    }
+    
+    private fun createEmergencyChannel(notificationManager: NotificationManager) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val emergencySound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             val audioAttributes = AudioAttributes.Builder()
@@ -48,7 +84,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 .build()
 
             val channel = NotificationChannel(
-                channelId,
+                EMERGENCY_CHANNEL_ID,
                 "Emergências Afilaxy",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
@@ -56,82 +92,91 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
                 setSound(emergencySound, audioAttributes)
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 1000, 500, 1000, 500, 1000)
-                setBypassDnd(true) // Bypass "Não Perturbe"
+                setBypassDnd(true)
             }
             notificationManager.createNotificationChannel(channel)
         }
-
-        // Vibração intensa
+    }
+    
+    private fun triggerEmergencyVibration() {
         val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        val vibrationPattern = longArrayOf(0, 1000, 500, 1000)
+        
         vibrator?.let {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                it.vibrate(VibrationEffect.createWaveform(longArrayOf(0, 1000, 500, 1000), -1))
+                it.vibrate(VibrationEffect.createWaveform(vibrationPattern, -1))
             } else {
-                it.vibrate(longArrayOf(0, 1000, 500, 1000), -1)
+                it.vibrate(vibrationPattern, -1)
             }
         }
-
+    }
+    
+    private fun createEmergencyIntent(): PendingIntent {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra("open_emergency", true)
         }
-        val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
-
-        val notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle(title)
-            .setContentText(message)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentIntent(pendingIntent)
-            .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setFullScreenIntent(pendingIntent, true) // Acende a tela
-            .addAction(R.drawable.ic_notification, "ACEITAR AJUDA", pendingIntent)
-            .build()
-
-        notificationManager.notify(generateNotificationId(), notification)
-        } catch (e: SecurityException) {
-            android.util.Log.e("MyFirebaseMessagingService", "Permissão negada para notificação: ${e.message}")
-        } catch (e: Exception) {
-            android.util.Log.e("MyFirebaseMessagingService", "Erro ao enviar notificação de emergência: ${e.message}")
-        }
+        return PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
     }
+    
+    private fun buildEmergencyNotification(
+        title: String,
+        message: String,
+        pendingIntent: PendingIntent
+    ) = NotificationCompat.Builder(this, EMERGENCY_CHANNEL_ID)
+        .setContentTitle(title)
+        .setContentText(message)
+        .setSmallIcon(R.drawable.ic_notification)
+        .setContentIntent(pendingIntent)
+        .setAutoCancel(true)
+        .setPriority(NotificationCompat.PRIORITY_MAX)
+        .setCategory(NotificationCompat.CATEGORY_ALARM)
+        .setFullScreenIntent(pendingIntent, true)
+        .addAction(R.drawable.ic_notification, "ACEITAR AJUDA", pendingIntent)
+        .build()
     
     private fun generateNotificationId(): Int {
         return (System.currentTimeMillis() % Int.MAX_VALUE).toInt()
     }
 
     private fun sendNotification(title: String, message: String) {
-        try {
-            val channelId = "afilaxy_channel"
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-                ?: return
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val channel = NotificationChannel(
-                    channelId,
-                    "Afilaxy Notificações",
-                    NotificationManager.IMPORTANCE_DEFAULT
-                )
-                notificationManager.createNotificationChannel(channel)
+        ErrorHandler.safeCall(
+            operation = "sendNotification",
+            onError = { error ->
+                android.util.Log.e("MessagingService", "Falha na notificação: ${error.logMessage}")
             }
-
+        ) {
+            val notificationManager = getNotificationManager() ?: return@safeCall
+            
+            createDefaultChannel(notificationManager)
+            
             val intent = Intent(this, MainActivity::class.java)
             val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE)
-
-            val notification = NotificationCompat.Builder(this, channelId)
+            
+            val notification = NotificationCompat.Builder(this, DEFAULT_CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(message)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true)
                 .build()
-
+            
             notificationManager.notify(generateNotificationId(), notification)
-        } catch (e: SecurityException) {
-            android.util.Log.e("MyFirebaseMessagingService", "Permissão negada para notificação: ${e.message}")
-        } catch (e: Exception) {
-            android.util.Log.e("MyFirebaseMessagingService", "Erro ao enviar notificação: ${e.message}")
+        }
+    }
+    
+    private fun getNotificationManager(): NotificationManager? {
+        return getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+    }
+    
+    private fun createDefaultChannel(notificationManager: NotificationManager) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                DEFAULT_CHANNEL_ID,
+                "Afilaxy Notificações",
+                NotificationManager.IMPORTANCE_DEFAULT
+            )
+            notificationManager.createNotificationChannel(channel)
         }
     }
 }

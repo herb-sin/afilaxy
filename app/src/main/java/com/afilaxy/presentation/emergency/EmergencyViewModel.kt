@@ -17,11 +17,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import com.afilaxy.security.AuthValidator
 import com.afilaxy.security.InputSanitizer
+import com.afilaxy.security.RateLimiter
+import com.afilaxy.utils.ErrorHandler
 
 class EmergencyViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(EmergencyUiState())
     val uiState: StateFlow<EmergencyUiState> = _uiState.asStateFlow()
     private var listenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
+    
+    // Instâncias Firebase otimizadas com lazy loading
+    private val firebaseAuth by lazy { FirebaseAuth.getInstance() }
+    private val firebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     
     override fun onCleared() {
         super.onCleared()
@@ -65,14 +71,23 @@ class EmergencyViewModel : ViewModel() {
 
     private fun searchNearbyHelpers(location: Location) {
         viewModelScope.launch {
-            try {
-                // Verificação crítica de autenticação
-                val user = try {
-                    AuthValidator.requireVerifiedEmail()
-                } catch (e: SecurityException) {
-                    android.util.Log.e("EmergencyViewModel", "Falha na autenticação")
+            ErrorHandler.safeSuspendCall(
+                operation = "searchNearbyHelpers",
+                onError = { error ->
                     _uiState.value = _uiState.value.copy(
-                        locationError = "Usuário deve estar autenticado e verificado",
+                        locationError = error.userMessage,
+                        isLoadingLocation = false
+                    )
+                }
+            ) {
+                // Verificação crítica de autenticação
+                val user = AuthValidator.requireVerifiedEmail()
+                
+                // Rate limiting para criação de emergências
+                if (!RateLimiter.canCreateEmergency(user.uid)) {
+                    val remainingTime = RateLimiter.getRemainingTime(user.uid, "emergency")
+                    _uiState.value = _uiState.value.copy(
+                        locationError = "Aguarde ${remainingTime / 1000}s antes de criar nova emergência",
                         isLoadingLocation = false
                     )
                     return@launch
@@ -104,32 +119,23 @@ class EmergencyViewModel : ViewModel() {
                     try {
                         notifyHelpers(helpers, emergency)
                     } catch (e: Exception) {
-                        android.util.Log.e("EmergencyViewModel", "Erro crítico ao notificar helpers: ${e.message}")
+                        android.util.Log.e("EmergencyViewModel", "Erro crítico ao notificar helpers: ${InputSanitizer.sanitizeForLog(e.message)}")
                         // Manter estado de aguardando resposta mesmo com erro de notificação
                     }
                     
                     // Iniciar listener para respostas dos helpers
                     startListeningForHelperResponse(emergency.id)
                 }
-            } catch (e: Exception) {
-                _uiState.value =
-                        _uiState.value.copy(
-                                locationError = "Erro: ${e.message}",
-                                isLoadingLocation = false
-                        )
             }
         }
     }
 
     private suspend fun createEmergency(location: Location): Emergency {
-        val auth = FirebaseAuth.getInstance()
-        val firestore = FirebaseFirestore.getInstance()
-
         // Verificação crítica de autenticação
         val user = AuthValidator.requireVerifiedEmail()
 
         // Buscar nome do usuário no Firestore
-        val userDoc = firestore.collection("users").document(user.uid).get().await()
+        val userDoc = firebaseFirestore.collection("users").document(user.uid).get().await()
         val userName = userDoc.getString("name") ?: "Pessoa"
         
         val emergency =
@@ -151,19 +157,17 @@ class EmergencyViewModel : ViewModel() {
                         "status" to emergency.status.name
                 )
 
-        val docRef = firestore.collection("emergencies").add(emergencyData).await()
+        val docRef = firebaseFirestore.collection("emergencies").add(emergencyData).await()
         return emergency.copy(id = docRef.id)
     }
 
     private suspend fun findNearbyHelpers(location: Location): List<Helper> {
-        val firestore = FirebaseFirestore.getInstance()
-        val auth = FirebaseAuth.getInstance()
-        val currentUserId = auth.currentUser?.uid
+        val currentUserId = firebaseAuth.currentUser?.uid
         
         android.util.Log.d("EmergencyViewModel", "Buscando helpers próximos")
 
         val usersSnapshot =
-                firestore.collection("users").whereEqualTo("isHelper", true).get().await()
+                firebaseFirestore.collection("users").whereEqualTo("isHelper", true).get().await()
                 
         android.util.Log.d("EmergencyViewModel", "Total de helpers encontrados: ${usersSnapshot.documents.size}")
 
@@ -229,17 +233,21 @@ class EmergencyViewModel : ViewModel() {
             return
         }
         
-        val firestore = FirebaseFirestore.getInstance()
-        
         android.util.Log.d("EmergencyViewModel", "Notificando helpers")
 
         for (helper in helpers) {
             try {
+                // Rate limiting para notificações
+                if (!RateLimiter.canSendNotification(emergency.userId)) {
+                    android.util.Log.w("EmergencyViewModel", "Rate limit atingido para notificações")
+                    continue
+                }
+                
                 val alertData = mapOf(
                     "type" to "emergency_alert",
                     "emergencyId" to emergency.id,
-                    "requesterName" to emergency.userName.replace("[^\\w\\s-]".toRegex(), ""),
-                    "requesterId" to emergency.userId.replace("[^\\w-]".toRegex(), ""),
+                    "requesterName" to InputSanitizer.sanitizeForFirestore(emergency.userName),
+                    "requesterId" to InputSanitizer.sanitizeForFirestore(emergency.userId),
                     "location" to GeoPoint(
                         emergency.location.latitude,
                         emergency.location.longitude
@@ -249,7 +257,7 @@ class EmergencyViewModel : ViewModel() {
                 
                 android.util.Log.d("EmergencyViewModel", "Enviando notificação para helper")
 
-                firestore
+                firebaseFirestore
                     .collection("users")
                     .document(helper.id)
                     .collection("notifications")
@@ -297,10 +305,8 @@ class EmergencyViewModel : ViewModel() {
         
         viewModelScope.launch {
             try {
-                val firestore = FirebaseFirestore.getInstance()
-                
                 // Listener para notificações de confirmação e finalização
-                listenerRegistration = firestore.collection("users")
+                listenerRegistration = firebaseFirestore.collection("users")
                     .document(currentUser.uid)
                     .collection("notifications")
                     .whereEqualTo("emergencyId", emergencyId)
@@ -314,7 +320,7 @@ class EmergencyViewModel : ViewModel() {
                             if (change.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
                                 val doc = change.document
                                 val notificationType = doc.getString("type")
-                                val helperName = doc.getString("helperName")?.replace("[^\\w\\s-]".toRegex(), "") ?: "Helper"
+                                val helperName = InputSanitizer.sanitizeText(doc.getString("helperName")) ?: "Helper"
                                 
                                 // Usar nome amigável se for email ou vazio
                                 val displayName = if (helperName.isBlank() || helperName.contains("@")) {
