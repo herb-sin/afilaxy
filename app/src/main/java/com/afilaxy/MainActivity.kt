@@ -23,6 +23,7 @@ import com.afilaxy.presentation.common.navigation.AppNavigation
 import com.afilaxy.ui.theme.AfilaxyTheme
 import com.afilaxy.ui.RequestNotificationPermission
 import com.afilaxy.utils.FirebaseDiagnostic
+import com.afilaxy.utils.ErrorHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -93,7 +94,8 @@ class MainActivity : ComponentActivity() {
                         .collection("notifications")
                         .addSnapshotListener { snapshot, error ->
                             if (error != null) {
-                                android.util.Log.e("MainActivity", "❌ ERRO CRÍTICO no listener: ${error.message}")
+                                val errorResult = ErrorHandler.handleError(error, "notificationListener")
+                                android.util.Log.e("MainActivity", errorResult.logMessage)
                                 return@addSnapshotListener
                             }
                             
@@ -128,14 +130,18 @@ class MainActivity : ComponentActivity() {
                                         android.util.Log.d("MainActivity", "🎯 RequesterId: $requesterId")
                                         android.util.Log.d("MainActivity", "👤 CurrentUser: ${currentUser!!.uid}")
                                         
-                                        // Marcar como processado
-                                        doc.reference.update("processed", true)
-                                            .addOnSuccessListener {
-                                                android.util.Log.d("MainActivity", "✅ Notificação marcada como processada")
+                                        // Marcar como processado com tratamento de erro
+                                        ErrorHandler.safeCall(
+                                            operation = "markNotificationProcessed",
+                                            onError = { error ->
+                                                android.util.Log.e("MainActivity", "Falha ao marcar notificação: ${error.logMessage}")
                                             }
-                                            .addOnFailureListener { e ->
-                                                android.util.Log.e("MainActivity", "❌ Erro ao marcar como processada: ${e.message}")
-                                            }
+                                        ) {
+                                            doc.reference.update("processed", true)
+                                                .addOnSuccessListener {
+                                                    android.util.Log.d("MainActivity", "✅ Notificação marcada como processada")
+                                                }
+                                        }
                                         
                                         // Verificar se não é o próprio usuário
                                         if (requesterId != null && requesterId != currentUser!!.uid) {
@@ -187,7 +193,7 @@ class MainActivity : ComponentActivity() {
                                     locationCallback = startSignificantMovementUpdates(
                                         context,
                                         minDistanceMeters = 50f
-                                    ) { lat, lon ->
+                                    ) { lat: Double, lon: Double ->
                                         try {
                                             saveUserLocationWithCoords(context, lat, lon)
                                         } catch (e: Exception) {
