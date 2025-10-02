@@ -128,7 +128,7 @@ fun ProfileScreen(
                         
 
                         
-                        currentUser.let { user ->
+                        currentUser?.let { user ->
                             firestore.collection("users")
                                 .document(user.uid)
                                 .update("name", userName)
@@ -140,6 +140,9 @@ fun ProfileScreen(
                                     isSaving = false
                                     message = "Erro ao atualizar: ${e.message}"
                                 }
+                        } ?: run {
+                            isSaving = false
+                            message = "Usuário não autenticado"
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
