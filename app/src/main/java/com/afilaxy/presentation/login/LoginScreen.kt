@@ -99,27 +99,7 @@ fun LoginScreen(
                 errorMessage = null
                 val auth = FirebaseAuth.getInstance()
                 
-                // BYPASS TEMPORÁRIO PARA EMULADOR
-                if (email == "teste@emulador.com" && password == "123456") {
-                    Log.d("LoginScreen", "Usando bypass do emulador")
-                    loading = false
-                    onLoginSuccess()
-                    return@Button
-                }
-                
-                // BYPASS PARA CONTAS REAIS NO EMULADOR (sem verificação de email)
-                if (email.contains("@") && password.length >= 6) {
-                    Log.d("LoginScreen", "Tentando bypass para conta real no emulador")
-                    
-                    coroutineScope.launch {
-                        delay(2000) // Simular delay de rede
-                        if (loading) {
-                            Log.d("LoginScreen", "Executando bypass após timeout")
-                            loading = false
-                            onLoginSuccess()
-                        }
-                    }
-                }
+
                 
                 if (isRegisterMode) {
                     Log.d("LoginScreen", "Iniciando cadastro para: $email")
@@ -205,7 +185,7 @@ fun LoginScreen(
                         delay(15000) // 15 segundos
                         if (loading) {
                             loading = false
-                            errorMessage = "Timeout: Problemas de conectividade. Tente novamente ou use o bypass para teste."
+                            errorMessage = "Timeout: Problemas de conectividade. Tente novamente."
                             Log.e("LoginScreen", "Timeout no login")
                         }
                     }

@@ -1,11 +1,6 @@
-# This file contains the path of your Android SDK installation.
-# For customization when using a Version Control System, please read the
-# header note.
-#Mon Dec 09 15:30:00 BRT 2024
-sdk.dir=/path/to/your/Android/Sdk
-
 # Google Maps API Key
+# Obtenha sua chave em: https://console.cloud.google.com/apis/credentials
 MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY_HERE
 
-# Gemini API Key  
-GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
+# Firebase configuration
+# Adicione outras configurações necessárias aqui

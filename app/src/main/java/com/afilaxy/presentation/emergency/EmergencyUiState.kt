@@ -14,5 +14,6 @@ data class EmergencyUiState(
     val isAwaitingHelperResponse: Boolean = false,
     val showEmergencyInstructions: Boolean = false,
     val emergencyActive: Boolean = false,
-    val emergencyId: String? = null
+    val emergencyId: String? = null,
+    val helpCompleted: Boolean = false
 )

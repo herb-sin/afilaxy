@@ -21,11 +21,10 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -37,9 +36,11 @@ import androidx.core.location.LocationManagerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import com.afilaxy.presentation.location.LocationViewModel
 import com.afilaxy.domain.model.Location
+import com.afilaxy.presentation.emergency.components.EmergencyInstructionsDialog
+import com.afilaxy.presentation.emergency.components.BystanderInstructionsDialog
 import com.afilaxy.presentation.emergency.components.HelperCard
+import com.afilaxy.presentation.location.LocationViewModel
 import com.afilaxy.ui.theme.AfilaxyTheme
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -47,9 +48,9 @@ import com.google.android.gms.tasks.CancellationTokenSource
 
 @Composable
 fun EmergencyScreen(
-    navController: NavHostController,
-    modifier: Modifier = Modifier,
-    viewModel: EmergencyViewModel = viewModel()
+        navController: NavHostController,
+        modifier: Modifier = Modifier,
+        viewModel: EmergencyViewModel = viewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -57,53 +58,42 @@ fun EmergencyScreen(
     val location by locationViewModel.location.collectAsState()
 
     // Inicia/paralisa atualizações de localização conforme ciclo de vida do Composable
-    LaunchedEffect(Unit) {
-        locationViewModel.startLocationUpdates(context)
-    }
-    DisposableEffect(Unit) {
-        onDispose {
-            locationViewModel.stopLocationUpdates(context)
-        }
-    }
+    LaunchedEffect(Unit) { locationViewModel.startLocationUpdates(context) }
+    DisposableEffect(Unit) { onDispose { locationViewModel.stopLocationUpdates(context) } }
 
     // Check location permission dinamicamente
     LaunchedEffect(Unit) {
-        val hasLocationPermission = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
+        val hasLocationPermission =
+                ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
         viewModel.updateLocationPermission(hasLocationPermission)
     }
 
     // Permission launcher
-    val requestPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted: Boolean ->
-            viewModel.updateLocationPermission(isGranted)
-            if (isGranted) {
-                fetchCurrentUserLocation(context, viewModel)
-            }
-        }
-    )
+    val requestPermissionLauncher =
+            rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestPermission(),
+                    onResult = { isGranted: Boolean ->
+                        viewModel.updateLocationPermission(isGranted)
+                        if (isGranted) {
+                            fetchCurrentUserLocation(context, viewModel)
+                        }
+                    }
+            )
 
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
+            modifier = modifier.fillMaxSize().padding(16.dp),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
-            text = "Emergência",
-            style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center
+                text = "Emergência",
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Encontre ajuda próxima rapidamente",
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center
-        )
         Spacer(modifier = Modifier.height(24.dp))
 
         when {
@@ -116,10 +106,14 @@ fun EmergencyScreen(
                     }
                     uiState.userLocation != null -> {
                         val location = uiState.userLocation
-                        Text("Sua localização obtida com sucesso!")
+                        Text("Sua localização foi obtida com sucesso!")
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Lat: ${location?.latitude?.let { String.format("%.4f", it) } ?: "N/D"}")
-                        Text("Lon: ${location?.longitude?.let { String.format("%.4f", it) } ?: "N/D"}")
+                        Text(
+                                "Lat: ${location?.latitude?.let { String.format("%.4f", it) } ?: "N/D"}"
+                        )
+                        Text(
+                                "Lon: ${location?.longitude?.let { String.format("%.4f", it) } ?: "N/D"}"
+                        )
                         Spacer(modifier = Modifier.height(16.dp))
 
                         when {
@@ -133,31 +127,85 @@ fun EmergencyScreen(
                                     }
                                 }
                             }
-                            uiState.helperResponding != null -> {
-                                val helper = uiState.helperResponding
+                            uiState.helpCompleted -> {
                                 Text(
-                                    "✅ ${helper?.nome ?: "Ajudante"} está a caminho!",
+                                    "✅ Ajuda finalizada!",
                                     color = MaterialTheme.colorScheme.primary,
                                     style = MaterialTheme.typography.titleMedium
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text("Distância: ${helper?.distanciaEstimada ?: "N/D"}")
+                                Text("O ajudante finalizou a assistência. Esperamos que esteja bem!")
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Button(
-                                    onClick = { viewModel.showEmergencyInstructions() }
+                                    onClick = { viewModel.resetEmergencyState() }
                                 ) {
-                                    Text("Ver Instruções de Emergência")
+                                    Text("Nova Emergência")
+                                }
+                            }
+                            uiState.helperResponding != null -> {
+                                val helper = uiState.helperResponding
+                                Text(
+                                        "✅ ${helper?.nome ?: "Ajudante"} está a caminho!",
+                                        color = MaterialTheme.colorScheme.primary,
+                                        style = MaterialTheme.typography.titleMedium
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Distância: ${helper?.distanciaEstimada ?: "N/D"}")
+                                
+                                Spacer(modifier = Modifier.height(16.dp))
+                                
+                                // Instruções de emergência na própria tela
+                                androidx.compose.material3.Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = androidx.compose.material3.CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surfaceVariant
+                                    )
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(16.dp)
+                                    ) {
+                                        Text(
+                                            text = "🚨 Instruções de Emergência",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text("• Mantenha-se calmo e respire devagar")
+                                        Text("• Sente-se em posição confortável")
+                                        Text("• Afrouxe roupas apertadas")
+                                        Text("• Se possível, vá para local arejado")
+                                        Text("• Evite esforços físicos")
+                                        
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        
+                                        Text(
+                                            text = "⚠️ Se a crise piorar, chame 192 (SAMU)!",
+                                            color = MaterialTheme.colorScheme.error,
+                                            style = MaterialTheme.typography.bodyMedium
+                                        )
+                                    }
+                                }
+                                
+                                Spacer(modifier = Modifier.height(16.dp))
+                                
+                                Button(onClick = { viewModel.showEmergencyInstructions() }) {
+                                    Text("Instruções a Transeuntes")
+                                }
+
+                                // Dialog de instruções para transeuntes
+                                if (uiState.showEmergencyInstructions) {
+                                    BystanderInstructionsDialog(
+                                            onDismiss = { viewModel.hideEmergencyInstructions() }
+                                    )
                                 }
                             }
                             uiState.noHelpersFound -> {
                                 Text(
-                                    "Nenhum ajudante disponível no momento.",
-                                    color = MaterialTheme.colorScheme.error
+                                        "Nenhum ajudante disponível no momento.",
+                                        color = MaterialTheme.colorScheme.error
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Button(
-                                    onClick = { fetchCurrentUserLocation(context, viewModel) }
-                                ) {
+                                Button(onClick = { fetchCurrentUserLocation(context, viewModel) }) {
                                     Text("Tentar Novamente")
                                 }
                             }
@@ -170,30 +218,27 @@ fun EmergencyScreen(
                     uiState.locationError != null -> {
                         val error = uiState.locationError
                         Text(
-                            text = error ?: "Erro desconhecido",
-                            color = MaterialTheme.colorScheme.error,
-                            textAlign = TextAlign.Center
+                                text = error ?: "Erro desconhecido",
+                                color = MaterialTheme.colorScheme.error,
+                                textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = { fetchCurrentUserLocation(context, viewModel) }
-                        ) {
+                        Button(onClick = { fetchCurrentUserLocation(context, viewModel) }) {
                             Text("Tentar Novamente")
                         }
                     }
                     else -> {
                         Button(
-                            onClick = { fetchCurrentUserLocation(context, viewModel) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(80.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error
-                            )
+                                onClick = { fetchCurrentUserLocation(context, viewModel) },
+                                modifier = Modifier.fillMaxWidth().height(80.dp),
+                                colors =
+                                        ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.error
+                                        )
                         ) {
                             Text(
-                                "🚨 SOS - PRECISO DE BOMBINHA",
-                                style = MaterialTheme.typography.titleLarge
+                                    "🚨 SOS - PRECISO DE BOMBINHA",
+                                    style = MaterialTheme.typography.titleLarge
                             )
                         }
                     }
@@ -201,26 +246,24 @@ fun EmergencyScreen(
             }
             else -> {
                 Text(
-                    text = "Para localizar ajuda próxima, o Afilaxy precisa da sua permissão para acessar a localização do dispositivo.",
-                    textAlign = TextAlign.Center
+                        text =
+                                "Para localizar ajuda próxima, o Afilaxy precisa da sua permissão para acessar a localização do dispositivo.",
+                        textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Button(
-                    onClick = {
-                        requestPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
-                    }
-                ) {
-                    Text("Solicitar Permissão de Localização")
-                }
+                        onClick = {
+                            requestPermissionLauncher.launch(
+                                    Manifest.permission.ACCESS_FINE_LOCATION
+                            )
+                        }
+                ) { Text("Solicitar Permissão de Localização") }
             }
         }
 
         Spacer(modifier = Modifier.weight(1f))
 
-        Button(
-            onClick = { navController.popBackStack() },
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        Button(onClick = { navController.popBackStack() }, modifier = Modifier.fillMaxWidth()) {
             Text("Voltar para Tela Inicial")
         }
     }
@@ -236,7 +279,9 @@ private fun fetchCurrentUserLocation(context: Context, viewModel: EmergencyViewM
 
     val locationManager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
     if (!LocationManagerCompat.isLocationEnabled(locationManager)) {
-        viewModel.setLocationError("Serviços de localização desativados. Por favor, ative o GPS/Localização.")
+        viewModel.setLocationError(
+                "Serviços de localização desativados. Por favor, ative o GPS/Localização."
+        )
         return
     }
 
@@ -244,23 +289,25 @@ private fun fetchCurrentUserLocation(context: Context, viewModel: EmergencyViewM
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         val priority = Priority.PRIORITY_HIGH_ACCURACY
         val cancellationTokenSource = CancellationTokenSource()
-        
-        fusedLocationClient.getCurrentLocation(priority, cancellationTokenSource.token)
-            .addOnSuccessListener { location: android.location.Location? ->
-                if (location != null) {
-                    val domainLocation = Location(
-                        latitude = location.latitude,
-                        longitude = location.longitude,
-                        accuracy = location.accuracy
-                    )
-                    viewModel.setLocation(domainLocation)
-                } else {
-                    viewModel.setLocation(null)
+
+        fusedLocationClient
+                .getCurrentLocation(priority, cancellationTokenSource.token)
+                .addOnSuccessListener { location: android.location.Location? ->
+                    if (location != null) {
+                        val domainLocation =
+                                Location(
+                                        latitude = location.latitude,
+                                        longitude = location.longitude,
+                                        accuracy = location.accuracy
+                                )
+                        viewModel.setLocation(domainLocation)
+                    } else {
+                        viewModel.setLocation(null)
+                    }
                 }
-            }
-            .addOnFailureListener { exception ->
-                viewModel.setLocationError("Erro ao obter localização: ${exception.message}")
-            }
+                .addOnFailureListener { exception ->
+                    viewModel.setLocationError("Erro ao obter localização: ${exception.message}")
+                }
     } catch (e: SecurityException) {
         viewModel.setLocationError("Erro de permissão: ${e.message}")
     }
@@ -269,7 +316,5 @@ private fun fetchCurrentUserLocation(context: Context, viewModel: EmergencyViewM
 @Preview(showBackground = true)
 @Composable
 fun EmergencyScreenPreview() {
-    AfilaxyTheme {
-        EmergencyScreen(navController = rememberNavController())
-    }
+    AfilaxyTheme { EmergencyScreen(navController = rememberNavController()) }
 }

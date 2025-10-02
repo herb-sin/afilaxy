@@ -110,7 +110,7 @@ fun RespostaIA(uiState: UiState) {
                     .padding(8.dp)
             ) {
                 Text(
-                    text = uiState.resumo,
+                    text = uiState.content,
                     style = MaterialTheme.typography.bodyMedium
                 )
             }

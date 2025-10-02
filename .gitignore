@@ -18,6 +18,15 @@ local.properties
 app/google-services.json
 google-services.json
 
-# API Keys
+# API Keys e credenciais
 *.properties
 !gradle.properties
+*.key
+*.pem
+*.p12
+*.jks
+*.keystore
+
+# Arquivos de configuração sensíveis
+app/src/main/assets/credentials.json
+app/src/main/res/raw/credentials.json
