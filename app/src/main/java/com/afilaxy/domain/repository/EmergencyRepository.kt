@@ -5,8 +5,7 @@ import com.afilaxy.domain.model.Helper
 import com.afilaxy.domain.model.Location
 
 interface EmergencyRepository {
-    suspend fun findNearbyHelpers(location: Location, radiusKm: Double = 5.0): List<Helper>
-    suspend fun createEmergency(emergency: Emergency): String
-    suspend fun updateEmergencyStatus(emergencyId: String, status: String)
-    suspend fun sendEmergencyAlert(helperId: String, emergency: Emergency)
+    suspend fun createEmergency(location: Location): Emergency
+    suspend fun findNearbyHelpers(location: Location): List<Helper>
+    suspend fun notifyHelpers(helpers: List<Helper>, emergency: Emergency)
 }
