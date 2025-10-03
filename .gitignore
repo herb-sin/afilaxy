@@ -18,6 +18,12 @@ local.properties
 app/google-services.json
 google-services.json
 
+# Build outputs com credenciais
+*.aab
+*.apk
+app/release/
+app/build/outputs/
+
 # API Keys e credenciais
 *.properties
 !gradle.properties
@@ -32,3 +38,8 @@ app/src/main/assets/credentials.json
 app/src/main/res/raw/credentials.json
 local.properties
 local.properties.temp
+
+# NUNCA commitar builds com API keys
+**/*.aab
+**/*.apk
+**/release/
