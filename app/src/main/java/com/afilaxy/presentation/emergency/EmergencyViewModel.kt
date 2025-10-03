@@ -17,7 +17,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import com.afilaxy.security.AuthValidator
 import com.afilaxy.security.InputSanitizer
-import com.afilaxy.security.RateLimiter
+import com.afilaxy.domain.repository.EmergencyRepository
+import com.afilaxy.domain.repository.EmergencyRepositoryImpl
+import com.afilaxy.domain.usecase.CreateEmergencyUseCase
+import com.afilaxy.domain.usecase.FindHelpersUseCase
+import com.afilaxy.data.preload.HelperPreloader
 import com.afilaxy.utils.ErrorHandler
 
 class EmergencyViewModel : ViewModel() {
@@ -25,9 +29,13 @@ class EmergencyViewModel : ViewModel() {
     val uiState: StateFlow<EmergencyUiState> = _uiState.asStateFlow()
     private var listenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
     
-    // Instâncias Firebase otimizadas com lazy loading
+    // Instâncias otimizadas
     private val firebaseAuth by lazy { FirebaseAuth.getInstance() }
     private val firebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    private val repository: EmergencyRepository = EmergencyRepositoryImpl()
+    private val createEmergencyUseCase = CreateEmergencyUseCase(repository)
+    private val findHelpersUseCase = FindHelpersUseCase(repository)
+    private val helperPreloader = HelperPreloader(repository)
     
     override fun onCleared() {
         super.onCleared()
@@ -54,6 +62,8 @@ class EmergencyViewModel : ViewModel() {
     fun setLocation(location: Location?) {
         if (location != null) {
             _uiState.value = _uiState.value.copy(userLocation = location, isLoadingLocation = false)
+            // Preload helpers em background
+            helperPreloader.preloadNearbyHelpers(location)
             searchNearbyHelpers(location)
         } else {
             _uiState.value =
@@ -71,220 +81,57 @@ class EmergencyViewModel : ViewModel() {
 
     private fun searchNearbyHelpers(location: Location) {
         viewModelScope.launch {
-            ErrorHandler.safeSuspendCall(
-                operation = "searchNearbyHelpers",
-                onError = { error ->
+            // Criar emergência
+            createEmergencyUseCase(location)
+                .onSuccess { emergency ->
+                    processEmergencyCreated(emergency, location)
+                }
+                .onFailure { error ->
                     _uiState.value = _uiState.value.copy(
-                        locationError = error.userMessage,
+                        locationError = error.message ?: "Erro ao criar emergência",
                         isLoadingLocation = false
                     )
                 }
-            ) {
-                // Verificação crítica de autenticação
-                val user = AuthValidator.requireVerifiedEmail()
-                
-                // Rate limiting para criação de emergências
-                if (!RateLimiter.canCreateEmergency(user.uid)) {
-                    val remainingTime = RateLimiter.getRemainingTime(user.uid, "emergency")
-                    _uiState.value = _uiState.value.copy(
-                        locationError = "Aguarde ${remainingTime / 1000}s antes de criar nova emergência",
-                        isLoadingLocation = false
-                    )
-                    return@launch
-                }
-                
-                val emergency = createEmergency(location)
-
-                val helpers = findNearbyHelpers(location)
-
+        }
+    }
+    
+    private suspend fun processEmergencyCreated(emergency: Emergency, location: Location) {
+        // Buscar helpers
+        findHelpersUseCase(location)
+            .onSuccess { helpers ->
                 if (helpers.isEmpty()) {
-                    _uiState.value =
-                            _uiState.value.copy(
-                                    nearbyHelpers = emptyList(),
-                                    noHelpersFound = true,
-                                    isAwaitingHelperResponse = false,
-                                    emergencyId = emergency.id
-                            )
-                } else {
-                    _uiState.value =
-                            _uiState.value.copy(
-                                    nearbyHelpers = helpers,
-                                    noHelpersFound = false,
-                                    isAwaitingHelperResponse = true,
-                                    helperResponding = null,
-                                    emergencyId = emergency.id
-                            )
-
-                    // Tentar notificar helpers
-                    try {
-                        notifyHelpers(helpers, emergency)
-                    } catch (e: Exception) {
-                        android.util.Log.e("EmergencyViewModel", "Erro crítico ao notificar helpers: ${InputSanitizer.sanitizeForLog(e.message)}")
-                    }
-                    
-                    // Iniciar listener para respostas dos helpers
-                    startListeningForHelperResponse(emergency.id)
-                }
-            }
-        }
-    }
-
-    private suspend fun createEmergency(location: Location): Emergency {
-        // Verificação crítica de autenticação
-        val user = AuthValidator.requireVerifiedEmail()
-
-        // Buscar nome do usuário no Firestore
-        val userDoc = firebaseFirestore.collection("users").document(user.uid).get().await()
-        val userName = userDoc.getString("name") ?: "Pessoa"
-        
-        val emergency =
-                Emergency(
-                        id = "",
-                        userId = user.uid,
-                        userName = userName,
-                        location = location,
-                        status = EmergencyStatus.ACTIVE,
-                        timestamp = System.currentTimeMillis()
-                )
-
-        val emergencyData =
-                mapOf(
-                        "userId" to emergency.userId,
-                        "userName" to emergency.userName,
-                        "location" to GeoPoint(location.latitude, location.longitude),
-                        "timestamp" to emergency.timestamp,
-                        "status" to emergency.status.name
-                )
-
-        val docRef = firebaseFirestore.collection("emergencies").add(emergencyData).await()
-        return emergency.copy(id = docRef.id)
-    }
-
-    private suspend fun findNearbyHelpers(location: Location): List<Helper> {
-        val currentUserId = firebaseAuth.currentUser?.uid
-        
-        android.util.Log.d("EmergencyViewModel", "Buscando helpers próximos")
-
-        val usersSnapshot =
-                firebaseFirestore.collection("users").whereEqualTo("isHelper", true).get().await()
-                
-        android.util.Log.d("EmergencyViewModel", "Total de helpers encontrados: ${InputSanitizer.sanitizeForLog(usersSnapshot.documents.size.toString())}")
-
-        val helpers = mutableListOf<Helper>()
-
-        for (document in usersSnapshot.documents) {
-            android.util.Log.d("EmergencyViewModel", "Verificando helper disponível")
-            
-            // Excluir o próprio usuário
-            if (document.id == currentUserId) {
-                android.util.Log.d("EmergencyViewModel", "Pulando próprio usuário")
-                continue
-            }
-            val userLocation = document.getGeoPoint("location")
-            if (userLocation != null) {
-                val distance =
-                        calculateDistance(
-                                location.latitude,
-                                location.longitude,
-                                userLocation.latitude,
-                                userLocation.longitude
-                        )
-                
-                android.util.Log.d("EmergencyViewModel", "Distância calculada: ${InputSanitizer.sanitizeForLog((distance * 1000).toInt().toString())}m")
-
-                if (distance <= 0.3) { // 300m radius
-                    val distanciaMetros = distance * 1000
-                    val userName = document.getString("name")
-                    val displayName = if (userName.isNullOrBlank() || userName.contains("@")) {
-                        "Ajudante ${helpers.size + 1}"
-                    } else {
-                        userName
-                    }
-                    
-                    val helper = Helper(
-                            id = document.id,
-                            nome = displayName,
-                            distanciaEstimada = "${distanciaMetros.toInt()}m",
-                            distanciaMetros = distanciaMetros
+                    _uiState.value = _uiState.value.copy(
+                        nearbyHelpers = emptyList(),
+                        noHelpersFound = true,
+                        isAwaitingHelperResponse = false,
+                        emergencyId = emergency.id
                     )
-                    helpers.add(helper)
-                    android.util.Log.d("EmergencyViewModel", "Helper adicionado na lista")
                 } else {
-                    android.util.Log.d("EmergencyViewModel", "Helper muito distante: ${InputSanitizer.sanitizeForLog((distance * 1000).toInt().toString())}m")
+                    _uiState.value = _uiState.value.copy(
+                        nearbyHelpers = helpers,
+                        noHelpersFound = false,
+                        isAwaitingHelperResponse = true,
+                        helperResponding = null,
+                        emergencyId = emergency.id
+                    )
+                    
+                    try {
+                        repository.notifyHelpers(helpers, emergency)
+                        startListeningForHelperResponse(emergency.id)
+                    } catch (e: Exception) {
+                        android.util.Log.e("EmergencyViewModel", "Erro ao notificar helpers")
+                    }
                 }
-            } else {
-                android.util.Log.d("EmergencyViewModel", "Helper sem localização salva")
             }
-        }
-        
-        android.util.Log.d("EmergencyViewModel", "Total de helpers próximos: ${InputSanitizer.sanitizeForLog(helpers.size.toString())}")
-
-        return helpers.sortedBy { it.distanciaMetros }
-    }
-
-
-    private suspend fun notifyHelpers(helpers: List<Helper>, emergency: Emergency) {
-        // Verificar autenticação antes de operação crítica
-        try {
-            AuthValidator.requireAuthentication()
-        } catch (e: SecurityException) {
-            android.util.Log.e("EmergencyViewModel", "Falha na autenticação")
-            return
-        }
-        
-        android.util.Log.d("EmergencyViewModel", "Notificando helpers")
-
-        for (helper in helpers) {
-            try {
-                // Rate limiting para notificações
-                if (!RateLimiter.canSendNotification(emergency.userId)) {
-                    android.util.Log.w("EmergencyViewModel", "Rate limit atingido para notificações")
-                    continue
-                }
-                
-                val alertData = mapOf(
-                    "type" to "emergency_alert",
-                    "emergencyId" to emergency.id,
-                    "requesterName" to InputSanitizer.sanitizeForFirestore(emergency.userName),
-                    "requesterId" to InputSanitizer.sanitizeForFirestore(emergency.userId),
-                    "location" to GeoPoint(
-                        emergency.location.latitude,
-                        emergency.location.longitude
-                    ),
-                    "timestamp" to System.currentTimeMillis()
+            .onFailure { error ->
+                _uiState.value = _uiState.value.copy(
+                    locationError = error.message ?: "Erro ao buscar helpers",
+                    isLoadingLocation = false
                 )
-                
-                android.util.Log.d("EmergencyViewModel", "Enviando notificação para helper")
-
-                firebaseFirestore
-                    .collection("users")
-                    .document(helper.id)
-                    .collection("notifications")
-                    .add(alertData)
-                    .await()
-                        
-                android.util.Log.d("EmergencyViewModel", "Notificação enviada para helper")
-            } catch (e: Exception) {
-                android.util.Log.e("EmergencyViewModel", "Erro ao notificar helper")
             }
-        }
-        
-        android.util.Log.d("EmergencyViewModel", "Processo de notificação concluído")
     }
 
-    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-        val earthRadius = 6371.0 // km
-        val dLat = Math.toRadians(lat2 - lat1)
-        val dLon = Math.toRadians(lon2 - lon1)
-        val a =
-                sin(dLat / 2) * sin(dLat / 2) +
-                        cos(Math.toRadians(lat1)) *
-                                cos(Math.toRadians(lat2)) *
-                                sin(dLon / 2) *
-                                sin(dLon / 2)
-        val c = 2 * atan2(sqrt(a), sqrt(1 - a))
-        return earthRadius * c
-    }
+
 
     fun showEmergencyInstructions() {
         _uiState.value = _uiState.value.copy(showEmergencyInstructions = true)
