@@ -43,3 +43,6 @@ local.properties.temp
 **/*.aab
 **/*.apk
 **/release/
+
+# Arquivo de ambiente local
+.env
