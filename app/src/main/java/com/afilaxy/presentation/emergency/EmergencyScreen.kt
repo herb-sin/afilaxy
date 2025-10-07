@@ -41,7 +41,7 @@ import com.afilaxy.presentation.emergency.components.EmergencyInstructionsDialog
 import com.afilaxy.presentation.emergency.components.BystanderInstructionsDialog
 import com.afilaxy.presentation.emergency.components.HelperCard
 import com.afilaxy.presentation.location.LocationViewModel
-import com.afilaxy.security.AuthValidator
+import com.afilaxy.security.AuthGuard
 import com.afilaxy.ui.theme.AfilaxyTheme
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
@@ -232,7 +232,7 @@ fun EmergencyScreen(
                         Button(
                                 onClick = { 
                                     // Verificar autenticação antes de iniciar emergência
-                                    if (!AuthValidator.isUserAuthenticated()) {
+                                    if (!AuthGuard.isUserAuthenticated()) {
                                         viewModel.setLocationError("Faça login para usar o sistema de emergência")
                                         return@Button
                                     }

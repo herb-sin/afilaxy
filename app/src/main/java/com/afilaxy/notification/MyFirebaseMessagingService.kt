@@ -13,7 +13,7 @@ import android.os.Vibrator
 import androidx.core.app.NotificationCompat
 import com.afilaxy.MainActivity
 import com.afilaxy.R
-import com.afilaxy.security.AuthValidator
+import com.afilaxy.security.AuthGuard
 import com.afilaxy.security.InputSanitizer
 import com.afilaxy.utils.ErrorHandler
 import com.google.firebase.messaging.FirebaseMessagingService
@@ -42,7 +42,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
     
     private fun handleEmergencyMessage(remoteMessage: RemoteMessage) {
-        if (!AuthValidator.isUserAuthenticated()) {
+        if (!AuthGuard.isUserAuthenticated()) {
             android.util.Log.w("MessagingService", "Usuário não autenticado - ignorando notificação")
             return
         }
@@ -55,7 +55,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
     
     private fun handleRegularMessage(remoteMessage: RemoteMessage) {
-        if (!AuthValidator.isUserAuthenticated()) {
+        if (!AuthGuard.isUserAuthenticated()) {
             android.util.Log.w("MessagingService", "Usuário não autenticado - ignorando notificação")
             return
         }
@@ -117,6 +117,7 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 it.vibrate(VibrationEffect.createWaveform(vibrationPattern, -1))
             } else {
+                @Suppress("DEPRECATION")
                 it.vibrate(vibrationPattern, -1)
             }
         }

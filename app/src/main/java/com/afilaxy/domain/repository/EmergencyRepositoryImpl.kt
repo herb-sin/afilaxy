@@ -4,7 +4,7 @@ import com.afilaxy.domain.model.Emergency
 import com.afilaxy.domain.model.EmergencyStatus
 import com.afilaxy.domain.model.Helper
 import com.afilaxy.domain.model.Location
-import com.afilaxy.security.AuthValidator
+import com.afilaxy.security.AuthGuard
 import com.afilaxy.security.InputSanitizer
 import com.afilaxy.security.RateLimiter
 import com.afilaxy.data.cache.EmergencyCache
@@ -18,7 +18,7 @@ class EmergencyRepositoryImpl : EmergencyRepository {
     private val firestore by lazy { FirebaseFirestore.getInstance() }
     
     override suspend fun createEmergency(location: Location): Emergency {
-        val user = AuthValidator.requireVerifiedEmail()
+        val user = AuthGuard.requireVerifiedEmail()
         
         val userDoc = firestore.collection("users").document(user.uid).get().await()
         val userName = userDoc.getString("name") ?: "Pessoa"
@@ -56,7 +56,7 @@ class EmergencyRepositoryImpl : EmergencyRepository {
             return cachedHelpers
         }
         
-        val currentUserId = AuthValidator.getCurrentUserId()
+        val currentUserId = AuthGuard.getCurrentUserId()
         
         val usersSnapshot = firestore.collection("users")
             .whereEqualTo("isHelper", true)
@@ -102,7 +102,7 @@ class EmergencyRepositoryImpl : EmergencyRepository {
     }
     
     override suspend fun notifyHelpers(helpers: List<Helper>, emergency: Emergency) {
-        AuthValidator.requireAuthentication()
+        AuthGuard.requireAuthentication()
 
         for (helper in helpers) {
             if (!RateLimiter.canSendNotification(emergency.userId)) continue

@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import com.afilaxy.security.AuthValidator
+import com.afilaxy.security.AuthGuard
 import com.afilaxy.security.InputSanitizer
 import com.afilaxy.domain.repository.EmergencyRepository
 import com.afilaxy.domain.repository.EmergencyRepositoryImpl
@@ -80,6 +80,14 @@ class EmergencyViewModel : ViewModel() {
     }
 
     private fun searchNearbyHelpers(location: Location) {
+        if (!AuthGuard.isAuthenticated()) {
+            _uiState.value = _uiState.value.copy(
+                locationError = "Usuário não autenticado",
+                isLoadingLocation = false
+            )
+            return
+        }
+        
         viewModelScope.launch {
             // Criar emergência
             createEmergencyUseCase(location)
@@ -142,10 +150,9 @@ class EmergencyViewModel : ViewModel() {
     }
 
     fun startListeningForHelperResponse(emergencyId: String) {
-        val currentUser = try {
-            AuthValidator.requireAuthentication()
-        } catch (e: SecurityException) {
-            android.util.Log.w("EmergencyViewModel", "Falha na autenticação")
+        val currentUser = AuthGuard.getCurrentUser()
+        if (currentUser == null) {
+            android.util.Log.w("EmergencyViewModel", "Usuário não autenticado")
             return
         }
         
@@ -215,7 +222,7 @@ class EmergencyViewModel : ViewModel() {
 
     fun resetEmergencyState() {
         // Verificação de autenticação para operações de estado
-        if (!AuthValidator.isUserAuthenticated()) {
+        if (!AuthGuard.isAuthenticated()) {
             android.util.Log.w("EmergencyViewModel", "Reset de estado sem autenticação")
         }
         

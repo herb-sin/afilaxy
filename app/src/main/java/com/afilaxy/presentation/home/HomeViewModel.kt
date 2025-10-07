@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import com.afilaxy.security.AuthValidator
+import com.afilaxy.security.AuthGuard
 import com.afilaxy.security.InputSanitizer
 
 class HomeViewModel : ViewModel() {
@@ -101,7 +101,7 @@ class HomeViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 try {
-                    val user = AuthValidator.requireVerifiedEmail()
+                    val user = AuthGuard.requireVerifiedEmail()
                     
                     firestore.collection("users")
                         .document(user.uid)

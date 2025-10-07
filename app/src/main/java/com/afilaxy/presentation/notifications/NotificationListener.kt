@@ -12,7 +12,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.afilaxy.MainActivity
-import com.afilaxy.security.AuthValidator
+import com.afilaxy.security.AuthGuard
 import com.afilaxy.security.InputSanitizer
 import com.afilaxy.utils.ErrorHandler
 
@@ -27,7 +27,7 @@ class NotificationListener : ViewModel() {
     
     fun startListening(context: Context) {
         ErrorHandler.safeOperation {
-            val currentUser = AuthValidator.requireAuthentication()
+            val currentUser = AuthGuard.requireAuthentication()
             
             listenerRegistration = firestore
                 .collection("users")
@@ -36,7 +36,7 @@ class NotificationListener : ViewModel() {
                 .whereEqualTo("type", "emergency_alert")
                 .addSnapshotListener { snapshot, error ->
                     if (error != null) {
-                        val sanitizedError = InputSanitizer.sanitizeForLog(error.message)
+                        val sanitizedError = InputSanitizer.sanitizeText(error.message)
                         android.util.Log.e("NotificationListener", "Erro no listener de notificações: $sanitizedError")
                         return@addSnapshotListener
                     }
