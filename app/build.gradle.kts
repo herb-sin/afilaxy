@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("com.google.gms.google-services")
@@ -7,21 +9,43 @@ plugins {
 }
 
 repositories {
-    google()
+    google {
+        content {
+            includeGroupByRegex("com\\.android.*")
+            includeGroupByRegex("com\\.google.*")
+            includeGroupByRegex("androidx.*")
+        }
+    }
     mavenCentral()
+    gradlePluginPortal()
 }
 
 android {
     namespace = "com.afilaxy"
-    compileSdk = 35
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.afilaxy"
         minSdk = 23
-        targetSdk = 35
-        versionCode = 2
-        versionName = "0.1.2-alpha"
+        targetSdk = 34
+        versionCode = 4
+        versionName = "0.1.5-alpha"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        create("release") {
+            val keystorePropertiesFile = rootProject.file("keystore.properties")
+            if (keystorePropertiesFile.exists()) {
+                val keystoreProperties = Properties()
+                keystoreProperties.load(keystorePropertiesFile.inputStream())
+                
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -33,9 +57,10 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                    getDefaultProguardFile("proguard-android-optimize.txt"),
+                    "proguard-rules.pro"
             )
         }
     }
@@ -43,9 +68,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
+    kotlinOptions { jvmTarget = "11" }
     buildFeatures {
         compose = true
         buildConfig = true
@@ -86,14 +109,14 @@ dependencies {
     // Biblioteca do Google Generative AI (Gemini)
     implementation("com.google.ai.client.generativeai:generativeai:0.6.0")
     implementation("com.google.android.gms:play-services-location:21.3.0")
-    
+
     // Google Maps SDK
     implementation("com.google.android.gms:play-services-maps:18.2.0")
     implementation("com.google.maps.android:maps-compose:4.3.3")
-    
+
     // Networking seguro
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    
+
     // Remover Crashlytics temporariamente para Alpha
     // implementation("com.google.firebase:firebase-crashlytics-ktx")
     // implementation("com.google.firebase:firebase-analytics-ktx")

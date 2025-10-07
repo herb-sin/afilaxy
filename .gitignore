@@ -27,6 +27,7 @@ app/build/outputs/
 # API Keys e credenciais
 *.properties
 !gradle.properties
+keystore.properties
 *.key
 *.pem
 *.p12

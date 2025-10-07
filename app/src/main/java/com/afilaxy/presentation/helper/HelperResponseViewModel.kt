@@ -12,7 +12,7 @@ import com.afilaxy.domain.model.Emergency
 import com.afilaxy.domain.model.EmergencyStatus
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.afilaxy.security.AuthValidator
+import com.afilaxy.security.AuthGuard
 import com.afilaxy.security.InputSanitizer
 import com.afilaxy.security.RateLimiter
 import com.afilaxy.utils.ErrorHandler
@@ -103,9 +103,9 @@ class HelperResponseViewModel : ViewModel() {
                 
                 // Verificação crítica de autenticação
                 val verifiedUser = try {
-                    AuthValidator.requireVerifiedEmail()
+                    AuthGuard.requireVerifiedEmail()
                 } catch (e: SecurityException) {
-                    android.util.Log.e("HelperResponseViewModel", "Falha na autenticação: ${InputSanitizer.sanitizeForLog(e.message)}")
+                    android.util.Log.e("HelperResponseViewModel", "Falha na autenticação: ${InputSanitizer.sanitizeText(e.message)}")
                     _uiState.value = _uiState.value.copy(
                         error = "Usuário deve estar autenticado e verificado",
                         isAccepting = false
@@ -240,7 +240,7 @@ class HelperResponseViewModel : ViewModel() {
     
     private fun calculateDistance(location: com.afilaxy.domain.model.Location): String {
         // Verificação de autenticação para cálculos de localização
-        if (!AuthValidator.isUserAuthenticated()) {
+        if (!AuthGuard.isUserAuthenticated()) {
             android.util.Log.w("HelperResponseViewModel", "Cálculo de distância sem autenticação")
             return "N/D"
         }

@@ -6,7 +6,7 @@ import android.os.Looper
 import com.google.android.gms.location.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.afilaxy.security.AuthValidator
+import com.afilaxy.security.AuthGuard
 import com.afilaxy.security.InputSanitizer
 import com.afilaxy.utils.ErrorHandler
 
@@ -16,7 +16,7 @@ private val firebaseFirestore by lazy { FirebaseFirestore.getInstance() }
 @SuppressLint("MissingPermission")
 fun saveUserLocation(context: Context) {
     ErrorHandler.safeOperation {
-        val user = AuthValidator.requireAuthentication()
+        val user = AuthGuard.requireAuthentication()
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         
         fusedLocationClient.lastLocation
@@ -30,7 +30,7 @@ fun saveUserLocation(context: Context) {
                     firebaseFirestore.collection("users").document(user.uid)
                         .update(locationData)
                         .addOnFailureListener { e ->
-                            android.util.Log.e("LocationUtils", "Erro: ${InputSanitizer.sanitizeForLog(e.message)}")
+                            android.util.Log.e("LocationUtils", "Erro: ${InputSanitizer.sanitizeText(e.message)}")
                         }
                 } else {
                     requestNewLocation(context, user)
@@ -71,7 +71,7 @@ fun startSignificantMovementUpdates(
     onLocationChanged: (latitude: Double, longitude: Double) -> Unit
 ): LocationCallback? {
     return ErrorHandler.safeOperation {
-        AuthValidator.requireAuthentication()
+        AuthGuard.requireAuthentication()
         val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
         val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10_000L)
             .setMinUpdateDistanceMeters(minDistanceMeters).build()
@@ -101,7 +101,7 @@ fun saveUserLocationWithCoords(context: Context, latitude: Double, longitude: Do
             android.util.Log.w("LocationUtils", "Falha: ${error.userMessage}")
         }
     ) {
-        val user = AuthValidator.requireAuthentication()
+        val user = AuthGuard.requireAuthentication()
         val locationData = mapOf<String, Any>(
             "location" to com.google.firebase.firestore.GeoPoint(latitude, longitude),
             "lastLocationUpdate" to System.currentTimeMillis()

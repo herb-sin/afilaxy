@@ -12,8 +12,8 @@ object CrashReporter {
         ErrorHandler.safeOperation {
             if (AppConfig.ENABLE_CRASH_REPORTING) {
                 Thread.setDefaultUncaughtExceptionHandler { thread, exception ->
-                    val sanitizedThreadName = InputSanitizer.sanitizeForLog(thread.name)
-                    val sanitizedMessage = InputSanitizer.sanitizeForLog(exception.message)
+                    val sanitizedThreadName = InputSanitizer.sanitizeText(thread.name)
+                    val sanitizedMessage = InputSanitizer.sanitizeText(exception.message)
                     Log.e("CrashReporter", "Uncaught exception in thread $sanitizedThreadName: $sanitizedMessage")
                 }
             }
@@ -22,8 +22,8 @@ object CrashReporter {
     
     fun logError(tag: String, message: String, throwable: Throwable? = null) {
         ErrorHandler.safeOperation {
-            val sanitizedTag = InputSanitizer.sanitizeForLog(tag)
-            val sanitizedMessage = InputSanitizer.sanitizeForLog(message)
+            val sanitizedTag = InputSanitizer.sanitizeText(tag)
+            val sanitizedMessage = InputSanitizer.sanitizeText(message)
             Log.e(sanitizedTag, sanitizedMessage, throwable)
         }
     }

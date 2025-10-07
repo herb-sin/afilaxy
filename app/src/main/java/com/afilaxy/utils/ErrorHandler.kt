@@ -16,7 +16,7 @@ object ErrorHandler {
     )
     
     fun handleError(exception: Throwable, operation: String = ""): ErrorResult {
-        val sanitizedMessage = InputSanitizer.sanitizeForLog(exception.message)
+        val sanitizedMessage = InputSanitizer.sanitizeText(exception.message)
         
         return when (exception) {
             is FirebaseAuthException -> handleAuthError(exception)
@@ -117,6 +117,20 @@ object ErrorHandler {
         } catch (e: Exception) {
             android.util.Log.e("ErrorHandler", "Safe operation failed: ${e.message}")
             null
+        }
+    }
+    
+    inline fun <T> criticalOperation(
+        operation: String,
+        fallback: () -> T,
+        block: () -> T
+    ): T {
+        return try {
+            block()
+        } catch (e: Exception) {
+            val errorResult = handleError(e, operation)
+            android.util.Log.e("ErrorHandler", "Critical operation failed: ${errorResult.logMessage}")
+            fallback()
         }
     }
 }

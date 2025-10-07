@@ -1,10 +1,31 @@
 package com.afilaxy.config
 
+import android.content.Context
+import java.util.Properties
+import java.io.IOException
+
 object SecureConfig {
+    private var properties: Properties? = null
     
-    // Configurações de segurança
-    const val ENABLE_SECURITY_LOGGING = false
-    const val MAX_LOGIN_ATTEMPTS = 3
-    const val RATE_LIMIT_WINDOW_MS = 60_000L // 1 minuto
-    const val MAX_REQUESTS_PER_WINDOW = 10
+    fun init(context: Context) {
+        if (properties == null) {
+            properties = Properties()
+            try {
+                context.assets.open("config.properties").use { inputStream ->
+                    properties?.load(inputStream)
+                }
+            } catch (e: IOException) {
+                // Fallback para valores padrão em caso de erro
+                properties?.setProperty("debug_mode", "false")
+            }
+        }
+    }
+    
+    fun getProperty(key: String, defaultValue: String = ""): String {
+        return properties?.getProperty(key, defaultValue) ?: defaultValue
+    }
+    
+    fun isDebugMode(): Boolean {
+        return getProperty("debug_mode", "false").toBoolean()
+    }
 }

@@ -10,7 +10,7 @@ import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.afilaxy.security.InputValidator
-import com.afilaxy.security.AuthValidator
+import com.afilaxy.security.AuthGuard
 import com.afilaxy.utils.ErrorHandler
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -118,7 +118,7 @@ fun ProfileScreen(
                         
                         // Verificar autenticação
                         try {
-                            AuthValidator.requireAuthentication()
+                            AuthGuard.requireAuthentication()
                         } catch (e: SecurityException) {
                             message = "Usuário deve estar autenticado"
                             return@Button

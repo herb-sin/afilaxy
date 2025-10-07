@@ -15,9 +15,9 @@ class PreparadorConsultaViewModel : ViewModel() {
     val uiState: StateFlow<UiState> = _uiState
 
     private val generativeModel = GenerativeModel(
-    modelName = "gemini-1.5-flash",
-    apiKey = BuildConfig.GEMINI_API_KEY
-)
+        modelName = "gemini-1.5-flash",
+        apiKey = System.getenv("GEMINI_API_KEY") ?: "demo_key"
+    )
 
     fun prepararResumoConsulta(input: String) {
         // Verificação crítica de autenticação
