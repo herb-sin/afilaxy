@@ -2,8 +2,7 @@ package com.afilaxy.presentation.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.afilaxy.security.InputValidator
-import com.afilaxy.utils.ErrorHandler
+import com.afilaxy.security.UnifiedValidator
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -56,30 +55,9 @@ class LoginViewModel : ViewModel() {
         _uiState.value = currentState.copy(isLoading = true, errorMessage = null)
         
         viewModelScope.launch {
-            // Timeout de segurança
-            launch {
-                delay(15000)
-                if (_uiState.value.isLoading) {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = "Timeout: Problemas de conectividade. Tente novamente."
-                    )
-                }
-            }
-            
-            ErrorHandler.safeSuspendCall(
-                operation = "login",
-                onError = { error ->
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = error.userMessage
-                    )
-                }
-            ) {
+            try {
                 firebaseAuth.signInWithEmailAndPassword(currentState.email, currentState.password)
                     .addOnCompleteListener { task ->
-                        if (!_uiState.value.isLoading) return@addOnCompleteListener
-                        
                         _uiState.value = _uiState.value.copy(isLoading = false)
                         
                         if (task.isSuccessful) {
@@ -92,13 +70,14 @@ class LoginViewModel : ViewModel() {
                                 )
                             }
                         } else {
-                            val errorResult = ErrorHandler.handleError(
-                                task.exception ?: Exception("Erro desconhecido"),
-                                "login"
-                            )
-                            _uiState.value = _uiState.value.copy(errorMessage = errorResult.userMessage)
+                            _uiState.value = _uiState.value.copy(errorMessage = "Erro no login")
                         }
                     }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "Erro no login"
+                )
             }
         }
     }
@@ -111,26 +90,7 @@ class LoginViewModel : ViewModel() {
         _uiState.value = currentState.copy(isLoading = true, errorMessage = null)
         
         viewModelScope.launch {
-            // Timeout de segurança
-            launch {
-                delay(10000)
-                if (_uiState.value.isLoading) {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = "Timeout: Verifique sua conexão com a internet"
-                    )
-                }
-            }
-            
-            ErrorHandler.safeSuspendCall(
-                operation = "register",
-                onError = { error ->
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        errorMessage = error.userMessage
-                    )
-                }
-            ) {
+            try {
                 firebaseAuth.createUserWithEmailAndPassword(currentState.email, currentState.password)
                     .addOnCompleteListener { task ->
                         _uiState.value = _uiState.value.copy(isLoading = false)
@@ -144,13 +104,14 @@ class LoginViewModel : ViewModel() {
                             
                             _uiState.value = _uiState.value.copy(showRegistrationSuccess = true)
                         } else {
-                            val errorResult = ErrorHandler.handleError(
-                                task.exception ?: Exception("Erro desconhecido"),
-                                "register"
-                            )
-                            _uiState.value = _uiState.value.copy(errorMessage = errorResult.userMessage)
+                            _uiState.value = _uiState.value.copy(errorMessage = "Erro no cadastro")
                         }
                     }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = "Erro no cadastro"
+                )
             }
         }
     }
@@ -176,11 +137,7 @@ class LoginViewModel : ViewModel() {
                         errorMessage = "E-mail de recuperação enviado! Verifique sua caixa de SPAM!"
                     )
                 } else {
-                    val errorResult = ErrorHandler.handleError(
-                        task.exception ?: Exception("Erro desconhecido"),
-                        "resetPassword"
-                    )
-                    _uiState.value = _uiState.value.copy(errorMessage = errorResult.userMessage)
+                    _uiState.value = _uiState.value.copy(errorMessage = "Erro na recuperação de senha")
                 }
             }
     }
@@ -195,16 +152,16 @@ class LoginViewModel : ViewModel() {
     private fun validateInputs(): Boolean {
         val currentState = _uiState.value
         
-        val emailValidation = InputValidator.validateEmail(currentState.email)
-        val passwordValidation = InputValidator.validatePassword(currentState.password)
+        val emailValidation = UnifiedValidator.validateEmail(currentState.email)
+        val passwordValidation = UnifiedValidator.validatePassword(currentState.password)
         
         return when {
-            !emailValidation.isValid -> {
-                _uiState.value = currentState.copy(errorMessage = emailValidation.errorMessage)
+            emailValidation is UnifiedValidator.ValidationResult.Invalid -> {
+                _uiState.value = currentState.copy(errorMessage = emailValidation.errors.first())
                 false
             }
-            !passwordValidation.isValid -> {
-                _uiState.value = currentState.copy(errorMessage = passwordValidation.errorMessage)
+            passwordValidation is UnifiedValidator.ValidationResult.Invalid -> {
+                _uiState.value = currentState.copy(errorMessage = passwordValidation.errors.first())
                 false
             }
             else -> true
@@ -225,7 +182,7 @@ class LoginViewModel : ViewModel() {
             .document(uid)
             .set(userData)
             .addOnFailureListener { e ->
-                android.util.Log.e("LoginViewModel", "Erro ao criar perfil: ${e.message}")
+                android.util.Log.e("LoginViewModel", "Erro ao criar perfil")
             }
     }
 }

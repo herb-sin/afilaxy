@@ -24,7 +24,6 @@ fun HelperCard(helper: Helper) {
         Text(helper.nome, style = MaterialTheme.typography.titleMedium)
         Spacer(modifier = Modifier.height(4.dp))
         Text("Localização: ${helper.distanciaEstimada}", style = MaterialTheme.typography.bodyMedium)
-        // TODO: Adicionar botão para contatar no futuro
     }
 }
 

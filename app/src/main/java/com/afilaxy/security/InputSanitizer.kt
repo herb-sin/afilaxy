@@ -4,13 +4,21 @@ import java.util.regex.Pattern
 
 object InputSanitizer {
     
-    // Strict whitelist patterns for security
-    private val EMAIL_PATTERN = Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$")
-    private val NAME_PATTERN = Pattern.compile("^[a-zA-ZÀ-ÿ\\s'-]{1,100}$")
+    // Strict whitelist patterns - NoSQL injection prevention
+    private val EMAIL_PATTERN = Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$")
+    private val NAME_PATTERN = Pattern.compile("^[a-zA-ZÀ-ÿ\\s]{1,50}$")
     private val PHONE_PATTERN = Pattern.compile("^[0-9()\\s+-]{10,15}$")
-    private val ALPHANUMERIC_PATTERN = Pattern.compile("^[a-zA-Z0-9\\s]{1,500}$")
+    private val SAFE_TEXT_PATTERN = Pattern.compile("^[a-zA-Z0-9\\s._-]{1,200}$")
     
-    // Firestore-safe character mapping (prevents NoSQL injection)
+    // Comprehensive NoSQL injection prevention
+    private val BLOCKED_PATTERNS = setOf(
+        "\\\$where", "\\\$ne", "\\\$gt", "\\\$lt", "\\\$gte", "\\\$lte", "\\\$in", "\\\$nin", 
+        "\\\$regex", "\\\$or", "\\\$and", "\\\$not", "\\\$exists", "\\\$elemMatch", "\\\$size",
+        "javascript:", "eval\\(", "function\\(", "setTimeout\\(", "setInterval\\("
+    )
+    private val DANGEROUS_CHARS = "\${}[]();'\"\\/*<>=".toCharArray().toSet()
+    
+    // Firestore-safe character mapping (prevents NoSQL injection) - enhanced
     private val FIRESTORE_SAFE_CHARS = mapOf(
         "." to "_dot_",
         "#" to "_hash_",
@@ -20,7 +28,11 @@ object InputSanitizer {
         "]" to "_rbracket_",
         "'" to "_quote_",
         "\"" to "_dquote_",
-        "\\" to "_backslash_"
+        "\\" to "_backslash_",
+        "{" to "_lbrace_",
+        "}" to "_rbrace_",
+        "(" to "_lparen_",
+        ")" to "_rparen_"
     )
     
     fun sanitizeEmail(email: String?): String {
@@ -58,13 +70,19 @@ object InputSanitizer {
     
     fun sanitizeText(text: String?): String {
         if (text.isNullOrBlank()) return ""
-        val cleaned = text.trim()
-        return if (ALPHANUMERIC_PATTERN.matcher(cleaned).matches()) {
-            cleaned.take(1000)
-        } else {
-            // Fallback: remove dangerous characters
-            cleaned.replace("[<>\"'&{}$\\[\\]()]".toRegex(), "").take(1000)
+        var cleaned = text.trim().take(200)
+        
+        // Remove NoSQL injection patterns
+        BLOCKED_PATTERNS.forEach { pattern ->
+            cleaned = cleaned.replace(pattern, "", ignoreCase = true)
         }
+        
+        // Remove dangerous characters
+        DANGEROUS_CHARS.forEach { char ->
+            cleaned = cleaned.replace(char.toString(), "")
+        }
+        
+        return if (SAFE_TEXT_PATTERN.matcher(cleaned).matches()) cleaned else ""
     }
     
     fun isValidEmail(email: String?): Boolean {
@@ -75,11 +93,51 @@ object InputSanitizer {
         return !name.isNullOrBlank() && NAME_PATTERN.matcher(name.trim()).matches()
     }
     
-    // Prevent NoSQL injection in queries
+    // Prevent NoSQL injection in queries - enhanced security
     fun sanitizeQueryParam(param: String?): String {
         if (param.isNullOrBlank()) return ""
-        return param.trim()
-            .replace("[\${}\\[\\]()'\";]".toRegex(), "")
-            .take(100)
+        
+        return try {
+            var sanitized = param.trim().take(100)
+            
+            // Remove NoSQL operators
+            BLOCKED_PATTERNS.forEach { operator ->
+                sanitized = sanitized.replace(operator, "", ignoreCase = true)
+            }
+            
+            // Remove dangerous characters
+            DANGEROUS_CHARS.forEach { char ->
+                sanitized = sanitized.replace(char.toString(), "")
+            }
+            
+            sanitized
+        } catch (e: Exception) {
+            SecurityUtils.safeLog("InputSanitizer", "Error sanitizing query param: ${e.message}", SecurityUtils.LogLevel.ERROR)
+            ""
+        }
+    }
+    
+    fun preventNoSQLInjection(input: String?): String {
+        if (input.isNullOrBlank()) return ""
+        
+        return try {
+            // Use existing sanitizeText which already handles NoSQL injection
+            sanitizeText(input)
+        } catch (e: Exception) {
+            SecurityUtils.safeLog("InputSanitizer", "NoSQL injection prevention failed: ${e.message}", SecurityUtils.LogLevel.ERROR)
+            ""
+        }
+    }
+    
+    // Validate coordinates to prevent injection
+    fun sanitizeCoordinates(lat: Double?, lon: Double?): Pair<Double, Double>? {
+        return try {
+            if (lat == null || lon == null) return null
+            if (!SecurityUtils.isValidCoordinate(lat, lon)) return null
+            Pair(lat, lon)
+        } catch (e: Exception) {
+            SecurityUtils.safeLog("InputSanitizer", "Coordinate validation failed: ${e.message}", SecurityUtils.LogLevel.ERROR)
+            null
+        }
     }
 }

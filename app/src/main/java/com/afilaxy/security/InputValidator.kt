@@ -1,7 +1,7 @@
 package com.afilaxy.security
 
-import android.util.Patterns
-
+// DEPRECATED: Use UnifiedValidator instead
+@Deprecated("Use UnifiedValidator", ReplaceWith("UnifiedValidator"))
 object InputValidator {
     
     data class ValidationResult(
@@ -12,7 +12,7 @@ object InputValidator {
     fun validateEmail(email: String?): ValidationResult {
         return when {
             email.isNullOrBlank() -> ValidationResult(false, "Email é obrigatório")
-            !Patterns.EMAIL_ADDRESS.matcher(email).matches() -> ValidationResult(false, "Email inválido")
+            !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches() -> ValidationResult(false, "Email inválido")
             email.length > 100 -> ValidationResult(false, "Email muito longo")
             else -> ValidationResult(true)
         }

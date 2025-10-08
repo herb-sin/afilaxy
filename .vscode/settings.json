@@ -1,4 +1,11 @@
 {
-    "java.configuration.updateBuildConfiguration": "interactive",
-    "notebook.output.fontSize": 18
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.import.gradle.enabled": true,
+    "java.import.gradle.wrapper.enabled": true,
+    "java.compile.nullAnalysis.mode": "automatic",
+    "kotlin.languageServer.enabled": true,
+    "files.exclude": {
+        "**/.gradle": true,
+        "**/build": true
+    }
 }

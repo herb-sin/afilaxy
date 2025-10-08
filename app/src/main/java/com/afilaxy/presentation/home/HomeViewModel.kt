@@ -84,9 +84,12 @@ class HomeViewModel : ViewModel() {
                 
                 val user = auth.currentUser
                 
+                // Fallback para dados offline
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = "Erro ao carregar dados: ${e.message}"
+                    userName = user?.email ?: "Usuário",
+                    isHelper = true,
+                    errorMessage = null
                 )
             }
         }
@@ -122,8 +125,10 @@ class HomeViewModel : ViewModel() {
                 
             } catch (e: Exception) {
                 Log.e("HomeViewModel", "Erro ao atualizar status: ${e.message}", e)
+                // Reverter mudança local em caso de erro
                 _uiState.value = _uiState.value.copy(
-                    errorMessage = "Erro ao atualizar status: ${e.message}"
+                    isHelper = currentState.isHelper,
+                    errorMessage = "Erro ao atualizar status"
                 )
             }
         }

@@ -13,11 +13,12 @@ class NotificationManager {
     private val firestore = FirebaseFirestore.getInstance()
     
     fun setupNotificationListener(navController: NavController) {
-        val currentUser = AuthGuard.getCurrentUser()
-        if (currentUser == null) {
-            android.util.Log.w("NotificationManager", "Usuário não autenticado")
+        if (!AuthGuard.isUserAuthenticated()) {
+            com.afilaxy.security.SecurityUtils.safeLog("NotificationManager", "Setup denied - authentication required", com.afilaxy.security.SecurityUtils.LogLevel.WARN)
             return
         }
+        
+        val currentUser = AuthGuard.getCurrentUser() ?: return
         
         notificationListener = firestore
             .collection("users")
@@ -47,20 +48,22 @@ class NotificationManager {
         val processed = doc.getBoolean("processed") ?: false
         
         if (type == "emergency_alert" && !processed) {
-            val emergencyId = InputSanitizer.sanitizeText(doc.getString("emergencyId"))
-            val requesterId = InputSanitizer.sanitizeText(doc.getString("requesterId"))
+            val emergencyId = com.afilaxy.security.SecureValidator.validateAndSanitizeInput(doc.getString("emergencyId"), 50)
+            val requesterId = com.afilaxy.security.SecureValidator.validateAndSanitizeInput(doc.getString("requesterId"), 128)
             
-            // Marcar como processado
-            ErrorHandler.safeCall("markNotificationProcessed") {
+            // Mark as processed immediately to prevent reprocessing
+            try {
                 doc.reference.update("processed", true)
+            } catch (e: Exception) {
+                com.afilaxy.security.SecurityUtils.safeLog("NotificationManager", "Failed to mark notification as processed", com.afilaxy.security.SecurityUtils.LogLevel.ERROR)
             }
             
-            // Verificar se não é o próprio usuário
-            if (!requesterId.isNullOrBlank() && requesterId != currentUserId) {
-                if (!emergencyId.isNullOrBlank()) {
+            // Navigate only if valid and not self-request
+            if (requesterId.isNotBlank() && requesterId != currentUserId && emergencyId.isNotBlank()) {
+                try {
                     navController.navigate("tela_helper_response/$emergencyId")
-                } else {
-                    navController.navigate("tela_helper_response")
+                } catch (e: Exception) {
+                    com.afilaxy.security.SecurityUtils.safeLog("NotificationManager", "Navigation failed", com.afilaxy.security.SecurityUtils.LogLevel.ERROR)
                 }
             }
         }
