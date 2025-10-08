@@ -19,6 +19,9 @@ jobs:
         java-version: '17'
         distribution: 'temurin'
     
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+    
     - name: Cache Gradle packages
       uses: actions/cache@v3
       with:
@@ -31,6 +34,11 @@ jobs:
     
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
+    
+    - name: Create local.properties
+      run: |
+        echo "sdk.dir=$ANDROID_HOME" > local.properties
+        echo "ndk.dir=$ANDROID_NDK_HOME" >> local.properties
     
     - name: Run security tests
       run: ./gradlew test --tests "*security*"
