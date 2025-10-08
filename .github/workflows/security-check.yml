@@ -40,6 +40,40 @@ jobs:
         echo "sdk.dir=$ANDROID_HOME" > local.properties
         echo "ndk.dir=$ANDROID_NDK_HOME" >> local.properties
     
+    - name: Create mock google-services.json
+      run: |
+        cat > app/google-services.json << 'EOF'
+        {
+          "project_info": {
+            "project_number": "123456789",
+            "project_id": "test-project",
+            "storage_bucket": "test-project.appspot.com"
+          },
+          "client": [
+            {
+              "client_info": {
+                "mobilesdk_app_id": "1:123456789:android:abcdef",
+                "android_client_info": {
+                  "package_name": "com.afilaxy.debug"
+                }
+              },
+              "oauth_client": [],
+              "api_key": [
+                {
+                  "current_key": "test-api-key"
+                }
+              ],
+              "services": {
+                "appinvite_service": {
+                  "other_platform_oauth_client": []
+                }
+              }
+            }
+          ],
+          "configuration_version": "1"
+        }
+        EOF
+    
     - name: Run security tests
       run: ./gradlew testDebugUnitTest
       env:
