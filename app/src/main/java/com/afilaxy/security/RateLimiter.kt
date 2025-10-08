@@ -55,7 +55,13 @@ object RateLimiter {
     
     private fun cleanupOldEntries(currentTime: Long) {
         val cutoffTime = currentTime - 3600000L // 1 hora
-        operationTimestamps.entries.removeIf { it.value < cutoffTime }
+        val iterator = operationTimestamps.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (entry.value < cutoffTime) {
+                iterator.remove()
+            }
+        }
     }
     
     // For testing purposes only

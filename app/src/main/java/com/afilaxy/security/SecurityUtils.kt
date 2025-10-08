@@ -22,7 +22,9 @@ object SecurityUtils {
             .replace("\n", " ")
             .replace("\r", " ")
             .replace("\t", " ")
-            .take(500) // Limit log message length
+            .replace("\u0000", "") // Null byte removal
+            .replace(Regex("[\\p{Cntrl}]"), "") // Control characters
+            .take(200) // Reduced length limit
     }
     
     // Validate authentication for all operations
@@ -48,7 +50,7 @@ object SecurityUtils {
     
     // Safe operation validation - prevents code injection
     fun validateOperation(operationName: String): Boolean {
-        val sanitizedOperation = sanitizeInput(operationName)
+        // Strict whitelist validation - no sanitization, only exact matches
         val allowedOperations = setOf(
             "location_update", "emergency_request", "notification_send",
             "user_profile_update", "helper_search", "auth_check",
@@ -56,14 +58,15 @@ object SecurityUtils {
         )
         
         return try {
-            if (!allowedOperations.contains(sanitizedOperation)) {
-                safeLog("SecurityUtils", "Invalid operation attempted", LogLevel.WARN)
+            // Direct comparison without sanitization to prevent bypass
+            if (!allowedOperations.contains(operationName)) {
+                safeLog("SecurityUtils", "Invalid operation attempted: blocked", LogLevel.WARN)
                 return false
             }
             
             // Only require auth for sensitive operations
             val sensitiveOperations = setOf("emergency_request", "helper_search", "backup_data")
-            if (sensitiveOperations.contains(sanitizedOperation) && !AuthGuard.isUserAuthenticated()) {
+            if (sensitiveOperations.contains(operationName) && !AuthGuard.isUserAuthenticated()) {
                 safeLog("SecurityUtils", "Operation denied - authentication required", LogLevel.WARN)
                 return false
             }
@@ -75,15 +78,45 @@ object SecurityUtils {
         }
     }
     
-    // Input sanitization for database queries
-    fun sanitizeInput(input: String): String {
+    // Strict input validation - no sanitization, only validation
+    fun isValidInput(input: String): Boolean {
+        return input.length <= 255 && 
+               input.matches(Regex("^[a-zA-Z0-9@._-]+$")) &&
+               !input.contains("--") && // SQL comment prevention
+               !input.contains("/*") && // SQL comment prevention
+               !input.contains("*/") &&
+               !input.contains(";")     // SQL injection prevention
+    }
+    
+    // Safe input for logging only
+    private fun sanitizeForLogging(input: String): String {
         return input
-            .replace(Regex("[^a-zA-Z0-9@._-]"), "")
-            .take(255)
+            .replace(Regex("[^a-zA-Z0-9@._-\\s]"), "_")
+            .take(100)
     }
     
     // Validate coordinates
     fun isValidCoordinate(lat: Double, lon: Double): Boolean {
-        return lat in -90.0..90.0 && lon in -180.0..180.0
+        return lat in -90.0..90.0 && lon in -180.0..180.0 &&
+               !lat.isNaN() && !lat.isInfinite() &&
+               !lon.isNaN() && !lon.isInfinite()
+    }
+    
+    // Validate critical parameters to prevent injection
+    fun validateCriticalParams(params: Map<String, Any?>): Boolean {
+        return try {
+            params.all { (key, value) ->
+                when {
+                    key.length > 50 -> false
+                    !key.matches(Regex("^[a-zA-Z_][a-zA-Z0-9_]*$")) -> false
+                    value is String && value.length > 1000 -> false
+                    value is String && !isValidInput(value) -> false
+                    else -> true
+                }
+            }
+        } catch (e: Exception) {
+            safeLog("SecurityUtils", "Parameter validation failed", LogLevel.ERROR)
+            false
+        }
     }
 }

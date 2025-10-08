@@ -38,6 +38,12 @@ object EmergencyCache {
     }
     
     fun clearExpiredEntries() {
-        nearbyHelpersCache.entries.removeIf { !it.value.isValid() }
+        val iterator = nearbyHelpersCache.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (!entry.value.isValid()) {
+                iterator.remove()
+            }
+        }
     }
 }

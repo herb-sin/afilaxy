@@ -58,22 +58,86 @@ object SecurityValidator {
         }
     }
     
-    // Safe file extensions
-    private val SAFE_EXTENSIONS = setOf(".jpg", ".jpeg", ".png", ".gif", ".pdf", ".txt")
+    // Safe file extensions - medical app specific
+    private val SAFE_EXTENSIONS = setOf(".jpg", ".jpeg", ".png", ".pdf")
+    
+    // Dangerous extensions that must be blocked
+    private val DANGEROUS_EXTENSIONS = setOf(
+        ".exe", ".bat", ".cmd", ".com", ".pif", ".scr", ".vbs", ".js", ".jar",
+        ".app", ".deb", ".pkg", ".dmg", ".sh", ".php", ".asp", ".jsp", ".html", ".htm"
+    )
     
     fun validateFileExtension(filename: String): Boolean {
-        val extension = filename.substringAfterLast('.', "").lowercase()
-        return SAFE_EXTENSIONS.contains(".$extension")
+        if (filename.isBlank() || !filename.contains('.')) return false
+        
+        val extension = "." + filename.substringAfterLast('.').lowercase()
+        
+        // Block dangerous extensions first
+        if (DANGEROUS_EXTENSIONS.contains(extension)) return false
+        
+        // Only allow safe extensions
+        return SAFE_EXTENSIONS.contains(extension)
     }
     
-    // File path validation
+    fun validateFileName(filename: String): Boolean {
+        return filename.length <= 255 &&
+               !filename.contains("..") &&
+               !filename.contains("/") &&
+               !filename.contains("\\") &&
+               filename.matches(Regex("^[a-zA-Z0-9._-]+$")) &&
+               validateFileExtension(filename)
+    }
+    
+    // File path validation with strict security
     fun validateFilePath(path: String): Boolean {
         return try {
+            // Reject paths with dangerous patterns immediately
+            if (containsPathTraversal(path) || path.contains("null") || path.length > 500) {
+                return false
+            }
+            
             val file = File(path).canonicalFile
-            val allowedDir = File("/data/data/com.afilaxy").canonicalFile
-            file.path.startsWith(allowedDir.path) && validateFileExtension(file.name)
+            val allowedDirs = listOf(
+                File("/data/data/com.afilaxy/files").canonicalFile,
+                File("/data/data/com.afilaxy/cache").canonicalFile
+            )
+            
+            // Must be within allowed directories and have safe extension
+            allowedDirs.any { allowedDir -> 
+                file.path.startsWith(allowedDir.path)
+            } && validateFileName(file.name)
+            
         } catch (e: Exception) {
             Log.e(TAG, "Path validation error", e)
+            false
+        }
+    }
+    
+    // Validate file content type (MIME type validation)
+    fun validateFileContent(file: File): Boolean {
+        return try {
+            if (!file.exists() || file.length() > 10_000_000) return false // 10MB limit
+            
+            val bytes = file.readBytes().take(8).toByteArray()
+            when {
+                // JPEG magic bytes
+                bytes.size >= 3 && bytes[0] == 0xFF.toByte() && 
+                bytes[1] == 0xD8.toByte() && bytes[2] == 0xFF.toByte() -> true
+                
+                // PNG magic bytes
+                bytes.size >= 8 && bytes[0] == 0x89.toByte() && 
+                bytes[1] == 0x50.toByte() && bytes[2] == 0x4E.toByte() && 
+                bytes[3] == 0x47.toByte() -> true
+                
+                // PDF magic bytes
+                bytes.size >= 4 && bytes[0] == 0x25.toByte() && 
+                bytes[1] == 0x50.toByte() && bytes[2] == 0x44.toByte() && 
+                bytes[3] == 0x46.toByte() -> true
+                
+                else -> false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "File content validation error", e)
             false
         }
     }
