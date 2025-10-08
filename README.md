@@ -89,6 +89,7 @@ app/
    - Ative **Firestore Database**
    - Ative **Cloud Messaging** (opcional)
    - Baixe o arquivo `google-services.json` e coloque em `app/`
+   - **IMPORTANTE**: Copie `app/google-services.json.example` para `app/google-services.json` e substitua os valores pelos seus dados do Firebase
 
 3. **Abra o projeto no Android Studio**
 
@@ -100,6 +101,22 @@ app/
 5. **Execute o aplicativo:**
    - Conecte um dispositivo Android ou inicie um emulador
    - Clique em "Run" no Android Studio
+
+## 🔒 Configuração de Segurança
+
+### Firebase Configuration
+1. Copie o arquivo template:
+   ```bash
+   cp app/google-services.json.example app/google-services.json
+   ```
+
+2. Edite `app/google-services.json` com suas credenciais do Firebase:
+   - `project_number`: Número do seu projeto Firebase
+   - `project_id`: ID do seu projeto Firebase
+   - `mobilesdk_app_id`: ID da aplicação móvel
+   - `current_key`: Sua chave de API do Firebase
+
+3. **NUNCA** commite o arquivo `google-services.json` real no controle de versão.
 
 ## 🛠️ Tecnologias Utilizadas
 
@@ -180,8 +197,9 @@ O Afilaxy representa uma ponte tecnológica entre pacientes com asma e o Sistema
 
 Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICENSE) para detalhes.
 
-## 👨‍💻 Desenvolvedor
+## 👨💻 Desenvolvedor
 
 Desenvolvido com ❤️ por [@herb-sin](https://github.com/herb-sin)
 
 ---
+

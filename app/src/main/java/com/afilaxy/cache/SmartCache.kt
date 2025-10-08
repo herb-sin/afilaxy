@@ -39,7 +39,13 @@ class SmartCache<T> {
     
     private fun cleanupOldEntries() {
         val cutoffTime = System.currentTimeMillis() - (30 * 60 * 1000) // 30 minutes
-        cache.entries.removeIf { it.value.timestamp < cutoffTime }
+        val iterator = cache.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (entry.value.timestamp < cutoffTime) {
+                iterator.remove()
+            }
+        }
     }
     
     companion object {
