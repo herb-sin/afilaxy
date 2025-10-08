@@ -40,12 +40,12 @@ fun LGPDScreen(navController: NavController? = null) {
         Spacer(modifier = Modifier.height(18.dp))
 
         Text("Seus direitos:", style = MaterialTheme.typography.titleMedium)
-        PrivacyInfo.LGPD_RIGHTS.forEach {
-            Button(
-                onClick = { /* TODO: implementar ação para cada direito (ex: abrir formulário ou enviar e-mail) */ },
+        PrivacyInfo.LGPD_RIGHTS.forEach { right ->
+            OutlinedButton(
+                onClick = { /* Placeholder for future implementation */ },
                 modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
             ) {
-                Text(it)
+                Text(right)
             }
         }
         Spacer(modifier = Modifier.height(18.dp))

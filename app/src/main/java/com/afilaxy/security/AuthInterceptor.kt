@@ -21,7 +21,7 @@ object AuthInterceptor {
         content: @Composable () -> Unit
     ) {
         LaunchedEffect(route) {
-            if (protectedRoutes.contains(route) && !AuthGuard.isAuthenticated()) {
+            if (protectedRoutes.contains(route) && !AuthGuard.isUserAuthenticated()) {
                 navController.navigate("tela_login") {
                     popUpTo(0) { inclusive = true }
                 }
@@ -29,13 +29,13 @@ object AuthInterceptor {
             }
         }
         
-        if (!protectedRoutes.contains(route) || AuthGuard.isAuthenticated()) {
+        if (!protectedRoutes.contains(route) || AuthGuard.isUserAuthenticated()) {
             content()
         }
     }
     
     fun requireAuthForOperation(operation: String): Boolean {
-        if (!AuthGuard.isAuthenticated()) {
+        if (!AuthGuard.isUserAuthenticated()) {
             android.util.Log.w("AuthInterceptor", "Operation '$operation' requires authentication")
             return false
         }
@@ -43,7 +43,7 @@ object AuthInterceptor {
     }
     
     fun requireVerifiedEmailForOperation(operation: String): Boolean {
-        if (!AuthGuard.isEmailVerified()) {
+        if (!AuthGuard.isUserAuthenticated() || !AuthGuard.isEmailVerified()) {
             android.util.Log.w("AuthInterceptor", "Operation '$operation' requires verified email")
             return false
         }

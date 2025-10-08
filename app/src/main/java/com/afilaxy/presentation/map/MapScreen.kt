@@ -21,7 +21,22 @@ fun MapScreen(
     longitude: Double,
     title: String = "Destino"
 ) {
+    if (!com.afilaxy.security.FinalSecurityLayer.isSecureContext()) {
+        LaunchedEffect(Unit) {
+            navController.popBackStack()
+        }
+        return
+    }
+    
+    if (!com.afilaxy.security.SecureValidator.validateCoordinates(latitude, longitude)) {
+        LaunchedEffect(Unit) {
+            navController.popBackStack()
+        }
+        return
+    }
+    
     val context = LocalContext.current
+    val safeTitle = com.afilaxy.security.SecureValidator.validateAndSanitizeInput(title, 50).takeIf { it.isNotBlank() } ?: "Destino"
     val destination = LatLng(latitude, longitude)
     
     val cameraPositionState = rememberCameraPositionState {
@@ -51,7 +66,7 @@ fun MapScreen(
             ) {
                 Marker(
                     state = MarkerState(position = destination),
-                    title = title,
+                    title = safeTitle,
                     snippet = "Localização da emergência"
                 )
             }
@@ -63,14 +78,16 @@ fun MapScreen(
                         android.net.Uri.parse("google.navigation:q=$latitude,$longitude")
                     )
                     intent.setPackage("com.google.android.apps.maps")
-                    try {
-                        context.startActivity(intent)
-                    } catch (e: Exception) {
-                        val browserIntent = android.content.Intent(
-                            android.content.Intent.ACTION_VIEW,
-                            android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude")
-                        )
-                        context.startActivity(browserIntent)
+                    com.afilaxy.security.FinalSecurityLayer.secureOperation("openMaps") {
+                        try {
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            val browserIntent = android.content.Intent(
+                                android.content.Intent.ACTION_VIEW,
+                                android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude")
+                            )
+                            context.startActivity(browserIntent)
+                        }
                     }
                 },
                 modifier = Modifier

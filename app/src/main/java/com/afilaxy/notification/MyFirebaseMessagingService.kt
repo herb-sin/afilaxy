@@ -42,12 +42,12 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
     
     private fun handleEmergencyMessage(remoteMessage: RemoteMessage) {
-        if (!AuthGuard.isUserAuthenticated()) {
-            android.util.Log.w("MessagingService", "Usuário não autenticado - ignorando notificação")
+        if (!com.afilaxy.security.FinalSecurityLayer.isSecureContext()) {
+            com.afilaxy.security.SecurityUtils.safeLog("MessagingService", "Emergency message denied - insecure context", com.afilaxy.security.SecurityUtils.LogLevel.WARN)
             return
         }
         
-        val requesterName = InputSanitizer.sanitizeText(remoteMessage.data["requesterName"]) ?: "Alguém"
+        val requesterName = com.afilaxy.security.SecureValidator.validateAndSanitizeInput(remoteMessage.data["requesterName"], 50).takeIf { it.isNotBlank() } ?: "Alguém"
         sendEmergencyNotification(
             "🚨 EMERGÊNCIA AFILAXY",
             "$requesterName precisa de bombinha próximo a você!"
@@ -55,14 +55,14 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
     
     private fun handleRegularMessage(remoteMessage: RemoteMessage) {
-        if (!AuthGuard.isUserAuthenticated()) {
-            android.util.Log.w("MessagingService", "Usuário não autenticado - ignorando notificação")
+        if (!com.afilaxy.security.FinalSecurityLayer.isSecureContext()) {
+            com.afilaxy.security.SecurityUtils.safeLog("MessagingService", "Regular message denied - insecure context", com.afilaxy.security.SecurityUtils.LogLevel.WARN)
             return
         }
         
         remoteMessage.notification?.let { notification ->
-            val title = InputSanitizer.sanitizeText(notification.title) ?: "Afilaxy"
-            val body = InputSanitizer.sanitizeText(notification.body) ?: ""
+            val title = com.afilaxy.security.SecureValidator.validateAndSanitizeInput(notification.title, 100).takeIf { it.isNotBlank() } ?: "Afilaxy"
+            val body = com.afilaxy.security.SecureValidator.validateAndSanitizeInput(notification.body, 200)
             sendNotification(title, body)
         }
     }

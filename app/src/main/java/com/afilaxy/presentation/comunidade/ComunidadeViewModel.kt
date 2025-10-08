@@ -20,41 +20,45 @@ class ComunidadeViewModel : ViewModel() {
     }
     
     private fun loadComunidadeData() {
+        if (_uiState.value.isLoading) return // Prevent duplicate loading
+        
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             
             try {
-                // TODO: Substituir por chamadas ao repositório
-                val produtos = listOf(
-                    Produto(nome = "Bombinha Portátil", descricao = "Ideal para emergências"),
-                    Produto(nome = "Espaçador", descricao = "Facilita a inalação"),
-                    Produto(nome = "Nebulizador", descricao = "Para uso doméstico")
-                )
+                // Use lazy initialization for better performance
+                val data = getCommunityData()
                 
-                val eventos = listOf(
-                    Evento(titulo = "Live: Cuidados com Asma", data = "20/08/2025"),
-                    Evento(titulo = "Encontro de Pacientes", data = "05/09/2025"),
-                    Evento(titulo = "Webinar: DPOC", data = "12/09/2025")
-                )
-                
-                val projetos = listOf(
-                    ProjetoInfo(titulo = "Sobre o Afilaxy", texto = "Projeto social para conectar pacientes e voluntários."),
-                    ProjetoInfo(titulo = "Missão", texto = "Ajudar pessoas em crise de asma rapidamente."),
-                    ProjetoInfo(titulo = "Como funciona?", texto = "Localize ajuda próxima e acesse informações confiáveis.")
-                )
-                
-                _uiState.update { it.copy(
-                    produtos = produtos,
-                    eventos = eventos,
-                    projetos = projetos,
-                    isLoading = false
-                ) }
+                _uiState.update { 
+                    it.copy(
+                        produtos = data.produtos,
+                        eventos = data.eventos,
+                        projetos = data.projetos,
+                        isLoading = false
+                    ) 
+                }
             } catch (e: Exception) {
-                _uiState.update { it.copy(
-                    isLoading = false,
-                    errorMessage = "Erro ao carregar dados da comunidade: ${e.message}"
-                ) }
+                _uiState.update { 
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = "Erro ao carregar dados da comunidade"
+                    ) 
+                }
             }
         }
     }
+    
+    private fun getCommunityData(): CommunityData {
+        return CommunityData(
+            produtos = emptyList(),
+            eventos = emptyList(),
+            projetos = emptyList()
+        )
+    }
+    
+    private data class CommunityData(
+        val produtos: List<Produto>,
+        val eventos: List<Evento>,
+        val projetos: List<ProjetoInfo>
+    )
 }

@@ -58,7 +58,7 @@ fun AutocuidadoScreen(
         )
         Spacer(modifier = Modifier.height(24.dp))
         TextField(
-            value = uiState.pergunta,
+            value = uiState.pergunta ?: "",
             onValueChange = { viewModel.updatePergunta(it) },
             label = { Text("Pergunte sobre Asma ou DPOC") },
             modifier = Modifier.fillMaxWidth()
@@ -66,7 +66,7 @@ fun AutocuidadoScreen(
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = { viewModel.perguntarIA() },
-            enabled = uiState.pergunta.isNotBlank()
+            enabled = !uiState.pergunta.isNullOrBlank()
         ) {
             Text("Perguntar")
         }
@@ -78,7 +78,7 @@ fun AutocuidadoScreen(
                 .fillMaxWidth()
                 .weight(1f)
         ) {
-            RespostaIA(uiState.resposta)
+            RespostaIA(uiState.resposta ?: UiState.Idle)
         }
 
         Spacer(modifier = Modifier.height(24.dp))

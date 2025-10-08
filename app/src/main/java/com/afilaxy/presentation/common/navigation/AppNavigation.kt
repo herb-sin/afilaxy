@@ -77,7 +77,9 @@ fun AppNavigation(
                     onConfirm = {
                         showLocationDialog = false
                         navController.navigate(AppRoutes.TELA_INICIAL) {
-                            popUpTo(AppRoutes.TELA_LOGIN) { inclusive = true }
+                            popUpTo(AppRoutes.TELA_LOGIN) { 
+                                inclusive = true 
+                            }
                         }
                     },
                     onDismiss = {

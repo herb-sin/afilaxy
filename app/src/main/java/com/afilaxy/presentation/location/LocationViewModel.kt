@@ -27,7 +27,7 @@ class LocationViewModel : ViewModel() {
         
         if (locationCallback == null) {
             try {
-                locationCallback = startSignificantMovementUpdates(context) { lat, lon ->
+                locationCallback = startSignificantMovementUpdates(context, 50f) { lat, lon ->
                     viewModelScope.launch {
                         _location.value = lat to lon
                     }

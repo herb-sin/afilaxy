@@ -15,23 +15,21 @@ class AutocuidadoViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(AutocuidadoUiState())
     val uiState: StateFlow<AutocuidadoUiState> = _uiState.asStateFlow()
     
-    private val preparadorViewModel = PreparadorConsultaViewModel()
+    private val preparadorViewModel by lazy { PreparadorConsultaViewModel() }
+    private val firebaseAuth by lazy { FirebaseAuth.getInstance() }
     
     fun updatePergunta(pergunta: String) {
         _uiState.value = _uiState.value.copy(pergunta = pergunta)
     }
     
     fun perguntarIA() {
-        val pergunta = _uiState.value.pergunta
-        if (pergunta.isBlank()) return
+        val question = _uiState.value.pergunta.take(500)
+        if (question.isBlank()) return
         
-        // Verificação crítica de autenticação
-        val auth = FirebaseAuth.getInstance()
-        val user = auth.currentUser
-        if (user == null) {
-            android.util.Log.e("AutocuidadoViewModel", "Tentativa de usar IA sem autenticação")
+        if (!com.afilaxy.security.FinalSecurityLayer.isSecureContext()) {
+            com.afilaxy.security.SecurityUtils.safeLog("AutocuidadoViewModel", "AI query denied - insecure context", com.afilaxy.security.SecurityUtils.LogLevel.WARN)
             _uiState.value = _uiState.value.copy(
-                resposta = UiState.Error("Usuário deve estar autenticado para usar a IA")
+                resposta = UiState.Error("Acesso negado - contexto inseguro")
             )
             return
         }
@@ -43,18 +41,16 @@ class AutocuidadoViewModel : ViewModel() {
                     isLoading = true
                 )
                 
-                // Usar o PreparadorConsultaViewModel existente
-                preparadorViewModel.prepararResumoConsulta(pergunta)
+                preparadorViewModel.prepararResumoConsulta(question)
                 
-                // Obter primeira resposta do preparador
-                val resposta = preparadorViewModel.uiState.first { it !is UiState.Loading }
+                val response = preparadorViewModel.uiState.first { it !is UiState.Loading }
                 _uiState.value = _uiState.value.copy(
-                    resposta = resposta,
+                    resposta = response,
                     isLoading = false
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
-                    resposta = UiState.Error("Erro ao processar pergunta: ${e.message}"),
+                    resposta = UiState.Error("Erro ao processar pergunta"),
                     isLoading = false
                 )
             }

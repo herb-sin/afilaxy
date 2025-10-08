@@ -7,6 +7,7 @@ import com.afilaxy.domain.model.Location
 import com.afilaxy.security.AuthGuard
 import com.afilaxy.security.InputSanitizer
 import com.afilaxy.security.RateLimiter
+import com.afilaxy.security.SecurityUtils
 import com.afilaxy.data.cache.EmergencyCache
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
@@ -18,10 +19,15 @@ class EmergencyRepositoryImpl : EmergencyRepository {
     private val firestore by lazy { FirebaseFirestore.getInstance() }
     
     override suspend fun createEmergency(location: Location): Emergency {
+        if (!SecurityUtils.validateOperation("emergency_request")) {
+            throw SecurityException("Operation not authorized")
+        }
+        
         val user = AuthGuard.requireVerifiedEmail()
         
-        val userDoc = firestore.collection("users").document(user.uid).get().await()
-        val userName = userDoc.getString("name") ?: "Pessoa"
+        return try {
+            val userDoc = firestore.collection("users").document(user.uid).get().await()
+            val userName = InputSanitizer.sanitizeName(userDoc.getString("name")) ?: "Pessoa"
         
         val emergency = Emergency(
             id = "",
@@ -40,23 +46,36 @@ class EmergencyRepositoryImpl : EmergencyRepository {
             "status" to emergency.status.name
         )
 
-        val docRef = firestore.collection("emergencies").add(emergencyData).await()
-        val finalEmergency = emergency.copy(id = docRef.id)
-        
-        // Cache emergência para acesso offline
-        EmergencyCache.cacheEmergency(finalEmergency)
-        
-        return finalEmergency
+            val docRef = firestore.collection("emergencies").add(emergencyData).await()
+            val finalEmergency = emergency.copy(id = docRef.id)
+            
+            // Cache emergência para acesso offline
+            EmergencyCache.cacheEmergency(finalEmergency)
+            
+            finalEmergency
+        } catch (e: SecurityException) {
+            throw e
+        } catch (e: Exception) {
+            SecurityUtils.safeLog("EmergencyRepository", "Failed to create emergency: ${e.message}", SecurityUtils.LogLevel.ERROR)
+            throw Exception("Failed to create emergency request")
+        }
     }
     
     override suspend fun findNearbyHelpers(location: Location): List<Helper> {
-        // Verificar cache primeiro
-        EmergencyCache.getCachedHelpers(location)?.let { cachedHelpers ->
-            android.util.Log.d("EmergencyRepository", "Usando helpers do cache")
-            return cachedHelpers
+        // Check authentication but don't fail completely
+        if (!AuthGuard.isUserAuthenticated()) {
+            SecurityUtils.safeLog("EmergencyRepository", "Helper search attempted without authentication", SecurityUtils.LogLevel.WARN)
+            return emptyList()
         }
         
-        val currentUserId = AuthGuard.getCurrentUserId()
+        return try {
+            // Verificar cache primeiro
+            EmergencyCache.getCachedHelpers(location)?.let { cachedHelpers ->
+                SecurityUtils.safeLog("EmergencyRepository", "Using cached helpers", SecurityUtils.LogLevel.DEBUG)
+                return cachedHelpers
+            }
+            
+            val currentUserId = AuthGuard.getCurrentUserId()
         
         val usersSnapshot = firestore.collection("users")
             .whereEqualTo("isHelper", true)
@@ -93,16 +112,23 @@ class EmergencyRepositoryImpl : EmergencyRepository {
             }
         }
 
-        val sortedHelpers = helpers.sortedBy { it.distanciaMetros }
-        
-        // Cache resultado para próximas consultas
-        EmergencyCache.cacheNearbyHelpers(location, sortedHelpers)
-        
-        return sortedHelpers
+            val sortedHelpers = helpers.sortedBy { it.distanciaMetros }.take(10) // Limit results
+            
+            // Cache resultado para próximas consultas
+            EmergencyCache.cacheNearbyHelpers(location, sortedHelpers)
+            
+            sortedHelpers
+        } catch (e: Exception) {
+            SecurityUtils.safeLog("EmergencyRepository", "Failed to find helpers: ${e.message}", SecurityUtils.LogLevel.ERROR)
+            emptyList()
+        }
     }
     
     override suspend fun notifyHelpers(helpers: List<Helper>, emergency: Emergency) {
-        AuthGuard.requireAuthentication()
+        if (!AuthGuard.isUserAuthenticated()) {
+            SecurityUtils.safeLog("EmergencyRepository", "Notification send attempted without authentication", SecurityUtils.LogLevel.WARN)
+            return
+        }
 
         for (helper in helpers) {
             if (!RateLimiter.canSendNotification(emergency.userId)) continue
@@ -123,8 +149,30 @@ class EmergencyRepositoryImpl : EmergencyRepository {
                     .add(alertData)
                     .await()
             } catch (e: Exception) {
-                android.util.Log.e("EmergencyRepository", "Erro ao notificar helper")
+                SecurityUtils.safeLog("EmergencyRepository", "Failed to notify helper ${helper.id}: ${e.message}", SecurityUtils.LogLevel.ERROR)
             }
+        }
+    }
+    
+    suspend fun rateHelper(helperId: String, rating: Int, feedback: String) {
+        if (!AuthGuard.isUserAuthenticated()) {
+            throw SecurityException("Authentication required")
+        }
+        
+        val sanitizedId = InputSanitizer.sanitizeForFirestore(helperId)
+        val sanitizedFeedback = InputSanitizer.sanitizeText(feedback)
+        
+        try {
+            firestore.collection("helpers")
+                .document(sanitizedId)
+                .update(mapOf(
+                    "rating" to rating.coerceIn(1, 5),
+                    "feedback" to sanitizedFeedback
+                ))
+                .await()
+        } catch (e: Exception) {
+            SecurityUtils.safeLog("EmergencyRepository", "Failed to rate helper", SecurityUtils.LogLevel.ERROR)
+            throw Exception("Failed to submit rating")
         }
     }
     

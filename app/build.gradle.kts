@@ -3,6 +3,8 @@ import java.util.Properties
 plugins {
     id("com.android.application")
     id("com.google.gms.google-services")
+    id("dagger.hilt.android.plugin")
+    id("kotlin-kapt")
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.android.libraries.mapsplatform.secrets.gradle.plugin)
@@ -31,6 +33,12 @@ android {
         versionCode = 4
         versionName = "0.1.5-alpha"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
+        // Firebase configuration from environment variables
+        buildConfigField("String", "FIREBASE_PROJECT_ID", "\"${System.getenv("FIREBASE_PROJECT_ID") ?: ""}\"")
+        buildConfigField("String", "FIREBASE_APP_ID", "\"${System.getenv("FIREBASE_APP_ID") ?: ""}\"")
+        buildConfigField("String", "FIREBASE_API_KEY", "\"${System.getenv("FIREBASE_API_KEY") ?: ""}\"")
+        buildConfigField("String", "FIREBASE_STORAGE_BUCKET", "\"${System.getenv("FIREBASE_STORAGE_BUCKET") ?: ""}\"")
     }
 
     signingConfigs {
@@ -53,6 +61,7 @@ android {
             isDebuggable = true
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            isMinifyEnabled = false
         }
         release {
             isMinifyEnabled = true
@@ -116,6 +125,51 @@ dependencies {
 
     // Networking seguro
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    
+    // Security libraries
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    
+    // Hilt Dependency Injection
+    implementation("com.google.dagger:hilt-android:2.48")
+    kapt("com.google.dagger:hilt-compiler:2.48")
+    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+    implementation("androidx.hilt:hilt-work:1.1.0")
+    kapt("androidx.hilt:hilt-compiler:1.1.0")
+    
+    // Room Database
+    implementation("androidx.room:room-runtime:2.6.1")
+    implementation("androidx.room:room-ktx:2.6.1")
+    kapt("androidx.room:room-compiler:2.6.1")
+    
+    // WorkManager
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
+    
+    // Paging 3
+    implementation("androidx.paging:paging-runtime:3.2.1")
+    implementation("androidx.paging:paging-compose:3.2.1")
+    
+    // Room Paging
+    implementation("androidx.room:room-paging:2.6.1")
+    
+    // Biometric Authentication
+    implementation("androidx.biometric:biometric:1.1.0")
+    
+    // Geofencing
+    implementation("com.google.android.gms:play-services-location:21.0.1")
+    
+    // Image Compression
+    implementation("id.zelory:compressor:3.0.1")
+    
+    // Analytics
+    implementation("com.google.firebase:firebase-analytics-ktx")
+    
+    // Testing libraries
+    testImplementation("org.mockito:mockito-core:5.1.1")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:4.1.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
+    testImplementation("com.google.dagger:hilt-android-testing:2.48")
+    kaptTest("com.google.dagger:hilt-compiler:2.48")
 
     // Remover Crashlytics temporariamente para Alpha
     // implementation("com.google.firebase:firebase-crashlytics-ktx")
