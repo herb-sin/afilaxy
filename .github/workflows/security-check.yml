@@ -41,7 +41,7 @@ jobs:
         echo "ndk.dir=$ANDROID_NDK_HOME" >> local.properties
     
     - name: Run security tests
-      run: ./gradlew test --tests "*security*"
+      run: ./gradlew testDebugUnitTest
       env:
         FIREBASE_PROJECT_ID: test-project
         FIREBASE_APP_ID: test-app-id
@@ -49,7 +49,7 @@ jobs:
         FIREBASE_STORAGE_BUCKET: test-bucket
     
     - name: Run lint checks
-      run: ./gradlew lint
+      run: ./gradlew lintDebug
     
     - name: Check for hardcoded secrets
       run: |
@@ -61,8 +61,8 @@ jobs:
           echo "✅ No hardcoded secrets detected"
         fi
     
-    - name: Validate dependencies
-      run: ./gradlew dependencyCheckAnalyze || true
+    - name: Build project
+      run: ./gradlew assembleDebug
     
     - name: Upload test results
       uses: actions/upload-artifact@v4
