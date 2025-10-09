@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.afilaxy.presentation.common.navigation.AppRoutes
 import com.afilaxy.presentation.comunidade.components.EventoCard
 import com.afilaxy.presentation.comunidade.components.ProdutoCard
 import com.afilaxy.presentation.comunidade.components.ProjetoCard

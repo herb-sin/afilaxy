@@ -25,6 +25,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -43,6 +46,8 @@ import com.afilaxy.presentation.emergency.components.HelperCard
 import com.afilaxy.presentation.location.LocationViewModel
 import com.afilaxy.security.AuthGuard
 import com.afilaxy.ui.theme.AfilaxyTheme
+import com.afilaxy.utils.GeocodingUtils
+import kotlinx.coroutines.launch
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
@@ -57,6 +62,8 @@ fun EmergencyScreen(
     val context = LocalContext.current
     val locationViewModel: LocationViewModel = viewModel()
     val location by locationViewModel.location.collectAsState()
+    
+    var userAddress by remember { mutableStateOf<String?>(null) }
 
     // Inicia/paralisa atualizações de localização conforme ciclo de vida do Composable
     LaunchedEffect(Unit) { locationViewModel.startLocationUpdates(context) }
@@ -107,14 +114,31 @@ fun EmergencyScreen(
                     }
                     uiState.userLocation != null -> {
                         val location = uiState.userLocation
+                        
+                        // Buscar endereço quando localização for obtida
+                        LaunchedEffect(location) {
+                            location?.let { loc ->
+                                userAddress = GeocodingUtils.getAddressFromCoordinates(
+                                    context,
+                                    loc.latitude,
+                                    loc.longitude
+                                )
+                            }
+                        }
+                        
                         Text("Sua localização foi obtida com sucesso!")
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                                "Lat: ${location?.latitude?.let { String.format("%.4f", it) } ?: "N/D"}"
-                        )
-                        Text(
-                                "Lon: ${location?.longitude?.let { String.format("%.4f", it) } ?: "N/D"}"
-                        )
+                        
+                        if (userAddress != null) {
+                            Text(
+                                text = userAddress!!,
+                                style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center
+                            )
+                        } else {
+                            Text("Obtendo endereço...")
+                        }
+                        
                         Spacer(modifier = Modifier.height(16.dp))
 
                         when {

@@ -9,6 +9,8 @@ import com.afilaxy.cache.SmartCache
 import com.afilaxy.geofence.GeofenceManager
 import com.afilaxy.notification.SmartNotificationManager
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltAndroidApp
@@ -29,17 +31,27 @@ class AfilaxyApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         
-        // Initialize analytics
-        analyticsManager.initialize()
-        
-        // Initialize smart cache
-        SmartCache.initialize()
-        
-        // Setup geofencing for high-risk areas
-        geofenceManager.setupDefaultGeofences()
-        
-        // Schedule smart notifications
-        smartNotificationManager.scheduleLocationReminder(this)
+        try {
+            // Initialize analytics
+            analyticsManager.initialize()
+            
+            // Initialize smart cache
+            SmartCache.initialize()
+            
+            // Setup geofencing for high-risk areas
+            geofenceManager.setupDefaultGeofences()
+            
+            // Schedule smart notifications
+            smartNotificationManager.scheduleLocationReminder(this)
+            
+            // Register FCM token for push notifications
+            GlobalScope.launch {
+                com.afilaxy.notification.FCMTokenManager.updateFCMToken()
+            }
+        } catch (e: Exception) {
+            // Log error but don't crash the app
+            android.util.Log.e("AfilaxyApplication", "Initialization error", e)
+        }
     }
     
 

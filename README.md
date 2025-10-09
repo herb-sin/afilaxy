@@ -173,6 +173,19 @@ Contribuições são muito bem-vindas! Este projeto tem um impacto social import
 - Documente mudanças significativas
 - Mantenha commits pequenos e descritivos
 
+## 🚀 Pipeline CI/CD
+
+O Afilaxy possui uma pipeline completa de CI/CD para garantir qualidade e deploy automático:
+
+- ✅ **CI**: Testes automáticos e build em cada commit
+- ✅ **CD**: Deploy automático para Firebase App Distribution e Play Store
+- ✅ **Security**: Scan de vulnerabilidades e detecção de secrets
+- ✅ **Release**: Criação automática de releases versionadas
+
+**Setup rápido**: Execute `./setup_cicd.sh` e siga as instruções.
+
+📚 **Documentação completa**: [.github/README_CICD.md](.github/README_CICD.md)
+
 ## 📋 Roadmap
 
 - [x] Sistema de autenticação
@@ -180,8 +193,9 @@ Contribuições são muito bem-vindas! Este projeto tem um impacto social import
 - [x] Tela da comunidade
 - [x] Implementação completa de geolocalização
 - [x] Sistema de notificações push
+- [x] Pipeline CI/CD completa
 - [ ] Integração com mapas
-- [ ] Testes automatizados
+- [ ] Testes automatizados expandidos
 - [ ] Publicação na Play Store
 
 ## 🎯 Impacto Social

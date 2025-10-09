@@ -4,7 +4,9 @@ on:
   push:
     branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
+  schedule:
+    - cron: '0 2 * * 1'  # Weekly security scan
 
 jobs:
   security-scan:

@@ -1,0 +1,81 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+        type: string
+      release_notes:
+        description: 'Release notes'
+        required: true
+        type: string
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+    
+    - name: Setup Android SDK
+      uses: android-actions/setup-android@v3
+    
+    - name: Cache Gradle
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.gradle/caches
+          ~/.gradle/wrapper
+        key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+        restore-keys: ${{ runner.os }}-gradle-
+    
+    - name: Grant execute permission
+      run: chmod +x gradlew
+    
+    - name: Create local.properties
+      run: echo "sdk.dir=$ANDROID_HOME" > local.properties
+    
+    - name: Decode Firebase config
+      run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
+    
+    - name: Decode keystore
+      run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore.jks
+    
+    - name: Create keystore.properties
+      run: |
+        echo "storeFile=keystore.jks" > keystore.properties
+        echo "storePassword=${{ secrets.KEYSTORE_PASSWORD }}" >> keystore.properties
+        echo "keyAlias=${{ secrets.KEY_ALIAS }}" >> keystore.properties
+        echo "keyPassword=${{ secrets.KEY_PASSWORD }}" >> keystore.properties
+    
+    - name: Build release APK and AAB
+      run: |
+        ./gradlew assembleRelease
+        ./gradlew bundleRelease
+      env:
+        FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+        FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID }}
+        FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+        FIREBASE_STORAGE_BUCKET: ${{ secrets.FIREBASE_STORAGE_BUCKET }}
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ inputs.version }}
+        name: Afilaxy v${{ inputs.version }}
+        body: ${{ inputs.release_notes }}
+        files: |
+          app/build/outputs/apk/release/app-release.apk
+          app/build/outputs/bundle/release/app-release.aab
+        draft: false
+        prerelease: false

@@ -1,80 +1,98 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * const {onCall} = require("firebase-functions/v2/https");
- * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
-
-const {setGlobalOptions} = require("firebase-functions");
-const {onRequest} = require("firebase-functions/https");
-const logger = require("firebase-functions/logger");
-
-// For cost control, you can set the maximum number of containers that can be
-// running at the same time. This helps mitigate the impact of unexpected
-// traffic spikes by instead downgrading performance. This limit is a
-// per-function limit. You can override the limit for each function using the
-// `maxInstances` option in the function's options, e.g.
-// `onRequest({ maxInstances: 5 }, (req, res) => { ... })`.
-// NOTE: setGlobalOptions does not apply to functions using the v1 API. V1
-// functions should each use functions.runWith({ maxInstances: 10 }) instead.
-// In the v1 API, each function can only serve one request per container, so
-// this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
-
-// Create and deploy your first functions
-// https://firebase.google.com/docs/functions/get-started
-
-// exports.helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
-const functions = require("firebase-functions");
+const {onDocumentCreated} = require("firebase-functions/v2/firestore");
+const {onCall} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 
-// Inicializar admin no topo para evitar lazy loading
 admin.initializeApp();
 
-exports.sendAfilaxyAlert = functions.https.onCall(async (data, context) => {
-    // Validação crítica de entrada
-    if (!data || typeof data !== 'object') {
-        throw new functions.https.HttpsError('invalid-argument', 'Dados inválidos fornecidos');
-    }
-    
-    const { tokens, nomePaciente, latitude, longitude } = data;
-    
-    // Validar tokens
-    if (!Array.isArray(tokens) || tokens.length === 0) {
-        throw new functions.https.HttpsError('invalid-argument', 'Tokens deve ser um array não vazio');
-    }
-    
-    // Validar nome do paciente
-    if (!nomePaciente || typeof nomePaciente !== 'string' || nomePaciente.trim().length === 0) {
-        throw new functions.https.HttpsError('invalid-argument', 'Nome do paciente é obrigatório');
-    }
-    
-    // Validar coordenadas
-    if (typeof latitude !== 'number' || typeof longitude !== 'number') {
-        throw new functions.https.HttpsError('invalid-argument', 'Latitude e longitude devem ser números');
-    }
-    
-    if (latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) {
-        throw new functions.https.HttpsError('invalid-argument', 'Coordenadas inválidas');
-    }
+// Função para enviar notificações push de emergência
+exports.sendEmergencyNotification = onDocumentCreated(
+    "push_notifications/{notificationId}",
+    async (event) => {
+      const data = event.data.data();
 
-    const message = {
-        notification: {
-            title: "Alerta Afilaxy",
-            body: `Alguém próximo precisa de uma bombinha! Nome: ${nomePaciente}, Localização: (${latitude}, ${longitude})`
-        },
-        tokens: tokens // Array de tokens FCM das aliadas próximas
-    };
+      try {
+        // Buscar token FCM do usuário destinatário
+        const userDoc = await admin.firestore()
+            .collection("users")
+            .doc(data.to)
+            .get();
 
-    try {
-        const response = await admin.messaging().sendMulticast(message);
-        return { success: true, response };
-    } catch (error) {
-        return { success: false, error: error.message };
-    }
+        if (!userDoc.exists) {
+          console.log("Usuário não encontrado:", data.to);
+          return null;
+        }
+
+        const fcmToken = userDoc.data().fcmToken;
+        if (!fcmToken) {
+          console.log("Token FCM não encontrado para usuário:", data.to);
+          return null;
+        }
+
+        // Configurar mensagem de emergência
+        const message = {
+          token: fcmToken,
+          notification: {
+            title: data.data.title,
+            body: data.data.body,
+          },
+          data: {
+            type: data.data.type,
+            emergencyId: data.data.emergencyId,
+            requesterName: data.data.requesterName,
+          },
+          android: {
+            priority: "high",
+            notification: {
+              priority: "max",
+              defaultSound: true,
+              defaultVibrateTimings: true,
+              channelId: "afilaxy_emergency",
+            },
+          },
+        };
+
+        // Enviar notificação
+        const response = await admin.messaging().send(message);
+        console.log("Notificação enviada com sucesso:", response);
+
+        // Marcar como processada
+        await event.data.ref.update({
+          processed: true,
+          sentAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+      } catch (error) {
+        console.error("Erro ao enviar notificação:", error);
+        await event.data.ref.update({
+          error: error.message,
+          processed: false,
+        });
+      }
+
+      return null;
+    },
+);
+
+// Função para atualizar token FCM do usuário
+exports.updateFCMToken = onCall(async (request) => {
+  if (!request.auth) {
+    throw new Error("Usuário não autenticado");
+  }
+
+  const {token} = request.data;
+  const userId = request.auth.uid;
+
+  try {
+    await admin.firestore()
+        .collection("users")
+        .doc(userId)
+        .update({
+          fcmToken: token,
+          tokenUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
+    return {success: true};
+  } catch (error) {
+    console.error("Erro ao atualizar token FCM:", error);
+    throw new Error("Erro ao atualizar token");
+  }
 });

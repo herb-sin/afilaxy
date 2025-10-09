@@ -1,6 +1,8 @@
 package com.afilaxy.presentation.profile
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -56,8 +58,8 @@ fun ProfileScreen(
             TopAppBar(
                 title = { Text("Perfil") },
                 navigationIcon = {
-                    TextButton(onClick = { navController.popBackStack() }) {
-                        Text("Voltar")
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
                     }
                 }
             )
@@ -116,11 +118,9 @@ fun ProfileScreen(
                             return@Button
                         }
                         
-                        // Verificar autenticação
-                        try {
-                            AuthGuard.requireAuthentication()
-                        } catch (e: SecurityException) {
-                            message = "Usuário deve estar autenticado"
+                        // Verificar se usuário está logado
+                        if (currentUser == null) {
+                            message = "Usuário não autenticado"
                             return@Button
                         }
                         

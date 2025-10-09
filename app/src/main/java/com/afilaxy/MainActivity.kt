@@ -167,6 +167,11 @@ class MainActivity : ComponentActivity() {
             
             val auth = firebaseAuth
             
+            // Configure Firebase Auth for development
+            if (BuildConfig.DEBUG) {
+                android.util.Log.d("MainActivity", "Firebase Auth configurado para desenvolvimento")
+            }
+            
             val isEmulator = android.os.Build.FINGERPRINT.contains("generic") ||
                            android.os.Build.MODEL.contains("Emulator") ||
                            android.os.Build.MANUFACTURER.contains("Genymotion")
