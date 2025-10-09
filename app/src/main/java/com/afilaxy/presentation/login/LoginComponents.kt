@@ -114,26 +114,30 @@ fun LoginActions(
 
 @Composable
 fun RegistrationSuccessCard(onDismiss: () -> Unit) {
-    Spacer(modifier = Modifier.height(16.dp))
+    android.util.Log.d("RegistrationSuccessCard", "🟢 Card sendo renderizado!")
     
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF4CAF50).copy(alpha = 0.1f)
-        )
+            containerColor = Color(0xFF4CAF50)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
                 text = "✅ Conta criada com sucesso!",
                 style = MaterialTheme.typography.titleMedium,
-                color = Color(0xFF4CAF50)
+                color = Color.White
             )
             
             Spacer(modifier = Modifier.height(8.dp))
             
             Text(
                 text = "Verifique sua caixa de entrada (e SPAM) para confirmar seu e-mail. Após confirmar, faça logout e login novamente para atualizar sua localização.",
-                style = MaterialTheme.typography.bodySmall
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.White
             )
             
             Spacer(modifier = Modifier.height(8.dp))

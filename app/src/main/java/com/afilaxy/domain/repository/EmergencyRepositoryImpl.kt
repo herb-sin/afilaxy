@@ -9,6 +9,7 @@ import com.afilaxy.security.InputSanitizer
 import com.afilaxy.security.RateLimiter
 import com.afilaxy.security.SecurityUtils
 import com.afilaxy.data.cache.EmergencyCache
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
 import kotlinx.coroutines.tasks.await
@@ -19,11 +20,8 @@ class EmergencyRepositoryImpl : EmergencyRepository {
     private val firestore by lazy { FirebaseFirestore.getInstance() }
     
     override suspend fun createEmergency(location: Location): Emergency {
-        if (!SecurityUtils.validateOperation("emergency_request")) {
-            throw SecurityException("Operation not authorized")
-        }
-        
-        val user = AuthGuard.requireVerifiedEmail()
+        val user = FirebaseAuth.getInstance().currentUser
+            ?: throw SecurityException("User not authenticated")
         
         return try {
             val userDoc = firestore.collection("users").document(user.uid).get().await()
@@ -62,8 +60,8 @@ class EmergencyRepositoryImpl : EmergencyRepository {
     }
     
     override suspend fun findNearbyHelpers(location: Location): List<Helper> {
-        // Check authentication but don't fail completely
-        if (!AuthGuard.isUserAuthenticated()) {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        if (currentUser == null) {
             SecurityUtils.safeLog("EmergencyRepository", "Helper search attempted without authentication", SecurityUtils.LogLevel.WARN)
             return emptyList()
         }
@@ -75,7 +73,7 @@ class EmergencyRepositoryImpl : EmergencyRepository {
                 return cachedHelpers
             }
             
-            val currentUserId = AuthGuard.getCurrentUserId()
+            val currentUserId = currentUser.uid
         
         val usersSnapshot = firestore.collection("users")
             .whereEqualTo("isHelper", true)
@@ -125,7 +123,8 @@ class EmergencyRepositoryImpl : EmergencyRepository {
     }
     
     override suspend fun notifyHelpers(helpers: List<Helper>, emergency: Emergency) {
-        if (!AuthGuard.isUserAuthenticated()) {
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        if (currentUser == null) {
             SecurityUtils.safeLog("EmergencyRepository", "Notification send attempted without authentication", SecurityUtils.LogLevel.WARN)
             return
         }
@@ -139,15 +138,34 @@ class EmergencyRepositoryImpl : EmergencyRepository {
                 "requesterName" to InputSanitizer.sanitizeForFirestore(emergency.userName),
                 "requesterId" to InputSanitizer.sanitizeForFirestore(emergency.userId),
                 "location" to GeoPoint(emergency.location.latitude, emergency.location.longitude),
-                "timestamp" to System.currentTimeMillis()
+                "timestamp" to System.currentTimeMillis(),
+                "processed" to false
             )
             
             try {
+                // Salvar notificação no Firestore
                 firestore.collection("users")
                     .document(helper.id)
                     .collection("notifications")
                     .add(alertData)
                     .await()
+                
+                // Enviar notificação push via Cloud Function
+                val pushData = mapOf(
+                    "to" to helper.id,
+                    "data" to mapOf(
+                        "type" to "emergency_alert",
+                        "title" to "🚨 EMERGÊNCIA AFILAXY",
+                        "body" to "${emergency.userName} precisa de bombinha próximo a você!",
+                        "emergencyId" to emergency.id,
+                        "requesterName" to emergency.userName
+                    )
+                )
+                
+                firestore.collection("push_notifications")
+                    .add(pushData)
+                    .await()
+                    
             } catch (e: Exception) {
                 SecurityUtils.safeLog("EmergencyRepository", "Failed to notify helper ${helper.id}: ${e.message}", SecurityUtils.LogLevel.ERROR)
             }

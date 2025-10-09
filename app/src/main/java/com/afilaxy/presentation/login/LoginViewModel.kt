@@ -102,9 +102,11 @@ class LoginViewModel : ViewModel() {
                             
                             createUserProfile(user?.uid, user?.email)
                             
+                            android.util.Log.d("LoginViewModel", "✅ Cadastro realizado com sucesso - mostrando card")
                             _uiState.value = _uiState.value.copy(showRegistrationSuccess = true)
                         } else {
-                            _uiState.value = _uiState.value.copy(errorMessage = "Erro no cadastro")
+                            android.util.Log.e("LoginViewModel", "❌ Erro no cadastro: ${task.exception?.message}")
+                            _uiState.value = _uiState.value.copy(errorMessage = "Erro no cadastro: ${task.exception?.localizedMessage}")
                         }
                     }
             } catch (e: Exception) {

@@ -5,34 +5,23 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import com.afilaxy.PreparadorConsultaViewModel
-import com.afilaxy.UiState
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import com.afilaxy.UiState
+import com.afilaxy.ai.LocalRespiratoryAI
 
 class AutocuidadoViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(AutocuidadoUiState())
     val uiState: StateFlow<AutocuidadoUiState> = _uiState.asStateFlow()
     
-    private val preparadorViewModel by lazy { PreparadorConsultaViewModel() }
-    private val firebaseAuth by lazy { FirebaseAuth.getInstance() }
+    private val respiratoryAI = LocalRespiratoryAI()
     
     fun updatePergunta(pergunta: String) {
         _uiState.value = _uiState.value.copy(pergunta = pergunta)
     }
     
     fun perguntarIA() {
-        val question = _uiState.value.pergunta.take(500)
+        val question = _uiState.value.pergunta?.take(500) ?: ""
         if (question.isBlank()) return
-        
-        if (!com.afilaxy.security.FinalSecurityLayer.isSecureContext()) {
-            com.afilaxy.security.SecurityUtils.safeLog("AutocuidadoViewModel", "AI query denied - insecure context", com.afilaxy.security.SecurityUtils.LogLevel.WARN)
-            _uiState.value = _uiState.value.copy(
-                resposta = UiState.Error("Acesso negado - contexto inseguro")
-            )
-            return
-        }
         
         viewModelScope.launch {
             try {
@@ -41,16 +30,15 @@ class AutocuidadoViewModel : ViewModel() {
                     isLoading = true
                 )
                 
-                preparadorViewModel.prepararResumoConsulta(question)
+                val response = respiratoryAI.getAsthmaInfo(question)
                 
-                val response = preparadorViewModel.uiState.first { it !is UiState.Loading }
                 _uiState.value = _uiState.value.copy(
-                    resposta = response,
+                    resposta = UiState.Success(response),
                     isLoading = false
                 )
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
-                    resposta = UiState.Error("Erro ao processar pergunta"),
+                    resposta = UiState.Error("Erro ao consultar IA: ${e.message}"),
                     isLoading = false
                 )
             }

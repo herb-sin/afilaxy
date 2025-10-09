@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
@@ -54,18 +55,31 @@ fun HomeScreen(
                 Column(
                     modifier = Modifier.padding(16.dp)
                 ) {
-                    Text(
-                        "Menu",
-                        style = MaterialTheme.typography.headlineSmall,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "Menu",
+                            style = MaterialTheme.typography.headlineSmall
+                        )
+                        IconButton(
+                            onClick = {
+                                scope.launch { drawerState.close() }
+                            }
+                        ) {
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Fechar menu")
+                        }
+                    }
                     
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Default.Person, contentDescription = null) },
                         label = { Text("Perfil") },
                         selected = false,
                         onClick = { 
-                            scope.launch { drawerState.close() }
                             navController.navigate("perfil")
                         }
                     )
@@ -75,7 +89,6 @@ fun HomeScreen(
                         label = { Text("Termos de Uso") },
                         selected = false,
                         onClick = { 
-                            scope.launch { drawerState.close() }
                             navController.navigate(AppRoutes.TELA_TERMOS)
                         }
                     )
@@ -85,7 +98,6 @@ fun HomeScreen(
                         label = { Text("Política de Privacidade") },
                         selected = false,
                         onClick = { 
-                            scope.launch { drawerState.close() }
                             navController.navigate(AppRoutes.TELA_LGPD)
                         }
                     )

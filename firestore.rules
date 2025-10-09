@@ -1,0 +1,36 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Regras para usuários autenticados
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // Permitir leitura de outros usuários para busca de helpers
+      allow read: if request.auth != null;
+      
+      // Subcoleção de notificações
+      match /notifications/{notificationId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+    
+    // Regras para emergências
+    match /emergencies/{emergencyId} {
+      allow create: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow read, update: if request.auth != null && 
+        (request.auth.uid == resource.data.userId || 
+         request.auth.uid in resource.data.helpers);
+    }
+    
+    // Regras para notificações push
+    match /push_notifications/{notificationId} {
+      allow create: if request.auth != null;
+      allow read, update: if request.auth != null;
+    }
+    
+    // Regras para helpers (temporário para desenvolvimento)
+    match /helpers/{helperId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

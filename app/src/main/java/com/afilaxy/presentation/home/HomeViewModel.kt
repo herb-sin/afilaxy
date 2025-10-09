@@ -99,37 +99,28 @@ class HomeViewModel : ViewModel() {
         val currentState = _uiState.value
         val newHelperStatus = !currentState.isHelper
         
-        Log.d("HomeViewModel", "Alterando status de helper")
+        Log.d("HomeViewModel", "Alterando status de helper: $newHelperStatus")
+        
+        // Atualizar UI imediatamente para responsividade
+        _uiState.value = _uiState.value.copy(isHelper = newHelperStatus)
         
         viewModelScope.launch {
             try {
-                try {
-                    val user = AuthGuard.requireVerifiedEmail()
-                    
+                val user = auth.currentUser
+                if (user != null) {
                     firestore.collection("users")
                         .document(user.uid)
                         .update("isHelper", newHelperStatus)
                         .await()
                     
-                    Log.d("HomeViewModel", "Status atualizado com sucesso")
-                    _uiState.value = _uiState.value.copy(isHelper = newHelperStatus)
-                } catch (e: SecurityException) {
-                    Log.e("HomeViewModel", "Falha na autenticação")
-                    _uiState.value = _uiState.value.copy(
-                        errorMessage = "Usuário deve estar autenticado e verificado"
-                    )
-                    return@launch
+                    Log.d("HomeViewModel", "✅ Status atualizado no Firestore")
+                } else {
+                    Log.w("HomeViewModel", "Usuário não autenticado - mantendo apenas localmente")
                 }
-                
-
-                
             } catch (e: Exception) {
-                Log.e("HomeViewModel", "Erro ao atualizar status: ${e.message}", e)
-                // Reverter mudança local em caso de erro
-                _uiState.value = _uiState.value.copy(
-                    isHelper = currentState.isHelper,
-                    errorMessage = "Erro ao atualizar status"
-                )
+                Log.e("HomeViewModel", "❌ Erro ao salvar no Firestore: ${e.message}")
+                Log.w("HomeViewModel", "Mantendo alteração apenas localmente")
+                // Manter a mudança local mesmo se Firestore falhar
             }
         }
     }

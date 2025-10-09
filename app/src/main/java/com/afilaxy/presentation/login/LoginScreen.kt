@@ -2,6 +2,8 @@ package com.afilaxy.presentation.login
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.res.painterResource
@@ -41,9 +43,12 @@ fun LoginScreen(
         // Salvar localização quando necessário
     }
 
+    val scrollState = rememberScrollState()
+    
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(scrollState)
             .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -80,7 +85,13 @@ fun LoginScreen(
             Text(text = message, color = MaterialTheme.colorScheme.error)
         }
         
+        // Debug: verificar estado do card
+        LaunchedEffect(uiState.showRegistrationSuccess) {
+            android.util.Log.d("LoginScreen", "showRegistrationSuccess = ${uiState.showRegistrationSuccess.toString().replace("\n", "").replace("\r", "")}") 
+        }
+        
         if (uiState.showRegistrationSuccess) {
+            android.util.Log.d("LoginScreen", "Renderizando RegistrationSuccessCard")
             RegistrationSuccessCard(onDismiss = viewModel::dismissRegistrationSuccess)
         }
     }  

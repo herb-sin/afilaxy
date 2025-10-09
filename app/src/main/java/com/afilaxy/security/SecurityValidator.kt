@@ -47,14 +47,19 @@ object SecurityValidator {
     }
     
     // XXE Prevention for XML parsing
-    fun createSecureDocumentBuilder(): DocumentBuilderFactory {
-        return DocumentBuilderFactory.newInstance().apply {
-            setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
-            setFeature("http://xml.org/sax/features/external-general-entities", false)
-            setFeature("http://xml.org/sax/features/external-parameter-entities", false)
-            setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
-            isXIncludeAware = false
-            isExpandEntityReferences = false
+    fun createSecureDocumentBuilder(): DocumentBuilderFactory? {
+        return try {
+            DocumentBuilderFactory.newInstance().apply {
+                setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+                setFeature("http://xml.org/sax/features/external-general-entities", false)
+                setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+                setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
+                isXIncludeAware = false
+                isExpandEntityReferences = false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create secure document builder", e)
+            null
         }
     }
     
@@ -70,20 +75,36 @@ object SecurityValidator {
     fun validateFileExtension(filename: String): Boolean {
         if (filename.isBlank() || !filename.contains('.')) return false
         
-        val extension = "." + filename.substringAfterLast('.').lowercase()
+        val normalizedName = filename.lowercase().trim()
         
-        // Block dangerous extensions first
-        if (DANGEROUS_EXTENSIONS.contains(extension)) return false
+        // Check for double extensions (e.g., file.jpg.exe)
+        val allExtensions = normalizedName.split('.').drop(1).map { ".$it" }
         
-        // Only allow safe extensions
-        return SAFE_EXTENSIONS.contains(extension)
+        // Block if any extension is dangerous
+        if (allExtensions.any { DANGEROUS_EXTENSIONS.contains(it) }) return false
+        
+        // Only allow if final extension is safe
+        val finalExtension = allExtensions.lastOrNull() ?: return false
+        return SAFE_EXTENSIONS.contains(finalExtension)
     }
     
     fun validateFileName(filename: String): Boolean {
-        return filename.length <= 255 &&
+        // Check for null bytes and control characters that could bypass validation
+        if (filename.contains('\u0000') || filename.any { it.isISOControl() }) {
+            return false
+        }
+        
+        return filename.length in 1..255 &&
                !filename.contains("..") &&
                !filename.contains("/") &&
                !filename.contains("\\") &&
+               !filename.contains(":") &&
+               !filename.contains("*") &&
+               !filename.contains("?") &&
+               !filename.contains('"') &&
+               !filename.contains("<") &&
+               !filename.contains(">") &&
+               !filename.contains("|") &&
                filename.matches(Regex("^[a-zA-Z0-9._-]+$")) &&
                validateFileExtension(filename)
     }
@@ -93,6 +114,12 @@ object SecurityValidator {
         return try {
             // Reject paths with dangerous patterns immediately
             if (containsPathTraversal(path) || path.contains("null") || path.length > 500) {
+                return false
+            }
+            
+            // Early extension validation to prevent dangerous file processing
+            val filename = path.substringAfterLast('/', path.substringAfterLast('\\'))
+            if (filename.isBlank() || filename.length > 255 || !filename.contains('.') || !validateFileExtension(filename)) {
                 return false
             }
             
@@ -118,7 +145,7 @@ object SecurityValidator {
         return try {
             if (!file.exists() || file.length() > 10_000_000) return false // 10MB limit
             
-            val bytes = file.readBytes().take(8).toByteArray()
+            val bytes = file.inputStream().use { it.readNBytes(8) }
             when {
                 // JPEG magic bytes
                 bytes.size >= 3 && bytes[0] == 0xFF.toByte() && 

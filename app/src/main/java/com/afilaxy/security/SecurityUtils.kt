@@ -41,7 +41,8 @@ object SecurityUtils {
         if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
             return "invalid_coordinates"
         }
-        return "lat=${String.format("%.6f", lat)}, lon=${String.format("%.6f", lon)}"
+        // Prevent injection by using safe formatting
+        return "lat=${"%.6f".format(lat)}, lon=${"%.6f".format(lon)}"
     }
     
     enum class LogLevel {

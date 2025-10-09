@@ -97,8 +97,9 @@ object SecureBackup {
             val key = generateSecretKey()
             val cipher = Cipher.getInstance(TRANSFORMATION)
             
+            val secureRandom = SecureRandom.getInstanceStrong()
             val iv = ByteArray(16)
-            SecureRandom().nextBytes(iv)
+            secureRandom.nextBytes(iv)
             val ivSpec = IvParameterSpec(iv)
             
             cipher.init(Cipher.ENCRYPT_MODE, key, ivSpec)
@@ -137,16 +138,23 @@ object SecureBackup {
                 val parts = entry.split(":", limit = 2)
                 if (parts.size == 2) parts[0] to parts[1] else "" to ""
             }.filterKeys { it.isNotEmpty() }
+        } catch (e: SecurityException) {
+            throw e
         } catch (e: Exception) {
-            SecurityUtils.safeLog("SecureBackup", "Decryption failed", SecurityUtils.LogLevel.ERROR)
-            throw SecurityException("Data decryption failed")
+            SecurityUtils.safeLog("SecureBackup", "Decryption failed: ${e.message}", SecurityUtils.LogLevel.ERROR)
+            throw SecurityException("Data decryption failed: ${e.javaClass.simpleName}")
         }
     }
     
     private fun generateSecretKey(): SecretKey {
-        // In production, this should be derived from user credentials or stored securely
-        val keyBytes = "AfilaxySecureBackupKey2024!@#$".toByteArray().sliceArray(0..31)
-        return SecretKeySpec(keyBytes, ALGORITHM)
+        return try {
+            // In production, this should be derived from user credentials or stored securely
+            val keyBytes = "AfilaxySecureBackupKey2024!@#$".toByteArray().sliceArray(0..31)
+            SecretKeySpec(keyBytes, ALGORITHM)
+        } catch (e: Exception) {
+            SecurityUtils.safeLog("SecureBackup", "Key generation failed: ${e.message}", SecurityUtils.LogLevel.ERROR)
+            throw SecurityException("Failed to generate encryption key")
+        }
     }
     
     private fun cleanupOldBackups(context: Context) {
@@ -164,6 +172,8 @@ object SecureBackup {
                     )
                 }
             }
+        } catch (e: SecurityException) {
+            throw e
         } catch (e: Exception) {
             SecurityUtils.safeLog(
                 "SecureBackup",
