@@ -118,6 +118,30 @@ fun AppNavigation(
         }
         
         composable(
+            route = "emergency_response/{emergencyId}/{requesterName}",
+            arguments = listOf(
+                navArgument("emergencyId") { type = NavType.StringType },
+                navArgument("requesterName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val emergencyId = backStackEntry.arguments?.getString("emergencyId") ?: ""
+            val requesterName = backStackEntry.arguments?.getString("requesterName") ?: "Pessoa"
+            
+            com.afilaxy.presentation.emergency.EmergencyResponseScreen(
+                emergencyId = emergencyId,
+                requesterName = requesterName,
+                onNavigateBack = { navController.popBackStack() },
+                onAcceptHelp = {
+                    // Navegar para mapa ou confirmar ajuda
+                    navController.navigate("navigation/0.0/0.0/$requesterName")
+                },
+                onDeclineHelp = {
+                    navController.popBackStack()
+                }
+            )
+        }
+        
+        composable(
             route = "${AppRoutes.TELA_HELPER_RESPONSE}/{emergencyId}",
             arguments = listOf(navArgument("emergencyId") { type = NavType.StringType })
         ) { backStackEntry ->

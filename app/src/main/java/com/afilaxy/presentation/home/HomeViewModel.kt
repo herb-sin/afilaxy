@@ -12,6 +12,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import com.afilaxy.security.AuthGuard
 import com.afilaxy.security.InputSanitizer
+import com.google.firebase.firestore.GeoPoint
+import com.afilaxy.notification.FCMTokenManager
 
 class HomeViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -68,6 +70,9 @@ class HomeViewModel : ViewModel() {
                     
                     Log.d("HomeViewModel", "Dados carregados com sucesso")
                     
+                    // Atualizar token FCM
+                    FCMTokenManager.updateFCMToken()
+                    
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         userName = userName,
@@ -121,6 +126,33 @@ class HomeViewModel : ViewModel() {
                 Log.e("HomeViewModel", "❌ Erro ao salvar no Firestore: ${e.message}")
                 Log.w("HomeViewModel", "Mantendo alteração apenas localmente")
                 // Manter a mudança local mesmo se Firestore falhar
+            }
+        }
+    }
+    
+    fun updateUserLocation(latitude: Double, longitude: Double) {
+        Log.d("HomeViewModel", "Atualizando localização do usuário: $latitude, $longitude")
+        
+        viewModelScope.launch {
+            try {
+                val user = auth.currentUser
+                if (user != null) {
+                    val location = GeoPoint(latitude, longitude)
+                    
+                    firestore.collection("users")
+                        .document(user.uid)
+                        .update(mapOf(
+                            "location" to location,
+                            "lastLocationUpdate" to System.currentTimeMillis()
+                        ))
+                        .await()
+                    
+                    Log.d("HomeViewModel", "✅ Localização atualizada no Firestore")
+                } else {
+                    Log.w("HomeViewModel", "Usuário não autenticado - não é possível salvar localização")
+                }
+            } catch (e: Exception) {
+                Log.e("HomeViewModel", "❌ Erro ao salvar localização: ${e.message}")
             }
         }
     }

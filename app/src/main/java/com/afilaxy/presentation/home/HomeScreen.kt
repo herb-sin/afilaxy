@@ -31,6 +31,7 @@ import com.afilaxy.presentation.common.navigation.AppRoutes
 import com.afilaxy.ui.theme.AfilaxyTheme
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
+import com.afilaxy.utils.LocationHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +47,16 @@ fun HomeScreen(
     
     LaunchedEffect(Unit) {
         viewModel.loadUserData()
+        
+        // Obter e salvar localização do usuário
+        try {
+            val location = LocationHelper.getCurrentLocation(context)
+            location?.let {
+                viewModel.updateUserLocation(it.latitude, it.longitude)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("HomeScreen", "Erro ao obter localização: ${e.message}")
+        }
     }
     
     ModalNavigationDrawer(
