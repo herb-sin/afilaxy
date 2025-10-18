@@ -12,13 +12,18 @@ object FCMTokenManager {
     
     suspend fun updateFCMToken() {
         try {
+            Log.d(TAG, "🔄 Iniciando atualização do token FCM...")
+            
             val currentUser = FirebaseAuth.getInstance().currentUser
             if (currentUser == null) {
-                Log.w(TAG, "Usuário não autenticado")
+                Log.w(TAG, "❌ Usuário não autenticado")
                 return
             }
             
+            Log.d(TAG, "👤 Usuário autenticado: ${currentUser.uid}")
+            
             val token = FirebaseMessaging.getInstance().token.await()
+            Log.d(TAG, "🔑 Token FCM obtido: ${token.take(20)}...")
             
             FirebaseFirestore.getInstance()
                 .collection("users")
@@ -29,10 +34,11 @@ object FCMTokenManager {
                 ))
                 .await()
             
-            Log.d(TAG, "Token FCM atualizado com sucesso")
+            Log.d(TAG, "✅ Token FCM atualizado com sucesso no Firestore")
             
         } catch (e: Exception) {
-            Log.e(TAG, "Erro ao atualizar token FCM: ${e.message}")
+            Log.e(TAG, "❌ Erro ao atualizar token FCM: ${e.message}")
+            Log.e(TAG, "❌ Stack trace: ${e.stackTrace.joinToString("\n")}")
         }
     }
 }

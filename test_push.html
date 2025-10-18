@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste Push Notification</title>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js"></script>
+</head>
+<body>
+    <h1>Teste de Notificação Push</h1>
+    <button onclick="testPushNotification()">Criar Notificação de Teste</button>
+    <div id="result"></div>
+
+    <script>
+        // Configuração do Firebase
+        const firebaseConfig = {
+            apiKey: "AIzaSyBvOtLvK_Q7_example_key",
+            authDomain: "afilaxy-test.firebaseapp.com",
+            projectId: "afilaxy-test",
+            storageBucket: "afilaxy-test.appspot.com",
+            messagingSenderId: "446550504741",
+            appId: "1:446550504741:android:example_app_id"
+        };
+
+        // Inicializar Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        async function testPushNotification() {
+            try {
+                console.log('Criando documento de teste...');
+                
+                const testDoc = {
+                    to: 'test_user_id_123',
+                    data: {
+                        type: 'emergency_alert',
+                        title: '🚨 TESTE EMERGÊNCIA AFILAXY',
+                        body: 'Teste de notificação de emergência',
+                        emergencyId: 'test_emergency_' + Date.now(),
+                        requesterName: 'Usuário Teste'
+                    },
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                const docRef = await db.collection('push_notifications').add(testDoc);
+                console.log('Documento criado com ID:', docRef.id);
+                
+                document.getElementById('result').innerHTML = 
+                    `<p>✅ Documento criado com ID: ${docRef.id}</p>
+                     <p>Verifique os logs das Cloud Functions para ver se a função foi executada.</p>`;
+                
+            } catch (error) {
+                console.error('Erro:', error);
+                document.getElementById('result').innerHTML = 
+                    `<p>❌ Erro: ${error.message}</p>`;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 package com.afilaxy
 
 import android.Manifest
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -56,6 +57,12 @@ class MainActivity : ComponentActivity() {
         setContent {
             MainContent()
         }
+    }
+    
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        android.util.Log.d("MainActivity", "onNewIntent chamado com intent: ${intent.extras}")
     }
 
     @Composable
@@ -113,15 +120,27 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun HandleEmergencyIntent(navController: androidx.navigation.NavController) {
-        LaunchedEffect(Unit) {
-            if (intent.getBooleanExtra("open_emergency", false)) {
+        LaunchedEffect(intent) {
+            android.util.Log.d("MainActivity", "🔍 Verificando intent: ${intent.extras}")
+            
+            val emergencyId = intent.getStringExtra("emergency_id")
+            val requesterName = intent.getStringExtra("requester_name")
+            val notificationType = intent.getStringExtra("notification_type")
+            
+            android.util.Log.d("MainActivity", "📋 Dados do intent:")
+            android.util.Log.d("MainActivity", "   Emergency ID: $emergencyId")
+            android.util.Log.d("MainActivity", "   Requester: $requesterName")
+            android.util.Log.d("MainActivity", "   Type: $notificationType")
+            
+            if (notificationType == "emergency_alert" && emergencyId != null && requesterName != null) {
                 try {
-                    navController.navigate("tela_helper_response")
-                } catch (e: IllegalArgumentException) {
-                    android.util.Log.e("MainActivity", "Rota de emergência inválida: ${e.message}")
+                    android.util.Log.d("MainActivity", "🚀 Navegando para: emergency_response/$emergencyId/$requesterName")
+                    navController.navigate("emergency_response/$emergencyId/$requesterName")
                 } catch (e: Exception) {
-                    android.util.Log.e("MainActivity", "Erro ao navegar para emergência: ${e.message}")
+                    android.util.Log.e("MainActivity", "❌ Erro ao navegar: ${e.message}")
                 }
+            } else {
+                android.util.Log.w("MainActivity", "⚠️ Intent não é de emergência ou dados faltando")
             }
         }
     }
