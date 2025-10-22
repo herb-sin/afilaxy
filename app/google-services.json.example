@@ -1,13 +1,13 @@
 {
   "project_info": {
     "project_number": "YOUR_PROJECT_NUMBER",
-    "project_id": "your-project-id",
-    "storage_bucket": "your-project-id.firebasestorage.app"
+    "project_id": "YOUR_PROJECT_ID",
+    "storage_bucket": "YOUR_PROJECT_ID.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:YOUR_PROJECT_NUMBER:android:YOUR_APP_ID",
+        "mobilesdk_app_id": "YOUR_MOBILE_SDK_APP_ID",
         "android_client_info": {
           "package_name": "com.afilaxy"
         }
@@ -15,26 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "YOUR_API_KEY_HERE"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": []
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:YOUR_PROJECT_NUMBER:android:YOUR_DEBUG_APP_ID",
-        "android_client_info": {
-          "package_name": "com.afilaxy.debug"
-        }
-      },
-      "oauth_client": [],
-      "api_key": [
-        {
-          "current_key": "YOUR_API_KEY_HERE"
+          "current_key": "YOUR_API_KEY"
         }
       ],
       "services": {

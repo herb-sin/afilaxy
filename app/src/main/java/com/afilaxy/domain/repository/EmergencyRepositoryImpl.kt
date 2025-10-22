@@ -9,6 +9,7 @@ import com.afilaxy.security.InputSanitizer
 import com.afilaxy.security.RateLimiter
 import com.afilaxy.security.SecurityUtils
 import com.afilaxy.data.cache.EmergencyCache
+import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
@@ -54,7 +55,7 @@ class EmergencyRepositoryImpl : EmergencyRepository {
         } catch (e: SecurityException) {
             throw e
         } catch (e: Exception) {
-            SecurityUtils.safeLog("EmergencyRepository", "Failed to create emergency: ${e.message}", SecurityUtils.LogLevel.ERROR)
+            Log.e("EmergencyRepository", "Failed to create emergency", e)
             throw Exception("Failed to create emergency request")
         }
     }
@@ -62,14 +63,14 @@ class EmergencyRepositoryImpl : EmergencyRepository {
     override suspend fun findNearbyHelpers(location: Location): List<Helper> {
         val currentUser = FirebaseAuth.getInstance().currentUser
         if (currentUser == null) {
-            SecurityUtils.safeLog("EmergencyRepository", "Helper search attempted without authentication", SecurityUtils.LogLevel.WARN)
+            Log.w("EmergencyRepository", "Helper search attempted without authentication")
             return emptyList()
         }
         
         return try {
             // Verificar cache primeiro
             EmergencyCache.getCachedHelpers(location)?.let { cachedHelpers ->
-                SecurityUtils.safeLog("EmergencyRepository", "Using cached helpers", SecurityUtils.LogLevel.DEBUG)
+                Log.d("EmergencyRepository", "Using cached helpers")
                 return cachedHelpers
             }
             
@@ -93,8 +94,8 @@ class EmergencyRepositoryImpl : EmergencyRepository {
                 )
 
                 if (distance <= 0.3) { // 300m radius
-                    val userName = document.getString("name")
-                    val displayName = if (userName.isNullOrBlank() || userName.contains("@")) {
+                    val userName = InputSanitizer.sanitizeName(document.getString("name"))
+                    val displayName = if (userName.isBlank() || userName.contains("@")) {
                         "Ajudante ${helpers.size + 1}"
                     } else {
                         userName
@@ -117,7 +118,7 @@ class EmergencyRepositoryImpl : EmergencyRepository {
             
             sortedHelpers
         } catch (e: Exception) {
-            SecurityUtils.safeLog("EmergencyRepository", "Failed to find helpers: ${e.message}", SecurityUtils.LogLevel.ERROR)
+            Log.e("EmergencyRepository", "Failed to find helpers", e)
             emptyList()
         }
     }
@@ -125,7 +126,7 @@ class EmergencyRepositoryImpl : EmergencyRepository {
     override suspend fun notifyHelpers(helpers: List<Helper>, emergency: Emergency) {
         val currentUser = FirebaseAuth.getInstance().currentUser
         if (currentUser == null) {
-            SecurityUtils.safeLog("EmergencyRepository", "Notification send attempted without authentication", SecurityUtils.LogLevel.WARN)
+            Log.w("EmergencyRepository", "Notification send attempted without authentication")
             return
         }
 
@@ -167,7 +168,7 @@ class EmergencyRepositoryImpl : EmergencyRepository {
                     .await()
                     
             } catch (e: Exception) {
-                SecurityUtils.safeLog("EmergencyRepository", "Failed to notify helper ${helper.id}: ${e.message}", SecurityUtils.LogLevel.ERROR)
+                Log.e("EmergencyRepository", "Failed to notify helper ${helper.id}", e)
             }
         }
     }
@@ -189,7 +190,7 @@ class EmergencyRepositoryImpl : EmergencyRepository {
                 ))
                 .await()
         } catch (e: Exception) {
-            SecurityUtils.safeLog("EmergencyRepository", "Failed to rate helper", SecurityUtils.LogLevel.ERROR)
+            Log.e("EmergencyRepository", "Failed to rate helper", e)
             throw Exception("Failed to submit rating")
         }
     }

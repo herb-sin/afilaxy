@@ -97,7 +97,8 @@ object SecureBackup {
             val key = generateSecretKey()
             val cipher = Cipher.getInstance(TRANSFORMATION)
             
-            val secureRandom = SecureRandom.getInstanceStrong()
+            // Use cryptographically secure random IV
+            val secureRandom = SecureRandom()
             val iv = ByteArray(16)
             secureRandom.nextBytes(iv)
             val ivSpec = IvParameterSpec(iv)
@@ -124,9 +125,14 @@ object SecureBackup {
             val key = generateSecretKey()
             val cipher = Cipher.getInstance(TRANSFORMATION)
             
-            // Extract IV (first 16 bytes)
+            // Extract IV (first 16 bytes) with validation
             val iv = encryptedBytes.sliceArray(0..15)
             val encryptedData = encryptedBytes.sliceArray(16 until encryptedBytes.size)
+            
+            // Validate IV is not all zeros (security check)
+            if (iv.all { it == 0.toByte() }) {
+                throw SecurityException("Invalid IV detected")
+            }
             
             val ivSpec = IvParameterSpec(iv)
             cipher.init(Cipher.DECRYPT_MODE, key, ivSpec)

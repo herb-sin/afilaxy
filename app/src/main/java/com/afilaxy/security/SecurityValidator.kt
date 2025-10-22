@@ -23,7 +23,12 @@ object SecurityValidator {
     )
     
     fun validateInput(input: String): Boolean {
-        return !containsSqlInjection(input) && !containsPathTraversal(input)
+        return try {
+            !containsSqlInjection(input) && !containsPathTraversal(input)
+        } catch (e: Exception) {
+            Log.e(TAG, "Input validation error", e)
+            false
+        }
     }
     
     fun sanitizeInput(input: String): String {
@@ -63,29 +68,41 @@ object SecurityValidator {
         }
     }
     
-    // Safe file extensions - medical app specific
-    private val SAFE_EXTENSIONS = setOf(".jpg", ".jpeg", ".png", ".pdf")
+    // Safe file extensions - medical app specific (whitelist approach)
+    private val SAFE_EXTENSIONS = setOf(".jpg", ".jpeg", ".png", ".pdf", ".txt")
     
-    // Dangerous extensions that must be blocked
+    // Comprehensive dangerous extensions blocklist
     private val DANGEROUS_EXTENSIONS = setOf(
         ".exe", ".bat", ".cmd", ".com", ".pif", ".scr", ".vbs", ".js", ".jar",
-        ".app", ".deb", ".pkg", ".dmg", ".sh", ".php", ".asp", ".jsp", ".html", ".htm"
+        ".app", ".deb", ".pkg", ".dmg", ".sh", ".php", ".asp", ".jsp", ".html", ".htm",
+        ".apk", ".ipa", ".msi", ".dll", ".so", ".dylib", ".bin", ".run", ".zip", ".rar",
+        ".7z", ".tar", ".gz", ".bz2", ".xz", ".iso", ".img", ".svg", ".xml"
     )
     
     fun validateFileExtension(filename: String): Boolean {
-        if (filename.isBlank() || !filename.contains('.')) return false
-        
-        val normalizedName = filename.lowercase().trim()
-        
-        // Check for double extensions (e.g., file.jpg.exe)
-        val allExtensions = normalizedName.split('.').drop(1).map { ".$it" }
-        
-        // Block if any extension is dangerous
-        if (allExtensions.any { DANGEROUS_EXTENSIONS.contains(it) }) return false
-        
-        // Only allow if final extension is safe
-        val finalExtension = allExtensions.lastOrNull() ?: return false
-        return SAFE_EXTENSIONS.contains(finalExtension)
+        return try {
+            if (filename.isBlank() || !filename.contains('.') || filename.length > 255) return false
+            
+            val normalizedName = filename.lowercase().trim()
+            
+            // Prevent null byte injection and control characters
+            if (normalizedName.contains('\u0000') || normalizedName.any { it.isISOControl() }) {
+                return false
+            }
+            
+            // Check for double extensions (e.g., file.jpg.exe)
+            val allExtensions = normalizedName.split('.').drop(1).map { ".$it" }
+            
+            // Block if any extension is dangerous
+            if (allExtensions.any { DANGEROUS_EXTENSIONS.contains(it) }) return false
+            
+            // Only allow if final extension is safe (whitelist approach)
+            val finalExtension = allExtensions.lastOrNull() ?: return false
+            SAFE_EXTENSIONS.contains(finalExtension)
+        } catch (e: Exception) {
+            Log.e(TAG, "File extension validation error", e)
+            false
+        }
     }
     
     fun validateFileName(filename: String): Boolean {
@@ -135,7 +152,7 @@ object SecurityValidator {
             } && validateFileName(file.name)
             
         } catch (e: Exception) {
-            Log.e(TAG, "Path validation error", e)
+            Log.e(TAG, "Path validation error: ${e.javaClass.simpleName}", e)
             false
         }
     }

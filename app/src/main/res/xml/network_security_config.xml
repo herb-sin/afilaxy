@@ -1,15 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">firebase.googleapis.com</domain>
-        <domain includeSubdomains="true">firestore.googleapis.com</domain>
-        <domain includeSubdomains="true">fcm.googleapis.com</domain>
-        <domain includeSubdomains="true">maps.googleapis.com</domain>
+        <domain includeSubdomains="true">firebaseapp.com</domain>
+        <domain includeSubdomains="true">googleapis.com</domain>
+        <domain includeSubdomains="true">google.com</domain>
+        <domain includeSubdomains="true">gstatic.com</domain>
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+        <pin-set expiration="2025-12-31">
+            <pin digest="SHA-256">YLh1dUR9y6Kja30RrAn7JKnbQG/uEtLMkBgFF2fuihg=</pin>
+            <pin digest="SHA-256">C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M=</pin>
+        </pin-set>
     </domain-config>
     
-    <!-- Only allow cleartext for emulator in debug builds -->
-    <domain-config cleartextTrafficPermitted="true">
-        <domain>10.0.2.2</domain>
-        <domain>localhost</domain>
-    </domain-config>
+    <!-- Block all cleartext traffic -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system"/>
+        </trust-anchors>
+    </base-config>
+    
+    <!-- Debug configuration (only for debug builds) -->
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system"/>
+            <certificates src="user"/>
+        </trust-anchors>
+    </debug-overrides>
 </network-security-config>

@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import com.afilaxy.analytics.AnalyticsManager
+import com.afilaxy.security.SecureXmlUtils
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingClient
 import com.google.android.gms.location.GeofencingRequest
@@ -39,30 +40,38 @@ class GeofenceManager @Inject constructor(
             return
         }
         
-        val geofence = Geofence.Builder()
-            .setRequestId(id)
-            .setCircularRegion(location.latitude, location.longitude, radius)
-            .setExpirationDuration(Geofence.NEVER_EXPIRE)
-            .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_EXIT)
-            .build()
-        
-        val geofencingRequest = GeofencingRequest.Builder()
-            .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
-            .addGeofence(geofence)
-            .build()
-        
-        geofencingClient.addGeofences(geofencingRequest, geofencePendingIntent)
+        try {
+            val geofence = Geofence.Builder()
+                .setRequestId(id)
+                .setCircularRegion(location.latitude, location.longitude, radius)
+                .setExpirationDuration(Geofence.NEVER_EXPIRE)
+                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER or Geofence.GEOFENCE_TRANSITION_EXIT)
+                .build()
+            
+            val geofencingRequest = GeofencingRequest.Builder()
+                .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
+                .addGeofence(geofence)
+                .build()
+            
+            geofencingClient.addGeofences(geofencingRequest, geofencePendingIntent)
+        } catch (e: Exception) {
+            android.util.Log.e("GeofenceManager", "Error adding geofence", e)
+        }
     }
     
     fun setupDefaultGeofences() {
-        // Add common high-risk areas (hospitals, schools, etc.)
-        val highRiskAreas = listOf(
-            LatLng(-23.5505, -46.6333) to 500f, // São Paulo center
-            LatLng(-22.9068, -43.1729) to 500f  // Rio de Janeiro center
-        )
-        
-        highRiskAreas.forEachIndexed { index, (location, radius) ->
-            addHighRiskArea(location, radius, "default_area_$index")
+        try {
+            // Add common high-risk areas (hospitals, schools, etc.)
+            val highRiskAreas = listOf(
+                LatLng(-23.5505, -46.6333) to 500f, // São Paulo center
+                LatLng(-22.9068, -43.1729) to 500f  // Rio de Janeiro center
+            )
+            
+            highRiskAreas.forEachIndexed { index, (location, radius) ->
+                addHighRiskArea(location, radius, "default_area_$index")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("GeofenceManager", "Error setting up geofences", e)
         }
     }
     

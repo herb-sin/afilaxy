@@ -56,9 +56,7 @@ class EmergencyViewModel : ViewModel() {
         location?.let {
             _uiState.value = _uiState.value.copy(userLocation = it, isLoadingLocation = false)
             
-            PerformanceManager.executeInBackground {
-                searchNearbyHelpers(it)
-            }
+            searchNearbyHelpers(it)
         } ?: run {
             _uiState.value = _uiState.value.copy(
                 locationError = "Não foi possível obter sua localização. Tente novamente.",
@@ -71,24 +69,29 @@ class EmergencyViewModel : ViewModel() {
         _uiState.value = _uiState.value.copy(locationError = error, isLoadingLocation = false)
     }
 
-    private suspend fun searchNearbyHelpers(location: Location) {
-        val currentUser = firebaseAuth.currentUser
-        if (currentUser == null) {
-            _uiState.value = _uiState.value.copy(
-                locationError = "Usuário não autenticado",
-                isLoadingLocation = false
-            )
-            return
-        }
-        
-        try {
-            val emergency = repository.createEmergency(location)
-            processEmergencyCreated(emergency, location)
-        } catch (e: Exception) {
-            _uiState.value = _uiState.value.copy(
-                locationError = "Erro ao criar emergência",
-                isLoadingLocation = false
-            )
+    private fun searchNearbyHelpers(location: Location) {
+        viewModelScope.launch {
+            // Require authenticated user for emergency operations
+            val currentUser = try {
+                com.afilaxy.security.AuthGuard.requireAuthentication()
+            } catch (e: SecurityException) {
+                _uiState.value = _uiState.value.copy(
+                    locationError = "Autenticação necessária para emergências",
+                    isLoadingLocation = false
+                )
+                return@launch
+            }
+            
+            try {
+                val emergency = repository.createEmergency(location)
+                processEmergencyCreated(emergency, location)
+            } catch (e: Exception) {
+                android.util.Log.e("EmergencyViewModel", "Error creating emergency", e)
+                _uiState.value = _uiState.value.copy(
+                    locationError = "Erro ao criar emergência",
+                    isLoadingLocation = false
+                )
+            }
         }
     }
     
@@ -134,14 +137,17 @@ class EmergencyViewModel : ViewModel() {
     }
 
     fun startListeningForHelperResponse(emergencyId: String) {
-        if (!SecurityValidator.validateInput(emergencyId)) {
-            android.util.Log.w("EmergencyViewModel", "ID de emergência inválido")
+        // Validate emergency ID format (prevent NoSQL injection)
+        val sanitizedEmergencyId = com.afilaxy.security.InputSanitizer.sanitizeText(emergencyId)
+        if (sanitizedEmergencyId.isBlank() || !sanitizedEmergencyId.matches(Regex("^[a-zA-Z0-9_-]{1,50}$"))) {
+            android.util.Log.w("EmergencyViewModel", "Invalid emergency ID format")
             return
         }
         
-        val currentUser = firebaseAuth.currentUser
-        if (currentUser == null) {
-            android.util.Log.w("EmergencyViewModel", "Usuário Firebase não encontrado")
+        val currentUser = try {
+            com.afilaxy.security.AuthGuard.requireAuthentication()
+        } catch (e: SecurityException) {
+            android.util.Log.w("EmergencyViewModel", "Authentication required for emergency listener")
             return
         }
         
@@ -151,7 +157,7 @@ class EmergencyViewModel : ViewModel() {
                 listenerRegistration = firebaseFirestore.collection("users")
                     .document(currentUser.uid)
                     .collection("notifications")
-                    .whereEqualTo("emergencyId", emergencyId)
+                    .whereEqualTo("emergencyId", sanitizedEmergencyId)
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
                             android.util.Log.e("EmergencyViewModel", "Erro no listener: ${error.message}")
@@ -163,13 +169,13 @@ class EmergencyViewModel : ViewModel() {
                                 val doc = change.document
                                 val notificationType = doc.getString("type")
                                 val rawHelperName = doc.getString("helperName")
-                                val helperName = SecurityValidator.sanitizeInput(rawHelperName ?: "").takeIf { it.isNotBlank() } ?: "Helper"
+                                val helperName = com.afilaxy.security.InputSanitizer.sanitizeName(rawHelperName)
                                 
-                                // Usar nome amigável se for email ou vazio
-                                val displayName = if (helperName.isBlank() || helperName.contains("@")) {
+                                // Use safe display name
+                                val displayName = if (helperName.isBlank()) {
                                     "Ajudante"
                                 } else {
-                                    helperName
+                                    helperName.take(30) // Limit length for security
                                 }
                                 
                                 when (notificationType) {

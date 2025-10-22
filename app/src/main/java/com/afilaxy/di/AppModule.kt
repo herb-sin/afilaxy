@@ -7,6 +7,7 @@ import com.afilaxy.data.database.EmergencyDao
 import com.afilaxy.data.database.HelperDao
 import com.afilaxy.domain.repository.EmergencyRepository
 import com.afilaxy.domain.repository.EmergencyRepositoryImpl
+import com.afilaxy.security.SecureXmlUtils
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.Module
@@ -31,11 +32,16 @@ object AppModule {
     @Provides
     @Singleton
     fun provideAfilaxyDatabase(@ApplicationContext context: Context): AfilaxyDatabase {
-        return Room.databaseBuilder(
-            context,
-            AfilaxyDatabase::class.java,
-            "afilaxy_database"
-        ).build()
+        return try {
+            Room.databaseBuilder(
+                context,
+                AfilaxyDatabase::class.java,
+                "afilaxy_database"
+            ).build()
+        } catch (e: Exception) {
+            android.util.Log.e("AppModule", "Error creating database", e)
+            throw e
+        }
     }
     
     @Provides
