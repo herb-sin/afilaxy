@@ -123,7 +123,7 @@ class HomeViewModel : ViewModel() {
                     Log.w("HomeViewModel", "Usuário não autenticado - mantendo apenas localmente")
                 }
             } catch (e: Exception) {
-                Log.e("HomeViewModel", "❌ Erro ao salvar no Firestore: ${e.message}")
+                Log.e("HomeViewModel", "❌ Erro ao salvar no Firestore", e)
                 Log.w("HomeViewModel", "Mantendo alteração apenas localmente")
                 // Manter a mudança local mesmo se Firestore falhar
             }
@@ -152,7 +152,7 @@ class HomeViewModel : ViewModel() {
                     Log.w("HomeViewModel", "Usuário não autenticado - não é possível salvar localização")
                 }
             } catch (e: Exception) {
-                Log.e("HomeViewModel", "❌ Erro ao salvar localização: ${e.message}")
+                Log.e("HomeViewModel", "❌ Erro ao salvar localização", e)
             }
         }
     }

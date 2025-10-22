@@ -27,6 +27,7 @@ import com.afilaxy.ui.RequestNotificationPermission
 
 import com.afilaxy.notification.NotificationManager
 import com.afilaxy.security.AuthGuard
+import com.afilaxy.security.InputSanitizer
 import com.afilaxy.stopLocationUpdates
 import com.google.android.gms.location.LocationCallback
 import com.google.firebase.FirebaseApp
@@ -44,6 +45,7 @@ class MainActivity : ComponentActivity() {
         
         if (!AuthGuard.isUserAuthenticated()) {
             android.util.Log.w("MainActivity", "Usuário não autenticado")
+            // Permitir acesso para tela de login
         }
         
         try {
@@ -123,16 +125,16 @@ class MainActivity : ComponentActivity() {
         LaunchedEffect(intent) {
             android.util.Log.d("MainActivity", "🔍 Verificando intent: ${intent.extras}")
             
-            val emergencyId = intent.getStringExtra("emergency_id")
-            val requesterName = intent.getStringExtra("requester_name")
-            val notificationType = intent.getStringExtra("notification_type")
+            val emergencyId = InputSanitizer.sanitizeText(intent.getStringExtra("emergency_id") ?: "")
+            val requesterName = InputSanitizer.sanitizeName(intent.getStringExtra("requester_name") ?: "")
+            val notificationType = InputSanitizer.sanitizeText(intent.getStringExtra("notification_type") ?: "")
             
             android.util.Log.d("MainActivity", "📋 Dados do intent:")
             android.util.Log.d("MainActivity", "   Emergency ID: $emergencyId")
             android.util.Log.d("MainActivity", "   Requester: $requesterName")
             android.util.Log.d("MainActivity", "   Type: $notificationType")
             
-            if (notificationType == "emergency_alert" && emergencyId != null && requesterName != null) {
+            if (notificationType == "emergency_alert" && emergencyId.isNotBlank() && requesterName.isNotBlank()) {
                 try {
                     android.util.Log.d("MainActivity", "🚀 Navegando para: emergency_response/$emergencyId/$requesterName")
                     navController.navigate("emergency_response/$emergencyId/$requesterName")
@@ -199,12 +201,12 @@ class MainActivity : ComponentActivity() {
                 try {
                     auth.useEmulator("10.0.2.2", 9099)
                 } catch (e: Exception) {
-                    com.afilaxy.security.SecurityUtils.safeLog("MainActivity", "Emulator config failed: ${e.message}", com.afilaxy.security.SecurityUtils.LogLevel.WARN)
+                    android.util.Log.w("MainActivity", "Emulator config failed", e)
                 }
             }
 
         } catch (e: Exception) {
-            com.afilaxy.security.SecurityUtils.safeLog("MainActivity", "Firebase initialization failed: ${e.message}", com.afilaxy.security.SecurityUtils.LogLevel.ERROR)
+            android.util.Log.e("MainActivity", "Firebase initialization failed", e)
         }
     }
     

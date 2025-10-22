@@ -83,13 +83,17 @@ app/
    cd afilaxy
    ```
 
-2. **Configure o Firebase:**
+2. **Configure o Firebase de forma segura:**
    - Crie um projeto no [Firebase Console](https://console.firebase.google.com/)
    - Ative **Authentication** com método e-mail/senha
    - Ative **Firestore Database**
    - Ative **Cloud Messaging** (opcional)
-   - Baixe o arquivo `google-services.json` e coloque em `app/`
-   - **IMPORTANTE**: Copie `app/google-services.json.example` para `app/google-services.json` e substitua os valores pelos seus dados do Firebase
+   - **SEGURANÇA**: Execute o script de configuração segura:
+     ```bash
+     ./setup_secure_config.sh
+     ```
+   - Siga as instruções para inserir suas credenciais Firebase
+   - **NUNCA** commite o arquivo `google-services.json` real
 
 3. **Abra o projeto no Android Studio**
 
@@ -104,19 +108,36 @@ app/
 
 ## 🔒 Configuração de Segurança
 
-### Firebase Configuration
-1. Copie o arquivo template:
+### Firebase Configuration (Método Seguro)
+1. Execute o script de configuração automática:
    ```bash
-   cp app/google-services.json.example app/google-services.json
+   ./setup_secure_config.sh
    ```
 
-2. Edite `app/google-services.json` com suas credenciais do Firebase:
-   - `project_number`: Número do seu projeto Firebase
-   - `project_id`: ID do seu projeto Firebase
-   - `mobilesdk_app_id`: ID da aplicação móvel
-   - `current_key`: Sua chave de API do Firebase
+2. Insira suas credenciais quando solicitado:
+   - Project Number
+   - Project ID  
+   - Storage Bucket
+   - Mobile SDK App ID
+   - API Key
 
-3. **NUNCA** commite o arquivo `google-services.json` real no controle de versão.
+3. **IMPORTANTE**: O arquivo `google-services.json` é automaticamente protegido pelo `.gitignore`
+
+### Validação de Segurança
+Execute o script de validação antes de fazer deploy:
+```bash
+./security_check.sh
+```
+
+### Recursos de Segurança Implementados
+- ✅ **Prevenção de injeção NoSQL** - Sanitização rigorosa de inputs com whitelist
+- ✅ **Prevenção XXE** - Parsers XML seguros com `SecureXmlUtils`
+- ✅ **Logging seguro** - Prevenção de injeção de logs em notificações
+- ✅ **Autenticação obrigatória** - `AuthGuard` para operações críticas
+- ✅ **Validação de arquivos** - Whitelist de extensões e validação de conteúdo
+- ✅ **Credenciais protegidas** - Template system para Firebase config
+- ✅ **Input sanitization** - `InputSanitizer` com padrões seguros
+- ✅ **Tratamento seguro de erros** - Logs sem exposição de dados sensíveis
 
 ## 🛠️ Tecnologias Utilizadas
 

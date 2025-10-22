@@ -10,11 +10,26 @@ object InputSanitizer {
     private val PHONE_PATTERN = Pattern.compile("^[0-9()\\s+-]{10,15}$")
     private val SAFE_TEXT_PATTERN = Pattern.compile("^[a-zA-Z0-9\\s._-]{1,200}$")
     
-    // Comprehensive NoSQL injection prevention
+    // Enhanced NoSQL operator detection
+    private val NOSQL_OPERATORS = setOf(
+        "\$where", "\$ne", "\$gt", "\$lt", "\$gte", "\$lte", "\$in", "\$nin", 
+        "\$regex", "\$or", "\$and", "\$not", "\$exists", "\$elemMatch", "\$size",
+        "\$all", "\$mod", "\$type", "\$slice", "\$push", "\$pull", "\$set", "\$unset"
+    )
+    
+    // Enhanced NoSQL injection detection with stricter patterns
+    private val NOSQL_INJECTION_PATTERN = Pattern.compile(
+        "(\\\$[a-zA-Z_]+|javascript:|eval\\(|function\\(|setTimeout|setInterval|\\{[^}]*\\}|\\[[^\\]]*\\]|ObjectId\\(|new\\s+\\w+)",
+        Pattern.CASE_INSENSITIVE
+    )
+    
+    // Comprehensive NoSQL injection prevention - enhanced
     private val BLOCKED_PATTERNS = setOf(
         "\\\$where", "\\\$ne", "\\\$gt", "\\\$lt", "\\\$gte", "\\\$lte", "\\\$in", "\\\$nin", 
         "\\\$regex", "\\\$or", "\\\$and", "\\\$not", "\\\$exists", "\\\$elemMatch", "\\\$size",
-        "javascript:", "eval\\(", "function\\(", "setTimeout\\(", "setInterval\\("
+        "\\\$all", "\\\$mod", "\\\$type", "\\\$slice", "\\\$push", "\\\$pull", "\\\$set", "\\\$unset",
+        "javascript:", "eval\\(", "function\\(", "setTimeout\\(", "setInterval\\(", "constructor",
+        "prototype", "__proto__", "toString", "valueOf"
     )
     private val DANGEROUS_CHARS = "\${}[]();'\"\\/*<>=".toCharArray().toSet()
     
@@ -55,22 +70,40 @@ object InputSanitizer {
     
     fun sanitizeForFirestore(input: String?): String {
         if (input.isNullOrBlank()) return ""
-        var sanitized = input.trim().take(500)
         
-        // Replace dangerous characters
-        FIRESTORE_SAFE_CHARS.forEach { (char, replacement) ->
-            sanitized = sanitized.replace(char, replacement)
+        return try {
+            var sanitized = input.trim().take(500)
+            
+            // Check for NoSQL injection patterns first
+            if (containsNoSQLInjection(sanitized)) {
+                android.util.Log.w("InputSanitizer", "NoSQL injection attempt blocked")
+                return ""
+            }
+            
+            // Replace dangerous characters
+            FIRESTORE_SAFE_CHARS.forEach { (char, replacement) ->
+                sanitized = sanitized.replace(char, replacement)
+            }
+            
+            // Remove any remaining special characters that could cause injection
+            sanitized = sanitized.replace("[{}\\[\\]()$]".toRegex(), "")
+            
+            sanitized
+        } catch (e: Exception) {
+            android.util.Log.e("InputSanitizer", "Firestore sanitization error", e)
+            ""
         }
-        
-        // Remove any remaining special characters that could cause injection
-        sanitized = sanitized.replace("[{}\\[\\]()$]".toRegex(), "")
-        
-        return sanitized
     }
     
     fun sanitizeText(text: String?): String {
         if (text.isNullOrBlank()) return ""
         var cleaned = text.trim().take(200)
+        
+        // Early detection of NoSQL injection patterns
+        if (NOSQL_INJECTION_PATTERN.matcher(cleaned).find()) {
+            android.util.Log.w("InputSanitizer", "Potential NoSQL injection detected")
+            return ""
+        }
         
         // Remove NoSQL injection patterns
         BLOCKED_PATTERNS.forEach { pattern ->
@@ -112,7 +145,7 @@ object InputSanitizer {
             
             sanitized
         } catch (e: Exception) {
-            SecurityUtils.safeLog("InputSanitizer", "Error sanitizing query param: ${e.message}", SecurityUtils.LogLevel.ERROR)
+            android.util.Log.e("InputSanitizer", "Error sanitizing query param", e)
             ""
         }
     }
@@ -124,7 +157,7 @@ object InputSanitizer {
             // Use existing sanitizeText which already handles NoSQL injection
             sanitizeText(input)
         } catch (e: Exception) {
-            SecurityUtils.safeLog("InputSanitizer", "NoSQL injection prevention failed: ${e.message}", SecurityUtils.LogLevel.ERROR)
+            android.util.Log.e("InputSanitizer", "NoSQL injection prevention failed", e)
             ""
         }
     }
@@ -136,8 +169,26 @@ object InputSanitizer {
             if (!SecurityUtils.isValidCoordinate(lat, lon)) return null
             Pair(lat, lon)
         } catch (e: Exception) {
-            SecurityUtils.safeLog("InputSanitizer", "Coordinate validation failed: ${e.message}", SecurityUtils.LogLevel.ERROR)
+            android.util.Log.e("InputSanitizer", "Coordinate validation failed", e)
             null
         }
+    }
+    
+    // Helper function to detect NoSQL injection patterns
+    private fun containsNoSQLInjection(input: String): Boolean {
+        return try {
+            // Check for NoSQL operators
+            NOSQL_OPERATORS.any { operator -> 
+                input.contains(operator, ignoreCase = true) 
+            } || NOSQL_INJECTION_PATTERN.matcher(input).find()
+        } catch (e: Exception) {
+            android.util.Log.e("InputSanitizer", "NoSQL detection error", e)
+            true // Fail safe - assume injection if error occurs
+        }
+    }
+    
+    // Validate coordinates safely
+    private fun isValidCoordinate(lat: Double, lon: Double): Boolean {
+        return lat in -90.0..90.0 && lon in -180.0..180.0
     }
 }

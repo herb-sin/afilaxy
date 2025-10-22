@@ -11,9 +11,10 @@ object AuthGuard {
     
     fun isUserAuthenticated(): Boolean {
         return try {
-            auth.currentUser != null
+            val user = auth.currentUser
+            user != null && !user.isAnonymous && user.uid.isNotBlank()
         } catch (e: Exception) {
-            SecurityUtils.safeLog("AuthGuard", "Authentication check failed: ${e.message}", SecurityUtils.LogLevel.ERROR)
+            android.util.Log.e("AuthGuard", "Authentication check failed", e)
             false
         }
     }
@@ -23,7 +24,7 @@ object AuthGuard {
     fun requireAuthentication(): FirebaseUser {
         val user = auth.currentUser
         if (user == null || user.isAnonymous) {
-            SecurityUtils.safeLog("AuthGuard", "Authentication required but user not authenticated", SecurityUtils.LogLevel.WARN)
+            android.util.Log.w("AuthGuard", "Authentication required but user not authenticated")
             throw SecurityException("User not authenticated")
         }
         return user
@@ -41,14 +42,15 @@ object AuthGuard {
     
     fun validateUserAccess(targetUserId: String): Boolean {
         return try {
-            if (targetUserId.isBlank()) return false
-            val sanitizedTargetId = SecurityValidator.sanitizeInput(targetUserId)
-            if (sanitizedTargetId.isEmpty()) return false
+            if (targetUserId.isBlank() || targetUserId.length > 128) return false
+            
+            // Validate UID format (Firebase UIDs are alphanumeric)
+            if (!targetUserId.matches(Regex("^[a-zA-Z0-9]{28}$"))) return false
             
             val currentUserId = getCurrentUserId()
-            currentUserId != null && currentUserId == sanitizedTargetId
+            currentUserId != null && currentUserId == targetUserId
         } catch (e: Exception) {
-            SecurityUtils.safeLog("AuthGuard", "User access validation failed", SecurityUtils.LogLevel.ERROR)
+            android.util.Log.e("AuthGuard", "User access validation failed", e)
             false
         }
     }
@@ -62,10 +64,10 @@ object AuthGuard {
             val user = requireAuthentication()
             action(user)
         } catch (e: SecurityException) {
-            SecurityUtils.safeLog("AuthGuard", "Authentication required for operation", SecurityUtils.LogLevel.WARN)
+            android.util.Log.w("AuthGuard", "Authentication required for operation")
             null
         } catch (e: Exception) {
-            SecurityUtils.safeLog("AuthGuard", "Unexpected error in authenticated operation: ${e.message}", SecurityUtils.LogLevel.ERROR)
+            android.util.Log.e("AuthGuard", "Unexpected error in authenticated operation", e)
             null
         }
     }
@@ -75,10 +77,10 @@ object AuthGuard {
             val user = requireVerifiedUser()
             action(user)
         } catch (e: SecurityException) {
-            SecurityUtils.safeLog("AuthGuard", "Email verification required for operation", SecurityUtils.LogLevel.WARN)
+            android.util.Log.w("AuthGuard", "Email verification required for operation")
             null
         } catch (e: Exception) {
-            SecurityUtils.safeLog("AuthGuard", "Unexpected error in verified operation: ${e.message}", SecurityUtils.LogLevel.ERROR)
+            android.util.Log.e("AuthGuard", "Unexpected error in verified operation", e)
             null
         }
     }
@@ -87,7 +89,7 @@ object AuthGuard {
     fun requireVerifiedEmail(): FirebaseUser {
         val user = requireAuthentication()
         if (!user.isEmailVerified) {
-            SecurityUtils.safeLog("AuthGuard", "Email verification required for emergency operation", SecurityUtils.LogLevel.WARN)
+            android.util.Log.w("AuthGuard", "Email verification required for emergency operation")
             throw SecurityException("Email verification required")
         }
         return user

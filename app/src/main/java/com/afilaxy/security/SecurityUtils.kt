@@ -24,7 +24,10 @@ object SecurityUtils {
             .replace("\t", " ")
             .replace("\u0000", "") // Null byte removal
             .replace(Regex("[\\p{Cntrl}]"), "") // Control characters
-            .take(200) // Reduced length limit
+            .replace(Regex("[\\x00-\\x1F\\x7F]"), "") // ASCII control chars
+            .replace("\\x1B\\[[0-9;]*m".toRegex(), "") // ANSI escape sequences
+            .replace("\\u001B\\[[;\\d]*m".toRegex(), "") // Unicode escape sequences
+            .take(150) // Reduced length limit for security
     }
     
     // Validate authentication for all operations

@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import com.afilaxy.security.InputSanitizer
 import androidx.core.app.NotificationCompat
 import com.afilaxy.MainActivity
 import com.afilaxy.R
@@ -31,9 +32,9 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
         super.onMessageReceived(remoteMessage)
         
         Log.d(TAG, "🔔 NOTIFICAÇÃO RECEBIDA!")
-        Log.d(TAG, "📤 From: ${remoteMessage.from}")
-        Log.d(TAG, "📋 Data: ${remoteMessage.data}")
-        Log.d(TAG, "📢 Notification: ${remoteMessage.notification}")
+        Log.d(TAG, "📤 From: ${InputSanitizer.sanitizeText(remoteMessage.from)}")
+        Log.d(TAG, "📋 Data size: ${remoteMessage.data.size}")
+        Log.d(TAG, "📢 Has notification: ${remoteMessage.notification != null}")
         
         // Verificar se é uma notificação de emergência
         val notificationType = remoteMessage.data["type"]
@@ -48,23 +49,26 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
     
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d(TAG, "🔄 Novo token FCM recebido: ${token.take(20)}...")
+        Log.d(TAG, "🔄 Novo token FCM recebido (${token.length} chars)")
         
         // Atualizar token no Firestore
         // Isso será feito automaticamente pelo FCMTokenManager quando o app abrir
     }
     
     private fun handleEmergencyNotification(remoteMessage: RemoteMessage) {
-        val title = remoteMessage.data["title"] ?: "🚨 EMERGÊNCIA AFILAXY"
-        val body = remoteMessage.data["body"] ?: "Alguém precisa de ajuda próximo a você!"
-        val emergencyId = remoteMessage.data["emergencyId"] ?: ""
-        val requesterName = remoteMessage.data["requesterName"] ?: "Pessoa"
+        val title = InputSanitizer.sanitizeText(remoteMessage.data["title"]) 
+            .takeIf { it.isNotBlank() } ?: "🚨 EMERGÊNCIA AFILAXY"
+        val body = InputSanitizer.sanitizeText(remoteMessage.data["body"]) 
+            .takeIf { it.isNotBlank() } ?: "Alguém precisa de ajuda próximo a você!"
+        val emergencyId = InputSanitizer.sanitizeText(remoteMessage.data["emergencyId"]) ?: ""
+        val requesterName = InputSanitizer.sanitizeName(remoteMessage.data["requesterName"]) 
+            .takeIf { it.isNotBlank() } ?: "Pessoa"
         
-        Log.d(TAG, "📋 Dados da emergência:")
-        Log.d(TAG, "   Title: $title")
-        Log.d(TAG, "   Body: $body")
-        Log.d(TAG, "   Emergency ID: $emergencyId")
-        Log.d(TAG, "   Requester: $requesterName")
+        Log.d(TAG, "📋 Emergency notification processed")
+        Log.d(TAG, "   Has title: ${title.isNotBlank()}")
+        Log.d(TAG, "   Has body: ${body.isNotBlank()}")
+        Log.d(TAG, "   Has emergency ID: ${emergencyId.isNotBlank()}")
+        Log.d(TAG, "   Has requester: ${requesterName.isNotBlank()}")
         
         // Criar intent para abrir o app na tela de emergência
         val intent = Intent(this, MainActivity::class.java).apply {
@@ -99,8 +103,10 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
     }
     
     private fun handleGeneralNotification(remoteMessage: RemoteMessage) {
-        val title = remoteMessage.notification?.title ?: "Afilaxy"
-        val body = remoteMessage.notification?.body ?: "Nova notificação"
+        val title = InputSanitizer.sanitizeText(remoteMessage.notification?.title) 
+            .takeIf { it.isNotBlank() } ?: "Afilaxy"
+        val body = InputSanitizer.sanitizeText(remoteMessage.notification?.body) 
+            .takeIf { it.isNotBlank() } ?: "Nova notificação"
         
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP

@@ -1,5 +1,7 @@
 package com.afilaxy.ai
 
+import com.afilaxy.security.InputSanitizer
+
 class LocalRespiratoryAI {
     
     // Contexto do projeto Afilaxy
@@ -50,7 +52,11 @@ class LocalRespiratoryAI {
     private val activityIndicators = listOf("fazendo", "praticando", "jogando", "durante", "enquanto", "pode", "posso")
     
     fun getAsthmaInfo(question: String): String {
-        val input = question.lowercase().trim()
+        val sanitizedQuestion = InputSanitizer.sanitizeText(question)
+        if (sanitizedQuestion.isBlank()) {
+            return "Por favor, faça uma pergunta válida sobre asma."
+        }
+        val input = sanitizedQuestion.lowercase().trim()
         
         // Análise inteligente de contexto
         val isEmergency = containsAny(input, emergency)
@@ -84,31 +90,36 @@ class LocalRespiratoryAI {
         val hasAccessQuestions = containsAny(input, accessQuestions)
         
         // Lógica inteligente: combina contextos
-        return when {
-            isEmergency -> handleEmergency(input)
-            hasCureQuestions -> handleCureResponse()
-            hasTreatmentQuestions || hasAccessQuestions -> handleTreatmentResponse()
-            isAnimalTransmission -> handleAnimalTransmission(input)
-            hasAnimals && isAsthmaRelated -> handleAnimalsAndAsthma(input)
-            hasActivities && hasSymptoms -> handleActivityWithSymptoms(input)
-            hasActivities -> handleActivities(input)
-            hasSymptoms && hasFoodTriggers -> handleFoodSymptoms(input)
-            hasSymptoms && hasTriggers -> handleSymptomsWithTriggers(input)
-            hasSymptoms -> handleSymptoms(input)
-            hasMedications -> handleMedications(input)
-            hasFoodTriggers -> handleFoodTriggers(input)
-            hasTriggers -> handleTriggers(input)
-            isPrevention -> handlePrevention()
-            isMedical -> handleMedicalAdvice()
-            isDailyLife -> handleDailyLife()
-            isTemperatureMisconception -> handleTemperatureMisconception(input)
-            isInjuryMisconception -> handleInjuryMisconception(input)
-            hasMisinformation && isAsthmaRelated -> handleMisinformation(input)
-            hasEmergencyHelp -> handleEmergencyHelp(input)
-            hasCommunity && isAsthmaRelated -> handleCommunitySupport(input)
-            hasHydration && isAsthmaRelated -> handleHydrationAndAsthma(input)
-            isAsthmaRelated -> handleAsthmaRelatedQuestion(input)
-            else -> analyzeUnknownQuestion(input)
+        return try {
+            when {
+                isEmergency -> handleEmergency(input)
+                hasCureQuestions -> handleCureResponse()
+                hasTreatmentQuestions || hasAccessQuestions -> handleTreatmentResponse()
+                isAnimalTransmission -> handleAnimalTransmission(input)
+                hasAnimals && isAsthmaRelated -> handleAnimalsAndAsthma(input)
+                hasActivities && hasSymptoms -> handleActivityWithSymptoms(input)
+                hasActivities -> handleActivities(input)
+                hasSymptoms && hasFoodTriggers -> handleFoodSymptoms(input)
+                hasSymptoms && hasTriggers -> handleSymptomsWithTriggers(input)
+                hasSymptoms -> handleSymptoms(input)
+                hasMedications -> handleMedications(input)
+                hasFoodTriggers -> handleFoodTriggers(input)
+                hasTriggers -> handleTriggers(input)
+                isPrevention -> handlePrevention()
+                isMedical -> handleMedicalAdvice()
+                isDailyLife -> handleDailyLife()
+                isTemperatureMisconception -> handleTemperatureMisconception(input)
+                isInjuryMisconception -> handleInjuryMisconception(input)
+                hasMisinformation && isAsthmaRelated -> handleMisinformation(input)
+                hasEmergencyHelp -> handleEmergencyHelp(input)
+                hasCommunity && isAsthmaRelated -> handleCommunitySupport(input)
+                hasHydration && isAsthmaRelated -> handleHydrationAndAsthma(input)
+                isAsthmaRelated -> handleAsthmaRelatedQuestion(input)
+                else -> analyzeUnknownQuestion(input)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("LocalRespiratoryAI", "Error processing question", e)
+            "Desculpe, ocorreu um erro ao processar sua pergunta. Tente novamente."
         }
     }
     
