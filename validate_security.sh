@@ -14,7 +14,21 @@ if [ -f "app/google-services.json" ]; then
     echo "   Execute: ./setup_secure_config.sh"
     exit 1
 else
-    echo "✅ Credenciais protegidas"
+    echo "✅ Credenciais Firebase protegidas"
+fi
+
+# Verificar keystore
+if [ -f "keystore.properties" ]; then
+    echo "⚠️  keystore.properties encontrado - verifique se não está no git"
+    if git ls-files --error-unmatch keystore.properties 2>/dev/null; then
+        echo "❌ ERRO: keystore.properties está no controle de versão!"
+        echo "   Execute: git rm keystore.properties"
+        exit 1
+    else
+        echo "✅ Keystore protegido pelo .gitignore"
+    fi
+else
+    echo "✅ Keystore não encontrado (use template quando necessário)"
 fi
 
 # Verificar se template existe
@@ -68,6 +82,7 @@ echo "🎉 Validação de segurança concluída!"
 echo "✅ Todas as verificações passaram"
 echo
 echo "📝 Próximos passos:"
-echo "1. Execute: ./setup_secure_config.sh (se ainda não fez)"
-echo "2. Configure suas credenciais Firebase"
-echo "3. Execute o app normalmente"
+echo "1. Execute: ./setup_secure_config.sh (para Firebase)"
+echo "2. Execute: ./setup_keystore.sh (para assinatura de release)"
+echo "3. Configure suas credenciais"
+echo "4. Execute o app normalmente"
