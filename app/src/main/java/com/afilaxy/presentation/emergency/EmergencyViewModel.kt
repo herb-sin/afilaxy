@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import com.afilaxy.security.SecurityValidator
 import com.afilaxy.domain.repository.EmergencyRepository
-import com.afilaxy.performance.PerformanceManager
+
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
@@ -83,7 +83,11 @@ class EmergencyViewModel : ViewModel() {
             }
             
             try {
-                val emergency = repository.createEmergency(location)
+                val emergency = com.afilaxy.performance.PerformanceMonitor.measureSuspendOperation(
+                    "create_emergency"
+                ) {
+                    repository.createEmergency(location)
+                }
                 processEmergencyCreated(emergency, location)
             } catch (e: Exception) {
                 android.util.Log.e("EmergencyViewModel", "Error creating emergency", e)
@@ -97,7 +101,11 @@ class EmergencyViewModel : ViewModel() {
     
     private suspend fun processEmergencyCreated(emergency: Emergency, location: Location) {
         try {
-            val helpers = repository.findNearbyHelpers(location)
+            val helpers = com.afilaxy.performance.PerformanceMonitor.measureSuspendOperation(
+                "find_nearby_helpers"
+            ) {
+                repository.findNearbyHelpers(location)
+            }
             
             if (helpers.isEmpty()) {
                 _uiState.value = _uiState.value.copy(
@@ -155,7 +163,7 @@ class EmergencyViewModel : ViewModel() {
             try {
                 // Listener para notificações de confirmação e finalização
                 listenerRegistration = firebaseFirestore.collection("users")
-                    .document(currentUser.uid)
+                    .document(currentUser.uid ?: "")
                     .collection("notifications")
                     .whereEqualTo("emergencyId", sanitizedEmergencyId)
                     .addSnapshotListener { snapshot, error ->

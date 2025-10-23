@@ -6,14 +6,25 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
-import android.util.Log
 import com.afilaxy.security.InputSanitizer
+import com.afilaxy.security.SecureLogger
+import com.afilaxy.security.SqlInjectionPrevention
+import com.afilaxy.security.ErrorHandler
 import androidx.core.app.NotificationCompat
 import com.afilaxy.MainActivity
 import com.afilaxy.R
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 
+/**
+ * Firebase Cloud Messaging service for Afilaxy
+ * Handles emergency notifications with security measures
+ * 
+ * Security features:
+ * - Input sanitization to prevent log injection
+ * - Secure logging without sensitive data exposure
+ * - Comprehensive error handling
+ */
 class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
     
     companion object {
@@ -24,130 +35,190 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
     
     override fun onCreate() {
         super.onCreate()
-        Log.d(TAG, "🚀 AfilaxyFirebaseMessagingService criado")
+        SecureLogger.d(TAG, "AfilaxyFirebaseMessagingService created")
         createNotificationChannel()
     }
     
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
         
-        Log.d(TAG, "🔔 NOTIFICAÇÃO RECEBIDA!")
-        Log.d(TAG, "📤 From: ${InputSanitizer.sanitizeText(remoteMessage.from)}")
-        Log.d(TAG, "📋 Data size: ${remoteMessage.data.size}")
-        Log.d(TAG, "📢 Has notification: ${remoteMessage.notification != null}")
-        
-        // Verificar se é uma notificação de emergência
-        val notificationType = remoteMessage.data["type"]
-        if (notificationType == "emergency_alert") {
-            Log.d(TAG, "🚨 Processando notificação de emergência")
-            handleEmergencyNotification(remoteMessage)
-        } else {
-            Log.d(TAG, "ℹ️ Processando notificação geral")
-            handleGeneralNotification(remoteMessage)
+        try {
+            SecureLogger.d(TAG, "Notification received")
+            
+            // Validate and sanitize notification data
+            val fromSender = remoteMessage.from?.let { 
+                if (SqlInjectionPrevention.isValidSqlInput(it)) {
+                    InputSanitizer.sanitizeText(it)
+                } else {
+                    "unknown_sender"
+                }
+            } ?: "unknown_sender"
+            
+            SecureLogger.d(TAG, "From: $fromSender, Data size: ${remoteMessage.data.size}")
+            SecureLogger.d(TAG, "Has notification: ${remoteMessage.notification != null}")
+            
+            // Check if it's an emergency notification
+            val notificationType = remoteMessage.data["type"]
+            if (notificationType == "emergency_alert") {
+                SecureLogger.emergency("Processing emergency notification")
+                handleEmergencyNotification(remoteMessage)
+            } else {
+                SecureLogger.d(TAG, "Processing general notification")
+                handleGeneralNotification(remoteMessage)
+            }
+            
+        } catch (e: Exception) {
+            val error = ErrorHandler.handleException(e, "PROCESS_NOTIFICATION")
+            SecureLogger.e(TAG, "Error processing notification", e)
         }
     }
     
     override fun onNewToken(token: String) {
         super.onNewToken(token)
-        Log.d(TAG, "🔄 Novo token FCM recebido (${token.length} chars)")
         
-        // Atualizar token no Firestore
-        // Isso será feito automaticamente pelo FCMTokenManager quando o app abrir
+        try {
+            // Validate token format
+            if (token.isBlank() || token.length > 200 || !token.matches(Regex("^[a-zA-Z0-9_:-]+$"))) {
+                SecureLogger.w(TAG, "Invalid FCM token format received")
+                return
+            }
+            
+            SecureLogger.d(TAG, "New FCM token received (${token.length} chars)")
+            
+            // Token will be updated in Firestore automatically by FCMTokenManager when app opens
+            
+        } catch (e: Exception) {
+            val error = ErrorHandler.handleException(e, "NEW_FCM_TOKEN")
+            SecureLogger.e(TAG, "Error processing new FCM token", e)
+        }
     }
     
     private fun handleEmergencyNotification(remoteMessage: RemoteMessage) {
-        val title = InputSanitizer.sanitizeText(remoteMessage.data["title"]) 
-            .takeIf { it.isNotBlank() } ?: "🚨 EMERGÊNCIA AFILAXY"
-        val body = InputSanitizer.sanitizeText(remoteMessage.data["body"]) 
-            .takeIf { it.isNotBlank() } ?: "Alguém precisa de ajuda próximo a você!"
-        val emergencyId = InputSanitizer.sanitizeText(remoteMessage.data["emergencyId"]) ?: ""
-        val requesterName = InputSanitizer.sanitizeName(remoteMessage.data["requesterName"]) 
-            .takeIf { it.isNotBlank() } ?: "Pessoa"
+        try {
+            // Validate and sanitize all notification data
+            val rawTitle = remoteMessage.data["title"]
+            val title = if (rawTitle != null && SqlInjectionPrevention.isValidSqlInput(rawTitle)) {
+                InputSanitizer.sanitizeText(rawTitle).takeIf { it.isNotBlank() } ?: "🚨 EMERGÊNCIA AFILAXY"
+            } else "🚨 EMERGÊNCIA AFILAXY"
+            
+            val rawBody = remoteMessage.data["body"]
+            val body = if (rawBody != null && SqlInjectionPrevention.isValidSqlInput(rawBody)) {
+                InputSanitizer.sanitizeText(rawBody).takeIf { it.isNotBlank() } ?: "Alguém precisa de ajuda próximo a você!"
+            } else "Alguém precisa de ajuda próximo a você!"
+            
+            val rawEmergencyId = remoteMessage.data["emergencyId"]
+            val emergencyId = if (rawEmergencyId != null && SqlInjectionPrevention.isValidSqlInput(rawEmergencyId)) {
+                InputSanitizer.sanitizeText(rawEmergencyId)
+            } else ""
+            
+            val rawRequesterName = remoteMessage.data["requesterName"]
+            val requesterName = if (rawRequesterName != null && SqlInjectionPrevention.isValidSqlInput(rawRequesterName)) {
+                InputSanitizer.sanitizeName(rawRequesterName).takeIf { it.isNotBlank() } ?: "Pessoa"
+            } else "Pessoa"
+            
+            SecureLogger.d(TAG, "Emergency notification processed successfully")
+            SecureLogger.d(TAG, "Has title: ${title?.isNotBlank() ?: false}, Has body: ${body?.isNotBlank() ?: false}")
+            SecureLogger.d(TAG, "Has emergency ID: ${emergencyId?.isNotBlank() ?: false}, Has requester: ${requesterName?.isNotBlank() ?: false}")
         
-        Log.d(TAG, "📋 Emergency notification processed")
-        Log.d(TAG, "   Has title: ${title.isNotBlank()}")
-        Log.d(TAG, "   Has body: ${body.isNotBlank()}")
-        Log.d(TAG, "   Has emergency ID: ${emergencyId.isNotBlank()}")
-        Log.d(TAG, "   Has requester: ${requesterName.isNotBlank()}")
+            // Create intent to open app on emergency screen
+            val intent = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra("emergency_id", emergencyId)
+                putExtra("requester_name", requesterName)
+                putExtra("notification_type", "emergency_alert")
+            }
         
-        // Criar intent para abrir o app na tela de emergência
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-            putExtra("emergency_id", emergencyId)
-            putExtra("requester_name", requesterName)
-            putExtra("notification_type", "emergency_alert")
+            val pendingIntent = PendingIntent.getActivity(
+                this, System.currentTimeMillis().toInt(), intent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            // Create high priority notification
+            val notificationBuilder = NotificationCompat.Builder(this, EMERGENCY_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setContentTitle(title)
+                .setContentText(body)
+                .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+                .setDefaults(NotificationCompat.DEFAULT_ALL)
+                .setVibrate(longArrayOf(0, 1000, 500, 1000))
+            
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
+            
+            SecureLogger.d(TAG, "Emergency notification displayed successfully")
+            
+        } catch (e: Exception) {
+            val error = ErrorHandler.handleException(e, "HANDLE_EMERGENCY_NOTIFICATION")
+            SecureLogger.e(TAG, "Error handling emergency notification", e)
         }
-        
-        val pendingIntent = PendingIntent.getActivity(
-            this, System.currentTimeMillis().toInt(), intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        // Criar notificação de alta prioridade
-        val notificationBuilder = NotificationCompat.Builder(this, EMERGENCY_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(title)
-            .setContentText(body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setVibrate(longArrayOf(0, 1000, 500, 1000))
-        
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(NOTIFICATION_ID, notificationBuilder.build())
-        
-        Log.d(TAG, "✅ Notificação de emergência exibida")
     }
     
     private fun handleGeneralNotification(remoteMessage: RemoteMessage) {
-        val title = InputSanitizer.sanitizeText(remoteMessage.notification?.title) 
-            .takeIf { it.isNotBlank() } ?: "Afilaxy"
-        val body = InputSanitizer.sanitizeText(remoteMessage.notification?.body) 
-            .takeIf { it.isNotBlank() } ?: "Nova notificação"
+        try {
+            val rawTitle = remoteMessage.notification?.title
+            val title = if (rawTitle != null && SqlInjectionPrevention.isValidSqlInput(rawTitle)) {
+                InputSanitizer.sanitizeText(rawTitle).takeIf { it.isNotBlank() }
+            } else null ?: "Afilaxy"
+            
+            val rawBody = remoteMessage.notification?.body
+            val body = if (rawBody != null && SqlInjectionPrevention.isValidSqlInput(rawBody)) {
+                InputSanitizer.sanitizeText(rawBody).takeIf { it.isNotBlank() }
+            } else null ?: "Nova notificação"
         
-        val intent = Intent(this, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            val intent = Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            }
+            
+            val pendingIntent = PendingIntent.getActivity(
+                this, 0, intent,
+                PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
+            )
+            
+            val notificationBuilder = NotificationCompat.Builder(this, EMERGENCY_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_launcher_foreground)
+                .setContentTitle(title)
+                .setContentText(body)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+            
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.notify(NOTIFICATION_ID + 1, notificationBuilder.build())
+            
+            SecureLogger.d(TAG, "General notification displayed successfully")
+            
+        } catch (e: Exception) {
+            val error = ErrorHandler.handleException(e, "HANDLE_GENERAL_NOTIFICATION")
+            SecureLogger.e(TAG, "Error handling general notification", e)
         }
-        
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0, intent,
-            PendingIntent.FLAG_ONE_SHOT or PendingIntent.FLAG_IMMUTABLE
-        )
-        
-        val notificationBuilder = NotificationCompat.Builder(this, EMERGENCY_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle(title)
-            .setContentText(body)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-        
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(NOTIFICATION_ID + 1, notificationBuilder.build())
-        
-        Log.d(TAG, "✅ Notificação geral exibida")
     }
     
     private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                EMERGENCY_CHANNEL_ID,
-                "Emergências Afilaxy",
-                NotificationManager.IMPORTANCE_HIGH
-            ).apply {
-                description = "Notificações de emergência do Afilaxy"
-                enableLights(true)
-                enableVibration(true)
-                vibrationPattern = longArrayOf(0, 1000, 500, 1000)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val channel = NotificationChannel(
+                    EMERGENCY_CHANNEL_ID,
+                    "Emergências Afilaxy",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Notificações de emergência do Afilaxy"
+                    enableLights(true)
+                    enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 1000, 500, 1000)
+                }
+                
+                val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.createNotificationChannel(channel)
+                
+                SecureLogger.d(TAG, "Notification channel created: $EMERGENCY_CHANNEL_ID")
             }
-            
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
-            
-            Log.d(TAG, "📢 Canal de notificação criado: $EMERGENCY_CHANNEL_ID")
+        } catch (e: Exception) {
+            val error = ErrorHandler.handleException(e, "CREATE_NOTIFICATION_CHANNEL")
+            SecureLogger.e(TAG, "Error creating notification channel", e)
         }
     }
 }

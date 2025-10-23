@@ -1,6 +1,5 @@
 package com.afilaxy.presentation.home
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
@@ -12,9 +11,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import com.afilaxy.security.AuthGuard
 import com.afilaxy.security.InputSanitizer
+import com.afilaxy.security.SecureLogger
+import com.afilaxy.security.SqlInjectionPrevention
+import com.afilaxy.security.ErrorHandler
+import com.afilaxy.security.SecurityUtils
 import com.google.firebase.firestore.GeoPoint
 import com.afilaxy.notification.FCMTokenManager
 
+/**
+ * ViewModel for Home screen with comprehensive security measures
+ * 
+ * Security features:
+ * - Input validation and sanitization
+ * - Secure error handling
+ * - Authentication checks
+ * - Safe Firebase operations
+ */
 class HomeViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
@@ -23,33 +35,56 @@ class HomeViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
     
+    /**
+     * Load user data from Firebase with security validation
+     */
     fun loadUserData() {
-        Log.d("HomeViewModel", "Iniciando carregamento de dados do usuário")
+        SecureLogger.d("HomeViewModel", "Starting user data load")
         _uiState.value = _uiState.value.copy(isLoading = true)
         
         viewModelScope.launch {
             try {
                 val user = auth.currentUser
                 
-                Log.d("HomeViewModel", "Usuário atual autenticado")
-                
                 if (user != null) {
-                    Log.d("HomeViewModel", "Buscando documento do usuário no Firestore")
+                    SecureLogger.d("HomeViewModel", "User authenticated, fetching Firestore document")
+                    
+                    // Validate user ID before using in Firestore query
+                    if (!SqlInjectionPrevention.isValidFirebasePath(user.uid)) {
+                        SecureLogger.security("LOAD_USER_DATA", "INVALID_USER_ID")
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            errorMessage = "Invalid user session"
+                        )
+                        return@launch
+                    }
+                    
                     val userDoc = firestore.collection("users")
                         .document(user.uid)
                         .get()
                         .await()
                     
-                    Log.d("HomeViewModel", "Documento existe: ${userDoc.exists()}")
+                    SecureLogger.d("HomeViewModel", "Document exists: ${userDoc.exists()}")
                     
                     val isHelper: Boolean
                     val userName: String
                     
                     if (!userDoc.exists()) {
-                        Log.d("HomeViewModel", "Criando perfil no Firestore")
+                        SecureLogger.d("HomeViewModel", "Creating user profile in Firestore")
+                        
+                        // Validate and sanitize user email before storing
+                        val userEmail = user.email
+                        val sanitizedEmail = if (userEmail != null && 
+                                                InputSanitizer.isValidEmail(userEmail) &&
+                                                SqlInjectionPrevention.isValidSqlInput(userEmail)) {
+                            userEmail
+                        } else {
+                            "usuario@exemplo.com"
+                        }
+                        
                         val userData = mapOf<String, Any>(
-                            "name" to (user.email ?: "Usuário"),
-                            "email" to (user.email ?: "usuario@exemplo.com"),
+                            "name" to sanitizedEmail,
+                            "email" to sanitizedEmail,
                             "isHelper" to true,
                             "createdAt" to System.currentTimeMillis()
                         )
@@ -59,19 +94,32 @@ class HomeViewModel : ViewModel() {
                             .set(userData)
                             .await()
                         
-                        Log.d("HomeViewModel", "Perfil criado com sucesso")
+                        SecureLogger.userAction("CREATE_PROFILE", user.uid, true)
                         
                         isHelper = true
-                        userName = user.email ?: "Usuário"
+                        userName = sanitizedEmail
                     } else {
                         isHelper = userDoc.getBoolean("isHelper") ?: true
-                        userName = userDoc.getString("name") ?: user.email ?: "Usuário"
+                        
+                        // Validate and sanitize stored name
+                        val storedName = userDoc.getString("name")
+                        userName = if (storedName != null && 
+                                      SqlInjectionPrevention.isValidSqlInput(storedName) &&
+                                      storedName.length <= 100) {
+                            InputSanitizer.sanitizeName(storedName).takeIf { it.isNotBlank() } ?: (user.email ?: "Usuário")
+                        } else {
+                            user.email ?: "Usuário"
+                        }
                     }
                     
-                    Log.d("HomeViewModel", "Dados carregados com sucesso")
+                    SecureLogger.d("HomeViewModel", "User data loaded successfully")
                     
-                    // Atualizar token FCM
-                    FCMTokenManager.updateFCMToken()
+                    // Update FCM token
+                    try {
+                        FCMTokenManager.updateFCMToken()
+                    } catch (e: Exception) {
+                        SecureLogger.w("HomeViewModel", "FCM token update failed")
+                    }
                     
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -79,20 +127,30 @@ class HomeViewModel : ViewModel() {
                         isHelper = isHelper
                     )
                 } else {
+                    SecureLogger.security("LOAD_USER_DATA", "USER_NOT_AUTHENTICATED")
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         errorMessage = "Usuário não autenticado"
                     )
                 }
             } catch (e: Exception) {
-                Log.e("HomeViewModel", "Erro ao carregar dados: ${e.message}", e)
+                val error = ErrorHandler.handleFirebaseError(e, "LOAD_USER_DATA")
+                SecureLogger.e("HomeViewModel", "Error loading user data", e)
                 
                 val user = auth.currentUser
                 
-                // Fallback para dados offline
+                // Fallback to offline data with validation
+                val fallbackEmail = user?.email
+                val safeFallbackName = if (fallbackEmail != null && 
+                                          InputSanitizer.isValidEmail(fallbackEmail)) {
+                    fallbackEmail
+                } else {
+                    "Usuário"
+                }
+                
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    userName = user?.email ?: "Usuário",
+                    userName = safeFallbackName,
                     isHelper = true,
                     errorMessage = null
                 )
@@ -100,60 +158,99 @@ class HomeViewModel : ViewModel() {
         }
     }
     
+    /**
+     * Toggle helper status with security validation
+     */
     fun toggleHelperStatus() {
-        val currentState = _uiState.value
-        val newHelperStatus = !currentState.isHelper
-        
-        Log.d("HomeViewModel", "Alterando status de helper: $newHelperStatus")
-        
-        // Atualizar UI imediatamente para responsividade
-        _uiState.value = _uiState.value.copy(isHelper = newHelperStatus)
-        
-        viewModelScope.launch {
-            try {
-                val user = auth.currentUser
-                if (user != null) {
-                    firestore.collection("users")
-                        .document(user.uid)
-                        .update("isHelper", newHelperStatus)
-                        .await()
-                    
-                    Log.d("HomeViewModel", "✅ Status atualizado no Firestore")
-                } else {
-                    Log.w("HomeViewModel", "Usuário não autenticado - mantendo apenas localmente")
+        try {
+            val currentState = _uiState.value
+            val newHelperStatus = !currentState.isHelper
+            
+            SecureLogger.d("HomeViewModel", "Toggling helper status: $newHelperStatus")
+            
+            // Update UI immediately for responsiveness
+            _uiState.value = _uiState.value.copy(isHelper = newHelperStatus)
+            
+            viewModelScope.launch {
+                try {
+                    val user = auth.currentUser
+                    if (user != null) {
+                        // Validate user ID before Firestore operation
+                        if (!SqlInjectionPrevention.isValidFirebasePath(user.uid)) {
+                            SecureLogger.security("TOGGLE_HELPER", "INVALID_USER_ID")
+                            return@launch
+                        }
+                        
+                        firestore.collection("users")
+                            .document(user.uid)
+                            .update("isHelper", newHelperStatus)
+                            .await()
+                        
+                        SecureLogger.userAction("TOGGLE_HELPER_STATUS", user.uid, true)
+                        SecureLogger.d("HomeViewModel", "Helper status updated in Firestore")
+                    } else {
+                        SecureLogger.security("TOGGLE_HELPER", "USER_NOT_AUTHENTICATED")
+                        SecureLogger.w("HomeViewModel", "User not authenticated - keeping change locally only")
+                    }
+                } catch (e: Exception) {
+                    val error = ErrorHandler.handleFirebaseError(e, "TOGGLE_HELPER_STATUS")
+                    SecureLogger.e("HomeViewModel", "Error saving to Firestore", e)
+                    SecureLogger.w("HomeViewModel", "Keeping change locally only")
+                    // Keep local change even if Firestore fails
                 }
-            } catch (e: Exception) {
-                Log.e("HomeViewModel", "❌ Erro ao salvar no Firestore", e)
-                Log.w("HomeViewModel", "Mantendo alteração apenas localmente")
-                // Manter a mudança local mesmo se Firestore falhar
             }
+        } catch (e: Exception) {
+            val error = ErrorHandler.handleException(e, "TOGGLE_HELPER_STATUS")
+            SecureLogger.e("HomeViewModel", "Error toggling helper status", e)
         }
     }
     
+    /**
+     * Update user location with coordinate validation
+     */
     fun updateUserLocation(latitude: Double, longitude: Double) {
-        Log.d("HomeViewModel", "Atualizando localização do usuário: $latitude, $longitude")
-        
-        viewModelScope.launch {
-            try {
-                val user = auth.currentUser
-                if (user != null) {
-                    val location = GeoPoint(latitude, longitude)
-                    
-                    firestore.collection("users")
-                        .document(user.uid)
-                        .update(mapOf(
-                            "location" to location,
-                            "lastLocationUpdate" to System.currentTimeMillis()
-                        ))
-                        .await()
-                    
-                    Log.d("HomeViewModel", "✅ Localização atualizada no Firestore")
-                } else {
-                    Log.w("HomeViewModel", "Usuário não autenticado - não é possível salvar localização")
-                }
-            } catch (e: Exception) {
-                Log.e("HomeViewModel", "❌ Erro ao salvar localização", e)
+        try {
+            // Validate coordinates before processing
+            if (!SecurityUtils.isValidCoordinate(latitude, longitude)) {
+                SecureLogger.w("HomeViewModel", "Invalid coordinates provided for location update")
+                return
             }
+            
+            SecureLogger.d("HomeViewModel", "Updating user location")
+            
+            viewModelScope.launch {
+                try {
+                    val user = auth.currentUser
+                    if (user != null) {
+                        // Validate user ID before Firestore operation
+                        if (!SqlInjectionPrevention.isValidFirebasePath(user.uid)) {
+                            SecureLogger.security("UPDATE_LOCATION", "INVALID_USER_ID")
+                            return@launch
+                        }
+                        
+                        val location = GeoPoint(latitude, longitude)
+                        
+                        firestore.collection("users")
+                            .document(user.uid)
+                            .update(mapOf(
+                                "location" to location,
+                                "lastLocationUpdate" to System.currentTimeMillis()
+                            ))
+                            .await()
+                        
+                        SecureLogger.d("HomeViewModel", "Location updated in Firestore")
+                    } else {
+                        SecureLogger.security("UPDATE_LOCATION", "USER_NOT_AUTHENTICATED")
+                        SecureLogger.w("HomeViewModel", "User not authenticated - cannot save location")
+                    }
+                } catch (e: Exception) {
+                    val error = ErrorHandler.handleFirebaseError(e, "UPDATE_USER_LOCATION")
+                    SecureLogger.e("HomeViewModel", "Error saving location", e)
+                }
+            }
+        } catch (e: Exception) {
+            val error = ErrorHandler.handleException(e, "UPDATE_USER_LOCATION")
+            SecureLogger.e("HomeViewModel", "Error updating user location", e)
         }
     }
     
