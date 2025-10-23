@@ -1,97 +1,110 @@
 package com.afilaxy.security
 
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
 
+/**
+ * Authentication guard for Afilaxy application
+ * Provides centralized authentication checks and user session management
+ */
 object AuthGuard {
     
-    private val auth = FirebaseAuth.getInstance()
+    private val firebaseAuth by lazy { FirebaseAuth.getInstance() }
     
-    fun getCurrentUser(): FirebaseUser? = auth.currentUser
-    
+    /**
+     * Check if user is currently authenticated
+     */
     fun isUserAuthenticated(): Boolean {
         return try {
-            val user = auth.currentUser
-            user != null && !user.isAnonymous && user.uid.isNotBlank()
+            val currentUser = firebaseAuth.currentUser
+            currentUser != null && !currentUser.isAnonymous
         } catch (e: Exception) {
-            android.util.Log.e("AuthGuard", "Authentication check failed", e)
+            SecureLogger.e("AuthGuard", "Error checking authentication", e)
             false
         }
     }
     
-    fun isEmailVerified(): Boolean = auth.currentUser?.isEmailVerified == true
+    /**
+     * Get current user ID safely
+     */
+    fun getCurrentUserId(): String? {
+        return try {
+            firebaseAuth.currentUser?.uid
+        } catch (e: Exception) {
+            SecureLogger.e("AuthGuard", "Error getting user ID", e)
+            null
+        }
+    }
     
-    fun requireAuthentication(): FirebaseUser {
-        val user = auth.currentUser
+    /**
+     * Get current user email safely
+     */
+    fun getCurrentUserEmail(): String? {
+        return try {
+            val email = firebaseAuth.currentUser?.email
+            if (email != null && InputSanitizer.isValidEmail(email)) {
+                email
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            SecureLogger.e("AuthGuard", "Error getting user email", e)
+            null
+        }
+    }
+    
+    /**
+     * Require authentication for sensitive operations
+     */
+    fun requireAuthentication(operation: String): Boolean {
+        return if (isUserAuthenticated()) {
+            true
+        } else {
+            SecureLogger.security("AUTH_REQUIRED", "OPERATION_BLOCKED", operation)
+            false
+        }
+    }
+    
+    /**
+     * Require authentication and return user
+     */
+    fun requireAuthentication(): com.google.firebase.auth.FirebaseUser {
+        val user = firebaseAuth.currentUser
         if (user == null || user.isAnonymous) {
-            android.util.Log.w("AuthGuard", "Authentication required but user not authenticated")
-            throw SecurityException("User not authenticated")
+            throw SecurityException("Authentication required")
         }
         return user
     }
     
-    fun requireVerifiedUser(): FirebaseUser {
-        val user = requireAuthentication()
-        if (!user.isEmailVerified) {
-            throw SecurityException("Email not verified")
-        }
-        return user
-    }
-    
-    fun getCurrentUserId(): String? = auth.currentUser?.uid
-    
-    fun validateUserAccess(targetUserId: String): Boolean {
+    /**
+     * Check if user has been authenticated recently
+     */
+    fun isRecentlyAuthenticated(maxAgeMinutes: Long = 30): Boolean {
         return try {
-            if (targetUserId.isBlank() || targetUserId.length > 128) return false
+            val currentUser = firebaseAuth.currentUser
+            if (currentUser == null) return false
             
-            // Validate UID format (Firebase UIDs are alphanumeric)
-            if (!targetUserId.matches(Regex("^[a-zA-Z0-9]{28}$"))) return false
+            val metadata = currentUser.metadata
+            val lastSignIn = metadata?.lastSignInTimestamp ?: 0
+            val currentTime = System.currentTimeMillis()
+            val maxAge = maxAgeMinutes * 60 * 1000 // Convert to milliseconds
             
-            val currentUserId = getCurrentUserId()
-            currentUserId != null && currentUserId == targetUserId
+            (currentTime - lastSignIn) <= maxAge
         } catch (e: Exception) {
-            android.util.Log.e("AuthGuard", "User access validation failed", e)
+            SecureLogger.e("AuthGuard", "Error checking recent authentication", e)
             false
         }
     }
     
-    fun requireUserId(): String {
-        return auth.currentUser?.uid ?: throw SecurityException("User ID not available")
-    }
-    
-    inline fun <T> withAuth(action: (FirebaseUser) -> T): T? {
-        return try {
-            val user = requireAuthentication()
-            action(user)
-        } catch (e: SecurityException) {
-            android.util.Log.w("AuthGuard", "Authentication required for operation")
-            null
+    /**
+     * Sign out user safely
+     */
+    fun signOut() {
+        try {
+            val userId = getCurrentUserId()
+            firebaseAuth.signOut()
+            SecureLogger.security("USER_SIGNOUT", "SUCCESS", userId)
         } catch (e: Exception) {
-            android.util.Log.e("AuthGuard", "Unexpected error in authenticated operation", e)
-            null
+            SecureLogger.e("AuthGuard", "Error during sign out", e)
         }
-    }
-    
-    inline fun <T> withVerifiedAuth(action: (FirebaseUser) -> T): T? {
-        return try {
-            val user = requireVerifiedUser()
-            action(user)
-        } catch (e: SecurityException) {
-            android.util.Log.w("AuthGuard", "Email verification required for operation")
-            null
-        } catch (e: Exception) {
-            android.util.Log.e("AuthGuard", "Unexpected error in verified operation", e)
-            null
-        }
-    }
-    
-    // Add method for emergency operations
-    fun requireVerifiedEmail(): FirebaseUser {
-        val user = requireAuthentication()
-        if (!user.isEmailVerified) {
-            android.util.Log.w("AuthGuard", "Email verification required for emergency operation")
-            throw SecurityException("Email verification required")
-        }
-        return user
     }
 }

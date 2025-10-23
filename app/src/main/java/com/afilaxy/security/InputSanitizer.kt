@@ -90,7 +90,7 @@ object InputSanitizer {
             
             sanitized
         } catch (e: Exception) {
-            android.util.Log.e("InputSanitizer", "Firestore sanitization error", e)
+            SecureLogger.e("InputSanitizer", "Firestore sanitization error", e)
             ""
         }
     }
@@ -145,7 +145,7 @@ object InputSanitizer {
             
             sanitized
         } catch (e: Exception) {
-            android.util.Log.e("InputSanitizer", "Error sanitizing query param", e)
+            SecureLogger.e("InputSanitizer", "Error sanitizing query param", e)
             ""
         }
     }
@@ -157,7 +157,7 @@ object InputSanitizer {
             // Use existing sanitizeText which already handles NoSQL injection
             sanitizeText(input)
         } catch (e: Exception) {
-            android.util.Log.e("InputSanitizer", "NoSQL injection prevention failed", e)
+            SecureLogger.e("InputSanitizer", "NoSQL injection prevention failed", e)
             ""
         }
     }
@@ -169,7 +169,7 @@ object InputSanitizer {
             if (!SecurityUtils.isValidCoordinate(lat, lon)) return null
             Pair(lat, lon)
         } catch (e: Exception) {
-            android.util.Log.e("InputSanitizer", "Coordinate validation failed", e)
+            SecureLogger.e("InputSanitizer", "Coordinate validation failed", e)
             null
         }
     }
@@ -182,13 +182,15 @@ object InputSanitizer {
                 input.contains(operator, ignoreCase = true) 
             } || NOSQL_INJECTION_PATTERN.matcher(input).find()
         } catch (e: Exception) {
-            android.util.Log.e("InputSanitizer", "NoSQL detection error", e)
+            SecureLogger.e("InputSanitizer", "NoSQL detection error", e)
             true // Fail safe - assume injection if error occurs
         }
     }
     
     // Validate coordinates safely
     private fun isValidCoordinate(lat: Double, lon: Double): Boolean {
-        return lat in -90.0..90.0 && lon in -180.0..180.0
+        return lat in -90.0..90.0 && lon in -180.0..180.0 &&
+               !lat.isNaN() && !lat.isInfinite() &&
+               !lon.isNaN() && !lon.isInfinite()
     }
 }

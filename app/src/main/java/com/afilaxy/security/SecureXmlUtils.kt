@@ -80,8 +80,12 @@ object SecureXmlUtils {
         return try {
             TransformerFactory.newInstance().apply {
                 // Disable access to external DTDs and stylesheets
-                setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "")
-                setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "")
+                try {
+                    setAttribute("http://javax.xml.XMLConstants/property/accessExternalDTD", "")
+                    setAttribute("http://javax.xml.XMLConstants/property/accessExternalStylesheet", "")
+                } catch (e: Exception) {
+                    // Ignore if not supported
+                }
                 
                 // Set secure processing
                 setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)

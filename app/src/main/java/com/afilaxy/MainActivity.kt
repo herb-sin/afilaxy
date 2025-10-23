@@ -25,46 +25,64 @@ import com.afilaxy.presentation.common.navigation.AppNavigation
 import com.afilaxy.ui.theme.AfilaxyTheme
 import com.afilaxy.ui.RequestNotificationPermission
 
-import com.afilaxy.notification.NotificationManager
+// import com.afilaxy.notification.NotificationManager
 import com.afilaxy.security.AuthGuard
 import com.afilaxy.security.InputSanitizer
+import com.afilaxy.security.SecureLogger
+import com.afilaxy.security.SqlInjectionPrevention
+import com.afilaxy.security.ErrorHandler
 import com.afilaxy.stopLocationUpdates
 import com.google.android.gms.location.LocationCallback
 import com.google.firebase.FirebaseApp
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.AndroidEntryPoint
 
+/**
+ * Main activity for Afilaxy application
+ * Handles navigation, permissions, and security initialization
+ * 
+ * Security features:
+ * - Authentication checks
+ * - Input sanitization for intents
+ * - Secure error handling
+ * - Permission validation
+ */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     private var locationCallback: LocationCallback? = null
-    private val notificationManager = NotificationManager()
+    // private val notificationManager = NotificationManager()
     private val firebaseAuth by lazy { FirebaseAuth.getInstance() }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        if (!AuthGuard.isUserAuthenticated()) {
-            android.util.Log.w("MainActivity", "Usuário não autenticado")
-            // Permitir acesso para tela de login
-        }
-        
         try {
+            if (!AuthGuard.isUserAuthenticated()) {
+                SecureLogger.w("MainActivity", "User not authenticated - allowing access to login")
+                // Allow access for login screen
+            }
+            
             initializeFirebase()
             setupLocationPermissions()
+            
+            setContent {
+                MainContent()
+            }
+            
         } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "Erro na inicialização: ${e.message}")
-            return
-        }
-        
-        setContent {
-            MainContent()
+            val error = ErrorHandler.handleException(e, "MAIN_ACTIVITY_INIT")
+            SecureLogger.e("MainActivity", "Initialization error", e)
+            // Continue with basic functionality even if some features fail
+            setContent {
+                MainContent()
+            }
         }
     }
     
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        android.util.Log.d("MainActivity", "onNewIntent chamado com intent: ${intent.extras}")
+        SecureLogger.d("MainActivity", "onNewIntent called with intent data")
     }
 
     @Composable
@@ -97,12 +115,20 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun SetupAuthListener() {
         LaunchedEffect(Unit) {
-            firebaseAuth.addAuthStateListener { auth ->
-                if (auth.currentUser == null) {
-                    // Handle logout - clear sensitive data
-                    locationCallback = null
-                    notificationManager.cleanup()
+            try {
+                firebaseAuth.addAuthStateListener { auth ->
+                    if (auth.currentUser == null) {
+                        SecureLogger.security("AUTH_STATE_CHANGE", "USER_LOGGED_OUT")
+                        // Handle logout - clear sensitive data
+                        locationCallback = null
+                        // notificationManager.cleanup()
+                    } else {
+                        SecureLogger.security("AUTH_STATE_CHANGE", "USER_LOGGED_IN")
+                    }
                 }
+            } catch (e: Exception) {
+                val error = ErrorHandler.handleException(e, "SETUP_AUTH_LISTENER")
+                SecureLogger.e("MainActivity", "Error setting up auth listener", e)
             }
         }
     }
@@ -111,11 +137,13 @@ class MainActivity : ComponentActivity() {
     private fun SetupNotificationListener(navController: androidx.navigation.NavController) {
         LaunchedEffect(Unit) {
             try {
-                notificationManager.setupNotificationListener(navController)
+                // notificationManager.setupNotificationListener(navController)
             } catch (e: SecurityException) {
-                android.util.Log.e("MainActivity", "Permissão negada para notificações: ${e.message}")
+                SecureLogger.security("NOTIFICATION_SETUP", "PERMISSION_DENIED")
+                SecureLogger.e("MainActivity", "Notification permission denied", e)
             } catch (e: Exception) {
-                android.util.Log.e("MainActivity", "Erro ao configurar notificações: ${e.message}")
+                val error = ErrorHandler.handleException(e, "SETUP_NOTIFICATIONS")
+                SecureLogger.e("MainActivity", "Error setting up notifications", e)
             }
         }
     }
@@ -123,26 +151,55 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun HandleEmergencyIntent(navController: androidx.navigation.NavController) {
         LaunchedEffect(intent) {
-            android.util.Log.d("MainActivity", "🔍 Verificando intent: ${intent.extras}")
-            
-            val emergencyId = InputSanitizer.sanitizeText(intent.getStringExtra("emergency_id") ?: "")
-            val requesterName = InputSanitizer.sanitizeName(intent.getStringExtra("requester_name") ?: "")
-            val notificationType = InputSanitizer.sanitizeText(intent.getStringExtra("notification_type") ?: "")
-            
-            android.util.Log.d("MainActivity", "📋 Dados do intent:")
-            android.util.Log.d("MainActivity", "   Emergency ID: $emergencyId")
-            android.util.Log.d("MainActivity", "   Requester: $requesterName")
-            android.util.Log.d("MainActivity", "   Type: $notificationType")
-            
-            if (notificationType == "emergency_alert" && emergencyId.isNotBlank() && requesterName.isNotBlank()) {
-                try {
-                    android.util.Log.d("MainActivity", "🚀 Navegando para: emergency_response/$emergencyId/$requesterName")
-                    navController.navigate("emergency_response/$emergencyId/$requesterName")
-                } catch (e: Exception) {
-                    android.util.Log.e("MainActivity", "❌ Erro ao navegar: ${e.message}")
+            try {
+                SecureLogger.d("MainActivity", "Checking intent for emergency data")
+                
+                val rawEmergencyId = intent.getStringExtra("emergency_id") ?: ""
+                val rawRequesterName = intent.getStringExtra("requester_name") ?: ""
+                val rawNotificationType = intent.getStringExtra("notification_type") ?: ""
+                
+                // Validate inputs for injection attacks
+                val emergencyId = if (SqlInjectionPrevention.isValidSqlInput(rawEmergencyId)) {
+                    InputSanitizer.sanitizeText(rawEmergencyId)
+                } else {
+                    SecureLogger.security("INTENT_VALIDATION", "INVALID_EMERGENCY_ID")
+                    ""
                 }
-            } else {
-                android.util.Log.w("MainActivity", "⚠️ Intent não é de emergência ou dados faltando")
+                
+                val requesterName = if (SqlInjectionPrevention.isValidSqlInput(rawRequesterName)) {
+                    InputSanitizer.sanitizeName(rawRequesterName)
+                } else {
+                    SecureLogger.security("INTENT_VALIDATION", "INVALID_REQUESTER_NAME")
+                    ""
+                }
+                
+                val notificationType = if (SqlInjectionPrevention.isValidSqlInput(rawNotificationType)) {
+                    InputSanitizer.sanitizeText(rawNotificationType)
+                } else {
+                    SecureLogger.security("INTENT_VALIDATION", "INVALID_NOTIFICATION_TYPE")
+                    ""
+                }
+                
+                SecureLogger.d("MainActivity", "Intent data validated")
+                SecureLogger.d("MainActivity", "Emergency ID present: ${emergencyId.isNotBlank()}")
+                SecureLogger.d("MainActivity", "Requester present: ${requesterName.isNotBlank()}")
+                SecureLogger.d("MainActivity", "Type: $notificationType")
+                
+                if (notificationType == "emergency_alert" && emergencyId.isNotBlank() && requesterName.isNotBlank()) {
+                    try {
+                        SecureLogger.d("MainActivity", "Navigating to emergency response")
+                        navController.navigate("emergency_response/$emergencyId/$requesterName")
+                    } catch (e: Exception) {
+                        val error = ErrorHandler.handleException(e, "NAVIGATE_EMERGENCY")
+                        SecureLogger.e("MainActivity", "Navigation error", e)
+                    }
+                } else {
+                    SecureLogger.w("MainActivity", "Intent is not emergency or missing data")
+                }
+                
+            } catch (e: Exception) {
+                val error = ErrorHandler.handleException(e, "HANDLE_EMERGENCY_INTENT")
+                SecureLogger.e("MainActivity", "Error handling emergency intent", e)
             }
         }
     }
@@ -171,11 +228,13 @@ class MainActivity : ComponentActivity() {
             onDispose {
                 try {
                     callback?.let { stopLocationUpdates(context, it) }
-                    notificationManager.cleanup()
+                    // notificationManager.cleanup()
                 } catch (e: SecurityException) {
-                    android.util.Log.e("MainActivity", "Erro de permissão no cleanup: ${e.message}")
+                    SecureLogger.security("CLEANUP", "PERMISSION_ERROR")
+                    SecureLogger.e("MainActivity", "Permission error during cleanup", e)
                 } catch (e: Exception) {
-                    android.util.Log.e("MainActivity", "Erro no cleanup: ${e.message}")
+                    val error = ErrorHandler.handleException(e, "CLEANUP_RESOURCES")
+                    SecureLogger.e("MainActivity", "Cleanup error", e)
                 }
             }
         }
@@ -206,7 +265,8 @@ class MainActivity : ComponentActivity() {
             }
 
         } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "Firebase initialization failed", e)
+            val error = ErrorHandler.handleFirebaseError(e, "FIREBASE_INIT")
+            SecureLogger.e("MainActivity", "Firebase initialization failed", e)
         }
     }
     
@@ -232,9 +292,11 @@ class MainActivity : ComponentActivity() {
                 1001
             )
         } catch (e: SecurityException) {
-            android.util.Log.e("MainActivity", "Permissão de localização negada: ${e.message}")
+            SecureLogger.security("LOCATION_PERMISSION", "PERMISSION_DENIED")
+            SecureLogger.e("MainActivity", "Location permission denied", e)
         } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "Erro ao solicitar permissão: ${e.message}")
+            val error = ErrorHandler.handleException(e, "REQUEST_LOCATION_PERMISSION")
+            SecureLogger.e("MainActivity", "Error requesting location permission", e)
         }
     }
 }

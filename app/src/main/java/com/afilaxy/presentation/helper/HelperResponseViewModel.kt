@@ -30,15 +30,7 @@ class HelperResponseViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
             
-            ErrorHandler.safeSuspendCall(
-                operation = "loadEmergency",
-                onError = { error ->
-                    _uiState.value = _uiState.value.copy(
-                        error = error.userMessage,
-                        isLoading = false
-                    )
-                }
-            ) {
+            try {
                 
                 val doc = firestore.collection("emergencies")
                     .document(emergencyId)
@@ -79,6 +71,11 @@ class HelperResponseViewModel : ViewModel() {
                         isLoading = false
                     )
                 }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    error = "Erro ao carregar emergência",
+                    isLoading = false
+                )
             }
         }
     }
@@ -88,24 +85,16 @@ class HelperResponseViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isAccepting = true, error = null)
             
-            ErrorHandler.safeSuspendCall(
-                operation = "acceptEmergency",
-                onError = { error ->
-                    _uiState.value = _uiState.value.copy(
-                        error = error.userMessage,
-                        isAccepting = false
-                    )
-                }
-            ) {
+            try {
                 
                 val emergency = _uiState.value.emergency
                 val currentUser = auth.currentUser
                 
                 // Verificação crítica de autenticação
                 val verifiedUser = try {
-                    AuthGuard.requireVerifiedEmail()
+                    AuthGuard.requireAuthentication()
                 } catch (e: SecurityException) {
-                    android.util.Log.e("HelperResponseViewModel", "Falha na autenticação: ${InputSanitizer.sanitizeText(e.message)}")
+                    android.util.Log.e("HelperResponseViewModel", "Falha na autenticação: ${InputSanitizer.sanitizeText(e.message ?: "")}")
                     _uiState.value = _uiState.value.copy(
                         error = "Usuário deve estar autenticado e verificado",
                         isAccepting = false
@@ -114,7 +103,7 @@ class HelperResponseViewModel : ViewModel() {
                 }
                 
                 // Rate limiting para aceitação de ajuda
-                if (!RateLimiter.canAcceptHelp(verifiedUser.uid)) {
+                if (!RateLimiter.canPerformAction(verifiedUser.uid, "accept")) {
                     val remainingTime = RateLimiter.getRemainingTime(verifiedUser.uid, "accept")
                     _uiState.value = _uiState.value.copy(
                         error = "Aguarde ${remainingTime / 1000}s antes de aceitar outra emergência",
@@ -161,6 +150,11 @@ class HelperResponseViewModel : ViewModel() {
                 )
                 
                 android.util.Log.d("HelperResponseViewModel", "Emergência aceita com sucesso")
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    error = "Erro ao aceitar emergência",
+                    isAccepting = false
+                )
             }
         }
     }
@@ -240,7 +234,9 @@ class HelperResponseViewModel : ViewModel() {
     
     private fun calculateDistance(location: com.afilaxy.domain.model.Location): String {
         // Verificação de autenticação para cálculos de localização
-        if (!AuthGuard.isUserAuthenticated()) {
+        try {
+            AuthGuard.requireAuthentication()
+        } catch (e: SecurityException) {
             android.util.Log.w("HelperResponseViewModel", "Cálculo de distância sem autenticação")
             return "N/D"
         }
