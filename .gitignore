@@ -17,6 +17,7 @@ app/google-services.json
 # Keystore files
 *.jks
 *.keystore
+keystore.properties
 
 # Local environment
 .env
