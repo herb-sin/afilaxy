@@ -97,10 +97,8 @@ object SecureBackup {
             val key = generateSecretKey()
             val cipher = Cipher.getInstance(TRANSFORMATION)
             
-            // Use cryptographically secure random IV
-            val secureRandom = SecureRandom()
-            val iv = ByteArray(16)
-            secureRandom.nextBytes(iv)
+            // Generate cryptographically secure random IV with entropy validation
+            val iv = generateSecureIV()
             val ivSpec = IvParameterSpec(iv)
             
             cipher.init(Cipher.ENCRYPT_MODE, key, ivSpec)
@@ -129,9 +127,9 @@ object SecureBackup {
             val iv = encryptedBytes.sliceArray(0..15)
             val encryptedData = encryptedBytes.sliceArray(16 until encryptedBytes.size)
             
-            // Validate IV is not all zeros (security check)
-            if (iv.all { it == 0.toByte() }) {
-                throw SecurityException("Invalid IV detected")
+            // Validate IV entropy and unpredictability
+            if (!isValidIV(iv)) {
+                throw SecurityException("Invalid or predictable IV detected")
             }
             
             val ivSpec = IvParameterSpec(iv)
@@ -147,8 +145,8 @@ object SecureBackup {
         } catch (e: SecurityException) {
             throw e
         } catch (e: Exception) {
-            SecurityUtils.safeLog("SecureBackup", "Decryption failed: ${e.message}", SecurityUtils.LogLevel.ERROR)
-            throw SecurityException("Data decryption failed: ${e.javaClass.simpleName}")
+            SecurityUtils.safeLog("SecureBackup", "Decryption failed", SecurityUtils.LogLevel.ERROR)
+            throw SecurityException("Data decryption failed")
         }
     }
     
@@ -181,11 +179,8 @@ object SecureBackup {
         } catch (e: SecurityException) {
             throw e
         } catch (e: Exception) {
-            SecurityUtils.safeLog(
-                "SecureBackup",
-                "Cleanup failed: ${e.message}",
-                SecurityUtils.LogLevel.ERROR
-            )
+            SecureLogger.e("SecureBackup", "Cleanup failed", e)
+            // Don't rethrow to prevent cascade failures
         }
     }
     
@@ -202,5 +197,53 @@ object SecureBackup {
             )
             emptyList()
         }
+    }
+    
+    /**
+     * Generate cryptographically secure IV with entropy validation
+     */
+    private fun generateSecureIV(): ByteArray {
+        val maxAttempts = 10
+        var attempts = 0
+        
+        while (attempts < maxAttempts) {
+            val iv = ByteArray(16)
+            SecureRandom.getInstanceStrong().nextBytes(iv)
+            
+            if (isValidIV(iv)) {
+                return iv
+            }
+            attempts++
+        }
+        
+        throw SecurityException("Failed to generate secure IV after $maxAttempts attempts")
+    }
+    
+    /**
+     * Validate IV has sufficient entropy and is not predictable
+     */
+    private fun isValidIV(iv: ByteArray): Boolean {
+        if (iv.size != 16) return false
+        
+        // Check for common predictable patterns
+        val predictablePatterns = listOf(
+            ByteArray(16) { 0 }, // All zeros
+            ByteArray(16) { 1 }, // All ones
+            ByteArray(16) { 0xFF.toByte() }, // All 0xFF
+            ByteArray(16) { it.toByte() }, // Sequential
+            ByteArray(16) { (it % 2).toByte() } // Alternating 0,1
+        )
+        
+        if (predictablePatterns.any { iv.contentEquals(it) }) {
+            return false
+        }
+        
+        // Basic entropy check - ensure not all bytes are the same
+        val uniqueBytes = iv.toSet().size
+        if (uniqueBytes < 4) { // At least 4 different byte values
+            return false
+        }
+        
+        return true
     }
 }

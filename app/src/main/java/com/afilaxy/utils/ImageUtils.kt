@@ -8,9 +8,10 @@ import java.io.File
 object ImageUtils {
     
     fun compressImage(bitmap: Bitmap, quality: Int = 80): ByteArray {
-        val outputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
-        return outputStream.toByteArray()
+        return ByteArrayOutputStream().use { outputStream ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, quality, outputStream)
+            outputStream.toByteArray()
+        }
     }
     
     fun compressImageFile(file: File, maxWidth: Int = 1024, maxHeight: Int = 1024, quality: Int = 80): ByteArray? {
@@ -30,8 +31,7 @@ object ImageUtils {
     }
     
     private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
-        val height = options.outHeight
-        val width = options.outWidth
+        val (height, width) = options.outHeight to options.outWidth
         var inSampleSize = 1
         
         if (height > reqHeight || width > reqWidth) {

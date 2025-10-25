@@ -52,8 +52,13 @@ fun HelperRatingDialog(
         confirmButton = {
             TextButton(
                 onClick = { 
-                    if (rating > 0) {
-                        onRatingSubmitted(rating, feedback)
+                    try {
+                        if (rating > 0) {
+                            onRatingSubmitted(rating, feedback)
+                        }
+                    } catch (e: Exception) {
+                        // Log error but don't crash the UI
+                        android.util.Log.e("RatingDialog", "Error submitting rating", e)
                     }
                 },
                 enabled = rating > 0

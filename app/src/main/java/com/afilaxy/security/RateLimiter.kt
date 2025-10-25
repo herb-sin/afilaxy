@@ -158,18 +158,19 @@ object RateLimiter {
         currentTime: Long,
         timeWindowMs: Long
     ) {
-        val usersToRemove = mutableListOf<String>()
+        val iterator = requestMap.entries.iterator()
         
-        requestMap.forEach { (userId, requests) ->
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            val requests = entry.value
+            
             synchronized(requests) {
                 requests.removeAll { currentTime - it > timeWindowMs }
                 if (requests.isEmpty()) {
-                    usersToRemove.add(userId)
+                    iterator.remove()
                 }
             }
         }
-        
-        usersToRemove.forEach { requestMap.remove(it) }
     }
     
     /**

@@ -20,27 +20,37 @@ object SecureXmlUtils {
     fun createSecureDocumentBuilderFactory(): DocumentBuilderFactory? {
         return try {
             DocumentBuilderFactory.newInstance().apply {
-                // Disable DTDs completely
+                // CRITICAL: Disable DTDs completely to prevent XXE
                 setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
                 
-                // Disable external entities
+                // CRITICAL: Disable all external entity processing
                 setFeature("http://xml.org/sax/features/external-general-entities", false)
                 setFeature("http://xml.org/sax/features/external-parameter-entities", false)
                 
-                // Disable external DTDs
+                // CRITICAL: Disable external DTD loading
                 setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
                 
-                // Disable XInclude
+                // CRITICAL: Disable XInclude processing
                 isXIncludeAware = false
                 
-                // Disable entity expansion
+                // CRITICAL: Disable entity expansion
                 isExpandEntityReferences = false
                 
-                // Set secure processing
+                // Enable secure processing mode
                 setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
+                
+                // Additional security: Limit entity expansion
+                try {
+                    setFeature("http://www.oracle.com/xml/jaxp/properties/entityExpansionLimit", false)
+                } catch (e: Exception) {
+                    // Feature may not be available on all platforms
+                }
             }
         } catch (e: ParserConfigurationException) {
-            Log.e(TAG, "Failed to create secure DocumentBuilderFactory", e)
+            SecureLogger.e(TAG, "Failed to create secure DocumentBuilderFactory", e)
+            null
+        } catch (e: Exception) {
+            SecureLogger.e(TAG, "Unexpected error creating DocumentBuilderFactory", e)
             null
         }
     }

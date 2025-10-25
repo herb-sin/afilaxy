@@ -36,20 +36,24 @@ class EmergencyViewModel : ViewModel() {
     }
 
     fun updateLocationPermission(hasPermission: Boolean) {
+        if (!com.afilaxy.security.AuthGuard.isUserAuthenticated()) return
         _uiState.value = _uiState.value.copy(hasLocationPermission = hasPermission)
     }
 
     fun startLocationSearch() {
-        _uiState.value =
-                _uiState.value.copy(
-                        isLoadingLocation = true,
-                        locationError = null,
-                        userLocation = null,
-                        nearbyHelpers = emptyList(),
-                        noHelpersFound = false,
-                        isAwaitingHelperResponse = false,
-                        helperResponding = null
-                )
+        if (!com.afilaxy.security.AuthGuard.isUserAuthenticated()) {
+            _uiState.value = _uiState.value.copy(locationError = "Autenticação necessária")
+            return
+        }
+        _uiState.value = _uiState.value.copy(
+            isLoadingLocation = true,
+            locationError = null,
+            userLocation = null,
+            nearbyHelpers = emptyList(),
+            noHelpersFound = false,
+            isAwaitingHelperResponse = false,
+            helperResponding = null
+        )
     }
 
     fun setLocation(location: Location?) {
@@ -146,7 +150,7 @@ class EmergencyViewModel : ViewModel() {
 
     fun startListeningForHelperResponse(emergencyId: String) {
         // Validate emergency ID format (prevent NoSQL injection)
-        val sanitizedEmergencyId = com.afilaxy.security.InputSanitizer.sanitizeText(emergencyId)
+        val sanitizedEmergencyId = com.afilaxy.security.InputSanitizer.sanitizeQueryParam(emergencyId)
         if (sanitizedEmergencyId.isBlank() || !sanitizedEmergencyId.matches(Regex("^[a-zA-Z0-9_-]{1,50}$"))) {
             android.util.Log.w("EmergencyViewModel", "Invalid emergency ID format")
             return
@@ -225,6 +229,7 @@ class EmergencyViewModel : ViewModel() {
     }
 
     fun resetEmergencyState() {
+        if (!com.afilaxy.security.AuthGuard.isUserAuthenticated()) return
         listenerRegistration?.remove()
         _uiState.value = EmergencyUiState(hasLocationPermission = _uiState.value.hasLocationPermission)
     }

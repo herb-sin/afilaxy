@@ -71,12 +71,24 @@ object SecurityValidator {
     // Safe file extensions - medical app specific (whitelist approach)
     private val SAFE_EXTENSIONS = setOf(".jpg", ".jpeg", ".png", ".pdf", ".txt")
     
-    // Comprehensive dangerous extensions blocklist
+    // Comprehensive dangerous extensions blocklist - CRITICAL SECURITY
     private val DANGEROUS_EXTENSIONS = setOf(
-        ".exe", ".bat", ".cmd", ".com", ".pif", ".scr", ".vbs", ".js", ".jar",
-        ".app", ".deb", ".pkg", ".dmg", ".sh", ".php", ".asp", ".jsp", ".html", ".htm",
-        ".apk", ".ipa", ".msi", ".dll", ".so", ".dylib", ".bin", ".run", ".zip", ".rar",
-        ".7z", ".tar", ".gz", ".bz2", ".xz", ".iso", ".img", ".svg", ".xml"
+        // Executables
+        ".exe", ".bat", ".cmd", ".com", ".pif", ".scr", ".msi", ".app", ".run",
+        // Scripts
+        ".vbs", ".js", ".ps1", ".py", ".rb", ".pl", ".lua", ".sh", ".php", ".asp", ".jsp",
+        // Archives (potential malware containers)
+        ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz", ".iso", ".img",
+        // Libraries/Binaries
+        ".dll", ".so", ".dylib", ".jar", ".class", ".war", ".ear",
+        // System files
+        ".reg", ".inf", ".cpl", ".msc", ".lnk", ".url", ".gadget", ".application",
+        // Web/Markup (XSS risk)
+        ".html", ".htm", ".svg", ".xml", ".xhtml", ".xht",
+        // Package files
+        ".deb", ".pkg", ".dmg", ".apk", ".ipa",
+        // Windows specific
+        ".hta", ".wsf", ".wsh", ".vbe", ".jse", ".wsc", ".wsf"
     )
     
     fun validateFileExtension(filename: String): Boolean {
@@ -85,22 +97,49 @@ object SecurityValidator {
             
             val normalizedName = filename.lowercase().trim()
             
-            // Prevent null byte injection and control characters
+            // CRITICAL: Prevent null byte injection and control characters
             if (normalizedName.contains('\u0000') || normalizedName.any { it.isISOControl() }) {
+                SecureLogger.w(TAG, "Control characters detected in filename")
                 return false
             }
             
-            // Check for double extensions (e.g., file.jpg.exe)
-            val allExtensions = normalizedName.split('.').drop(1).map { ".$it" }
+            // CRITICAL: Extract all extensions to prevent double extension attacks
+            val parts = normalizedName.split('.')
+            if (parts.size < 2) return false // Must have extension
             
-            // Block if any extension is dangerous
-            if (allExtensions.any { DANGEROUS_EXTENSIONS.contains(it) }) return false
+            val allExtensions = parts.drop(1).map { ".$it" }
             
-            // Only allow if final extension is safe (whitelist approach)
+            // CRITICAL: Block ANY dangerous extension in the chain
+            val hasDangerousExtension = allExtensions.any { ext -> 
+                DANGEROUS_EXTENSIONS.contains(ext)
+            }
+            
+            if (hasDangerousExtension) {
+                SecureLogger.security("FILE_VALIDATION", "DANGEROUS_EXTENSION_BLOCKED")
+                return false
+            }
+            
+            // CRITICAL: Additional check for executable patterns
+            val hasExecutablePattern = normalizedName.contains(".exe.") || 
+                                     normalizedName.contains(".bat.") ||
+                                     normalizedName.contains(".scr.")
+            
+            if (hasExecutablePattern) {
+                SecureLogger.security("FILE_VALIDATION", "EXECUTABLE_PATTERN_BLOCKED")
+                return false
+            }
+            
+            // WHITELIST ONLY: Final extension must be explicitly safe
             val finalExtension = allExtensions.lastOrNull() ?: return false
-            SAFE_EXTENSIONS.contains(finalExtension)
+            val isAllowed = SAFE_EXTENSIONS.contains(finalExtension)
+            
+            if (!isAllowed) {
+                SecureLogger.w(TAG, "File extension not in whitelist")
+            }
+            
+            isAllowed
         } catch (e: Exception) {
-            Log.e(TAG, "File extension validation error", e)
+            SecureLogger.e(TAG, "File extension validation error", e)
             false
         }
     }
@@ -152,7 +191,7 @@ object SecurityValidator {
             } && validateFileName(file.name)
             
         } catch (e: Exception) {
-            Log.e(TAG, "Path validation error: ${e.javaClass.simpleName}", e)
+            Log.e(TAG, "Path validation error", e)
             false
         }
     }

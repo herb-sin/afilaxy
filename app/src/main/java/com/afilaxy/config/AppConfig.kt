@@ -6,4 +6,20 @@ object AppConfig {
     const val MOCK_FIREBASE = true
     const val HELPER_SEARCH_RADIUS_KM = 0.3
     const val NOTIFICATION_TIMEOUT_MS = 30000L
+    
+    fun getConfigValue(key: String, defaultValue: Any): Any {
+        return try {
+            when (key) {
+                "IS_DEBUG" -> IS_DEBUG
+                "ENABLE_CRASH_REPORTING" -> ENABLE_CRASH_REPORTING
+                "MOCK_FIREBASE" -> MOCK_FIREBASE
+                "HELPER_SEARCH_RADIUS_KM" -> HELPER_SEARCH_RADIUS_KM
+                "NOTIFICATION_TIMEOUT_MS" -> NOTIFICATION_TIMEOUT_MS
+                else -> defaultValue
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("AppConfig", "Error getting config value: $key")
+            defaultValue
+        }
+    }
 }

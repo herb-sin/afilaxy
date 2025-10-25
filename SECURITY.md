@@ -1,127 +1,144 @@
-# 🔒 Guia de Segurança - Afilaxy
+# 🔒 AFILAXY - GUIA DE SEGURANÇA
 
-## Configuração Segura
+## ⚠️ VULNERABILIDADES CRÍTICAS CORRIGIDAS
 
-### 1. Variáveis de Ambiente
-Copie `.env.example` para `.env` e configure:
+### 1. Credenciais Hardcoded (CRÍTICO)
+- **Problema**: Credenciais Firebase expostas no código
+- **Solução**: Template system com placeholders
+- **Ação**: Use `./setup_secure_firebase.sh` para configurar
 
+### 2. Vulnerabilidades XXE (CRÍTICO)
+- **Problema**: Parsers XML inseguros
+- **Solução**: SecureXmlUtils com proteções XXE
+- **Proteções**: DTD desabilitado, entidades externas bloqueadas
+
+### 3. Injeção NoSQL (ALTO)
+- **Problema**: Entrada não sanitizada em queries
+- **Solução**: InputSanitizer com padrões de bloqueio
+- **Proteções**: Whitelist de caracteres, detecção de operadores
+
+### 4. Log Injection (ALTO)
+- **Problema**: Entrada de usuário em logs
+- **Solução**: SecureLogger com sanitização
+- **Proteções**: Remoção de caracteres de controle
+
+### 5. IV Previsível (ALTO)
+- **Problema**: IVs criptográficos previsíveis
+- **Solução**: SecureRandom.getInstanceStrong()
+- **Proteções**: Validação de entropia
+
+## 🛡️ MEDIDAS DE SEGURANÇA IMPLEMENTADAS
+
+### Autenticação
+- AuthGuard para operações críticas
+- Verificação de sessão recente
+- Logout seguro
+
+### Validação de Entrada
+- InputSanitizer para todos os inputs
+- SecurityValidator para arquivos
+- Whitelist de extensões permitidas
+
+### Criptografia
+- AES-256-CBC para backups
+- IVs criptograficamente seguros
+- Chaves derivadas com segurança
+
+### Logging Seguro
+- Sanitização de todas as entradas
+- Prevenção de log injection
+- Logs estruturados sem dados sensíveis
+
+## 🚨 CONFIGURAÇÃO OBRIGATÓRIA
+
+### 1. Firebase (CRÍTICO)
 ```bash
-cp .env.example .env
+# NUNCA commite google-services.json real
+./setup_secure_firebase.sh
 ```
 
-Configure as seguintes variáveis:
-- `FIREBASE_PROJECT_ID`: ID do projeto Firebase
-- `FIREBASE_APP_ID`: ID da aplicação Firebase
-- `FIREBASE_API_KEY`: Chave da API Firebase
-- `FIREBASE_STORAGE_BUCKET`: Bucket de armazenamento
-
-### 2. Keystore de Produção
+### 2. Verificação de Segurança
 ```bash
-# Gerar keystore seguro
-keytool -genkey -v -keystore afilaxy-release.keystore -alias afilaxy -keyalg RSA -keysize 2048 -validity 10000
+# Valida configurações de segurança
+./validate_security.sh
 ```
 
-### 3. Configuração de Rede
-- ✅ Certificate pinning habilitado
-- ✅ Cleartext traffic bloqueado em produção
-- ✅ TLS 1.2+ obrigatório
-
-## Recursos de Segurança Implementados
-
-### 🛡️ Autenticação e Autorização
-- **AuthGuard**: Verificação obrigatória de autenticação
-- **Email verification**: Obrigatório para operações críticas
-- **Rate limiting**: Prevenção de ataques de força bruta
-
-### 🔍 Validação de Entrada
-- **InputSanitizer**: Prevenção de injeção NoSQL
-- **ValidationResult**: Validação robusta com feedback
-- **Coordinate validation**: Validação de coordenadas GPS
-
-### 📊 Monitoramento
-- **SecurityMonitor**: Detecção de atividades suspeitas
-- **Logging seguro**: Prevenção de log injection
-- **Alertas automáticos**: Para tentativas de ataque
-
-### 💾 Backup Seguro
-- **Criptografia AES-256**: Para dados críticos
-- **Rotação automática**: Manter apenas 5 backups
-- **Validação de integridade**: Verificação de dados
-
-## Práticas de Segurança
-
-### ✅ Implementado
-- [x] Credenciais não hardcoded
-- [x] Validação de entrada robusta
-- [x] Rate limiting inteligente
-- [x] Logging seguro
-- [x] Criptografia de dados sensíveis
-- [x] Certificate pinning
-- [x] Testes de segurança automatizados
-
-### 🔄 Monitoramento Contínuo
-- Verificação automática de dependências
-- Scan de código para vulnerabilidades
-- Testes de penetração regulares
-- Auditoria de logs de segurança
-
-## Resposta a Incidentes
-
-### 1. Detecção Automática
-- Tentativas de injeção SQL/NoSQL
-- Múltiplas falhas de login
-- Requests anômalos
-
-### 2. Ações Automáticas
-- Bloqueio temporário de usuário
-- Rate limiting agressivo
-- Alertas para equipe de segurança
-
-### 3. Investigação
+### 3. Build Seguro
 ```bash
-# Verificar logs de segurança
-adb logcat | grep "SecurityMonitor\|SecurityUtils"
-
-# Analisar tentativas de ataque
-grep "injection_attempt\|failed_login" security.log
+# Build com verificações de segurança
+./gradlew build -Psecurity-check
 ```
 
-## Configuração de Desenvolvimento
+## 📋 CHECKLIST DE SEGURANÇA
 
-### Ambiente Local
-```bash
-# Configurar emulador Firebase
-firebase emulators:start --only auth,firestore
+### Antes do Deploy
+- [ ] google-services.json não está no Git
+- [ ] Todas as credenciais são placeholders
+- [ ] Testes de segurança passaram
+- [ ] Logs não contêm dados sensíveis
+- [ ] Validação de entrada ativa
 
-# Executar testes de segurança
-./gradlew test --tests "*security*"
-```
+### Desenvolvimento
+- [ ] Use AuthGuard.requireAuthentication() para operações críticas
+- [ ] Sanitize todas as entradas com InputSanitizer
+- [ ] Use SecureLogger para todos os logs
+- [ ] Valide arquivos com SecurityValidator
+- [ ] Use SecureXmlUtils para XML
 
-### Verificações Pré-Deploy
-```bash
-# Lint de segurança
-./gradlew lint
+### Produção
+- [ ] Credenciais em variáveis de ambiente
+- [ ] Logs de segurança monitorados
+- [ ] Backups criptografados
+- [ ] Certificados SSL válidos
+- [ ] Rate limiting ativo
 
-# Verificar secrets
-grep -r "AIza\|AAAA\|sk_\|pk_" app/src/ --exclude-dir=test
+## 🔧 FERRAMENTAS DE SEGURANÇA
 
-# Testes de integração
-./gradlew connectedAndroidTest
-```
+### Classes Principais
+- `AuthGuard`: Autenticação obrigatória
+- `InputSanitizer`: Sanitização de entrada
+- `SecurityValidator`: Validação de arquivos
+- `SecureLogger`: Logging seguro
+- `SecureXmlUtils`: XML seguro
+- `SecureBackup`: Backup criptografado
 
-## Contato de Segurança
+### Scripts de Segurança
+- `setup_secure_firebase.sh`: Configuração segura
+- `validate_security.sh`: Validação de segurança
+- `security_check.sh`: Verificação completa
 
-Para reportar vulnerabilidades de segurança:
-- 📧 Email: security@afilaxy.com
-- 🔒 PGP Key: [Disponível no site]
-- ⏱️ Tempo de resposta: 24 horas
+## 🚫 NUNCA FAÇA
 
-## Atualizações de Segurança
+- ❌ Commitar google-services.json real
+- ❌ Hardcodar credenciais no código
+- ❌ Usar Log.d() diretamente (use SecureLogger)
+- ❌ Processar XML sem SecureXmlUtils
+- ❌ Aceitar entrada sem sanitização
+- ❌ Operações críticas sem autenticação
 
-- **Dependências**: Atualizadas mensalmente
-- **Patches críticos**: Aplicados em 48h
-- **Revisões de código**: Obrigatórias para mudanças de segurança
+## ✅ SEMPRE FAÇA
+
+- ✅ Use templates para credenciais
+- ✅ Sanitize todas as entradas
+- ✅ Valide arquivos antes de processar
+- ✅ Use logging seguro
+- ✅ Require autenticação para operações críticas
+- ✅ Teste vulnerabilidades regularmente
+
+## 📞 REPORTAR VULNERABILIDADES
+
+Se encontrar vulnerabilidades de segurança:
+
+1. **NÃO** abra issue público
+2. Envie email para: security@afilaxy.com
+3. Inclua detalhes técnicos
+4. Aguarde confirmação antes de divulgar
+
+## 🔄 ATUALIZAÇÕES DE SEGURANÇA
+
+Este documento é atualizado a cada correção de segurança.
+Última atualização: $(date)
 
 ---
 
-**⚠️ IMPORTANTE**: Nunca commite credenciais, chaves ou tokens no repositório. Use sempre variáveis de ambiente ou armazenamento seguro.
+**⚠️ LEMBRE-SE**: Segurança é responsabilidade de todos os desenvolvedores!

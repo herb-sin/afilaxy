@@ -70,20 +70,36 @@ object PerformanceMonitor {
     }
     
     /**
-     * Log performance metrics
+     * Log performance metrics with input sanitization
      */
     fun logPerformance(operationName: String, duration: Long, success: Boolean) {
+        // CRITICAL: Sanitize operation name to prevent log injection
+        val sanitizedName = sanitizeForLogging(operationName)
+        
         when {
             duration > VERY_SLOW_OPERATION_THRESHOLD_MS -> {
-                SecureLogger.w("Performance", "VERY SLOW: $operationName took ${duration}ms")
+                SecureLogger.w("Performance", "VERY SLOW: $sanitizedName took ${duration}ms")
             }
             duration > SLOW_OPERATION_THRESHOLD_MS -> {
-                SecureLogger.w("Performance", "SLOW: $operationName took ${duration}ms")
+                SecureLogger.w("Performance", "SLOW: $sanitizedName took ${duration}ms")
             }
             else -> {
-                SecureLogger.performance(operationName, duration, success)
+                SecureLogger.performance(sanitizedName, duration, success)
             }
         }
+    }
+    
+    /**
+     * Sanitize input for safe logging (prevents log injection)
+     */
+    private fun sanitizeForLogging(input: String): String {
+        return input
+            .replace("\n", "_")
+            .replace("\r", "_")
+            .replace("\t", "_")
+            .replace("\u0000", "_")
+            .take(100) // Limit length
+            .filter { it.isLetterOrDigit() || it in "_-. " }
     }
     
     /**
@@ -138,11 +154,18 @@ object PerformanceMonitor {
          * Clear expired cache entries
          */
         fun cleanupExpiredEntries() {
-            val expiredKeys = cache.filter { it.value.isExpired() }.keys
-            expiredKeys.forEach { cache.remove(it) }
+            val currentTime = System.currentTimeMillis()
+            val expiredKeys = mutableListOf<String>()
+            
+            // Single pass to identify expired entries
+            cache.entries.removeAll { entry ->
+                val isExpired = (currentTime - entry.value.timestamp) > entry.value.ttl
+                if (isExpired) expiredKeys.add(entry.key)
+                isExpired
+            }
             
             if (expiredKeys.isNotEmpty()) {
-                SecureLogger.d("CacheManager", "Cleaned up ${expiredKeys.size} expired entries")
+                SecureLogger.d("CacheManager", "Cleaned up expired entries")
             }
         }
         
@@ -221,11 +244,15 @@ object PerformanceMonitor {
     fun initialize() {
         SecureLogger.d("PerformanceMonitor", "Performance monitoring initialized")
         
-        // Start periodic cache cleanup
+        // Start periodic cache cleanup with proper lifecycle
         CoroutineScope(Dispatchers.IO).launch {
-            while (true) {
-                kotlinx.coroutines.delay(10 * 60 * 1000L) // 10 minutes
-                CacheManager.cleanupExpiredEntries()
+            try {
+                while (true) {
+                    kotlinx.coroutines.delay(10 * 60 * 1000L) // 10 minutes
+                    CacheManager.cleanupExpiredEntries()
+                }
+            } catch (e: Exception) {
+                SecureLogger.e("PerformanceMonitor", "Cache cleanup error", e)
             }
         }
     }

@@ -9,6 +9,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.afilaxy.security.SecureXmlUtils
+import com.afilaxy.security.InputSanitizer
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
@@ -36,7 +38,7 @@ fun MapScreen(
     }
     
     val context = LocalContext.current
-    val safeTitle = com.afilaxy.security.SecureValidator.validateAndSanitizeInput(title, 50).takeIf { it.isNotBlank() } ?: "Destino"
+    val safeTitle = InputSanitizer.sanitizeText(title).takeIf { it.isNotBlank() } ?: "Destino"
     val destination = LatLng(latitude, longitude)
     
     val cameraPositionState = rememberCameraPositionState {

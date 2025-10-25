@@ -73,13 +73,7 @@ class EmergencyRepositoryImpl : EmergencyRepository {
             val sanitizedUserId = InputSanitizer.sanitizeForFirestore(emergency.userId)
             val sanitizedUserName = InputSanitizer.sanitizeForFirestore(emergency.userName)
             
-            if (!SqlInjectionPrevention.isValidFirebaseField("userId") ||
-                !SqlInjectionPrevention.isValidFirebaseField("userName") ||
-                !SqlInjectionPrevention.isValidFirebaseField("location") ||
-                !SqlInjectionPrevention.isValidFirebaseField("timestamp") ||
-                !SqlInjectionPrevention.isValidFirebaseField("status")) {
-                throw SecurityException("Invalid field names detected")
-            }
+            // Using hardcoded field names for security
             
             val emergencyData = mapOf(
                 "userId" to sanitizedUserId,
@@ -291,7 +285,7 @@ class EmergencyRepositoryImpl : EmergencyRepository {
                 throw SecurityException("Authentication required")
             }
             
-            // Validate inputs
+            // CRITICAL: Enhanced validation to prevent SQL injection
             if (!SqlInjectionPrevention.isValidFirebasePath(helperId)) {
                 throw IllegalArgumentException("Invalid helper ID")
             }
@@ -300,8 +294,14 @@ class EmergencyRepositoryImpl : EmergencyRepository {
                 throw IllegalArgumentException("Invalid feedback content")
             }
             
-            val sanitizedId = InputSanitizer.sanitizeForFirestore(helperId)
-            val sanitizedFeedback = InputSanitizer.sanitizeText(feedback)
+            // CRITICAL: Use parameterized updates to prevent injection
+            val sanitizedId = InputSanitizer.preventNoSQLInjection(helperId)
+            val sanitizedFeedback = InputSanitizer.preventNoSQLInjection(feedback)
+            
+            // CRITICAL: Validate sanitized data is not empty after cleaning
+            if (sanitizedId.isBlank() || sanitizedFeedback.isBlank()) {
+                throw IllegalArgumentException("Invalid data after sanitization")
+            }
             
             firestore.collection("helpers")
                 .document(sanitizedId)

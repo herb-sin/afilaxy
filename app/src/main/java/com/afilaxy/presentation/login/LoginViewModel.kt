@@ -173,6 +173,13 @@ class LoginViewModel : ViewModel() {
     private fun createUserProfile(uid: String?, email: String?) {
         if (uid == null || email == null) return
         
+        // Verify user is authenticated before creating profile
+        val currentUser = firebaseAuth.currentUser
+        if (currentUser == null || currentUser.uid != uid) {
+            android.util.Log.w("LoginViewModel", "User not authenticated for profile creation")
+            return
+        }
+        
         val userData = mapOf(
             "name" to email,
             "email" to email,

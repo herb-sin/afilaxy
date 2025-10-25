@@ -36,7 +36,7 @@ object EmergencyCache {
                 timestamp = System.currentTimeMillis(),
                 ttl = ttlMs
             )
-            SecureLogger.d("EmergencyCache", "Emergency cached: ${emergency.id}")
+            SecureLogger.d("EmergencyCache", "Emergency cached")
         } catch (e: Exception) {
             SecureLogger.e("EmergencyCache", "Error caching emergency", e)
         }
@@ -49,12 +49,12 @@ object EmergencyCache {
         return try {
             val entry = emergencyCache[emergencyId]
             if (entry != null && !entry.isExpired()) {
-                SecureLogger.d("EmergencyCache", "Emergency cache hit: $emergencyId")
+                SecureLogger.d("EmergencyCache", "Emergency cache hit")
                 entry.data
             } else {
                 if (entry != null) {
                     emergencyCache.remove(emergencyId)
-                    SecureLogger.d("EmergencyCache", "Emergency cache expired: $emergencyId")
+                    SecureLogger.d("EmergencyCache", "Emergency cache expired")
                 }
                 null
             }
@@ -75,7 +75,7 @@ object EmergencyCache {
                 timestamp = System.currentTimeMillis(),
                 ttl = HELPER_CACHE_TTL_MS
             )
-            SecureLogger.d("EmergencyCache", "Helpers cached for location: ${helpers.size} helpers")
+            SecureLogger.d("EmergencyCache", "Helpers cached for location")
         } catch (e: Exception) {
             SecureLogger.e("EmergencyCache", "Error caching helpers", e)
         }
@@ -89,7 +89,7 @@ object EmergencyCache {
             val locationKey = createLocationKey(location)
             val entry = helperCache[locationKey]
             if (entry != null && !entry.isExpired()) {
-                SecureLogger.d("EmergencyCache", "Helper cache hit: ${entry.data.size} helpers")
+                SecureLogger.d("EmergencyCache", "Helper cache hit")
                 entry.data
             } else {
                 if (entry != null) {
@@ -121,17 +121,30 @@ object EmergencyCache {
         try {
             val currentTime = System.currentTimeMillis()
             
-            // Clean emergency cache
-            val expiredEmergencies = emergencyCache.filter { it.value.isExpired() }.keys
-            expiredEmergencies.forEach { emergencyCache.remove(it) }
+            // Clean emergency cache with optimized single-pass iteration
+            val emergencyIterator = emergencyCache.entries.iterator()
+            var expiredEmergencyCount = 0
+            while (emergencyIterator.hasNext()) {
+                val entry = emergencyIterator.next()
+                if (entry.value.isExpired()) {
+                    emergencyIterator.remove()
+                    expiredEmergencyCount++
+                }
+            }
             
-            // Clean helper cache
-            val expiredHelpers = helperCache.filter { it.value.isExpired() }.keys
-            expiredHelpers.forEach { helperCache.remove(it) }
+            // Clean helper cache with optimized single-pass iteration
+            val helperIterator = helperCache.entries.iterator()
+            var expiredHelperCount = 0
+            while (helperIterator.hasNext()) {
+                val entry = helperIterator.next()
+                if (entry.value.isExpired()) {
+                    helperIterator.remove()
+                    expiredHelperCount++
+                }
+            }
             
-            val totalExpired = expiredEmergencies.size + expiredHelpers.size
-            if (totalExpired > 0) {
-                SecureLogger.d("EmergencyCache", "Cleaned up $totalExpired expired cache entries")
+            if (expiredEmergencyCount > 0 || expiredHelperCount > 0) {
+                SecureLogger.d("EmergencyCache", "Cleaned up expired cache entries")
             }
         } catch (e: Exception) {
             SecureLogger.e("EmergencyCache", "Error cleaning up cache", e)
@@ -143,10 +156,9 @@ object EmergencyCache {
      */
     fun clearAll() {
         try {
-            val totalEntries = emergencyCache.size + helperCache.size
             emergencyCache.clear()
             helperCache.clear()
-            SecureLogger.d("EmergencyCache", "Cleared $totalEntries cache entries")
+            SecureLogger.d("EmergencyCache", "Cleared all cache entries")
         } catch (e: Exception) {
             SecureLogger.e("EmergencyCache", "Error clearing cache", e)
         }

@@ -47,9 +47,9 @@ object SecureLogger {
      * Log security event with enhanced protection
      */
     fun security(operation: String, result: String, userId: String? = null) {
-        val safeUserId = userId?.let { "user_${it.take(8)}" } ?: "anonymous"
+        val safeUserId = userId?.let { "user_${sanitizeMessage(it).take(8)}" } ?: "anonymous"
         val message = "Security: ${sanitizeMessage(operation)} - ${sanitizeMessage(result)} - $safeUserId"
-        Log.w("${APP_PREFIX}Security", message)
+        Log.w("${APP_PREFIX}Security", sanitizeMessage(message))
     }
     
     /**
@@ -57,8 +57,9 @@ object SecureLogger {
      */
     fun performance(operation: String, duration: Long, success: Boolean) {
         val status = if (success) "SUCCESS" else "FAILED"
-        val message = "Performance: ${sanitizeMessage(operation)} - ${duration}ms - $status"
-        Log.i("${APP_PREFIX}Performance", message)
+        val safeDuration = if (duration in 0..300000) duration else 0 // Max 5 minutes
+        val message = "Performance: ${sanitizeMessage(operation)} - ${safeDuration}ms - $status"
+        Log.i("${APP_PREFIX}Performance", sanitizeMessage(message))
     }
     
     /**
@@ -91,10 +92,10 @@ object SecureLogger {
      * Log user action with privacy protection
      */
     fun userAction(action: String, userId: String, success: Boolean) {
-        val safeUserId = "user_${userId.take(8)}"
+        val safeUserId = "user_${sanitizeMessage(userId).take(8)}"
         val status = if (success) "SUCCESS" else "FAILED"
         val message = "UserAction: ${sanitizeMessage(action)} - $safeUserId - $status"
-        Log.i("${APP_PREFIX}UserAction", message)
+        Log.i("${APP_PREFIX}UserAction", sanitizeMessage(message))
     }
     
     /**
@@ -103,6 +104,6 @@ object SecureLogger {
     fun emergency(event: String, location: String? = null) {
         val safeLocation = location?.let { "location_provided" } ?: "no_location"
         val message = "Emergency: ${sanitizeMessage(event)} - $safeLocation"
-        Log.w("${APP_PREFIX}Emergency", message)
+        Log.w("${APP_PREFIX}Emergency", sanitizeMessage(message))
     }
 }

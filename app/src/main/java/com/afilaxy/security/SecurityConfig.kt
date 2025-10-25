@@ -11,9 +11,9 @@ object SecurityConfig {
     const val MAX_REQUESTS_PER_MINUTE = 60
     const val MAX_EMERGENCY_REQUESTS_PER_HOUR = 5
     
-    // Validation patterns
-    val SAFE_FILENAME_PATTERN = Regex("^[a-zA-Z0-9._-]{1,100}$")
-    val SAFE_ID_PATTERN = Regex("^[a-zA-Z0-9_-]{1,128}$")
+    // Validation patterns - NoSQL injection safe
+    val SAFE_FILENAME_PATTERN = Regex("^[a-zA-Z0-9._\\-]{1,100}$")
+    val SAFE_ID_PATTERN = Regex("^[a-zA-Z0-9_\\-]{1,128}$")
     
     // Security headers for HTTP requests
     val SECURITY_HEADERS = mapOf(

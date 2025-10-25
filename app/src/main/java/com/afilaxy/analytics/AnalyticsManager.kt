@@ -14,29 +14,44 @@ class AnalyticsManager @Inject constructor() {
     private lateinit var analytics: FirebaseAnalytics
     
     fun initialize() {
-        analytics = Firebase.analytics
+        try {
+            analytics = Firebase.analytics
+        } catch (e: Exception) {
+            // Fallback to no-op analytics if Firebase fails
+        }
     }
     
     fun trackEmergencyCreated(location: Location, responseTime: Long) {
-        analytics.logEvent("emergency_created") {
-            param("response_time_ms", responseTime)
-            param("location_accuracy", location.accuracy?.toDouble() ?: 0.0)
-            param("latitude", location.latitude)
-            param("longitude", location.longitude)
+        if (!::analytics.isInitialized) return
+        try {
+            analytics.logEvent("emergency_created") {
+                param("response_time_ms", responseTime)
+                param("location_accuracy", location.accuracy?.toDouble() ?: 0.0)
+            }
+        } catch (e: Exception) {
+            // Silent fail for analytics
         }
     }
     
     fun trackHelperFound(helperId: String, distance: Double) {
-        analytics.logEvent("helper_found") {
-            param("helper_id", helperId)
-            param("distance_meters", distance)
+        if (!::analytics.isInitialized) return
+        try {
+            analytics.logEvent("helper_found") {
+                param("distance_meters", distance)
+            }
+        } catch (e: Exception) {
+            // Silent fail for analytics
         }
     }
     
     fun trackHelperRated(helperId: String, rating: Int) {
-        analytics.logEvent("helper_rated") {
-            param("helper_id", helperId)
-            param("rating", rating.toLong())
+        if (!::analytics.isInitialized) return
+        try {
+            analytics.logEvent("helper_rated") {
+                param("rating", rating.toLong())
+            }
+        } catch (e: Exception) {
+            // Silent fail for analytics
         }
     }
     

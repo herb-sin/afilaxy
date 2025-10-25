@@ -52,37 +52,17 @@ object GeocodingUtils {
     }
     
     private fun formatAddress(address: Address): String {
-        val addressParts = mutableListOf<String>()
-        
-        // Rua e número
-        address.thoroughfare?.let { street ->
-            val streetInfo = if (address.subThoroughfare != null) {
-                "$street, ${address.subThoroughfare}"
-            } else {
-                street
+        return buildList {
+            // Rua e número
+            address.thoroughfare?.let { street ->
+                val streetInfo = address.subThoroughfare?.let { "$street, $it" } ?: street
+                add(streetInfo)
             }
-            addressParts.add(streetInfo)
-        }
-        
-        // Bairro
-        address.subLocality?.let { neighborhood ->
-            addressParts.add(neighborhood)
-        }
-        
-        // Cidade
-        address.locality?.let { city ->
-            addressParts.add(city)
-        }
-        
-        // Estado
-        address.adminArea?.let { state ->
-            addressParts.add(state)
-        }
-        
-        return if (addressParts.isNotEmpty()) {
-            addressParts.joinToString(", ")
-        } else {
-            "Endereço não encontrado"
-        }
+            
+            // Bairro, Cidade, Estado
+            address.subLocality?.let(::add)
+            address.locality?.let(::add)
+            address.adminArea?.let(::add)
+        }.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "Endereço não encontrado"
     }
 }
