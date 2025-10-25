@@ -20,13 +20,11 @@ abstract class AfilaxyDatabase : RoomDatabase() {
         
         fun getDatabase(context: Context): AfilaxyDatabase {
             return INSTANCE ?: synchronized(this) {
-                val instance = Room.databaseBuilder(
+                INSTANCE ?: Room.databaseBuilder(
                     context.applicationContext,
                     AfilaxyDatabase::class.java,
                     "afilaxy_database"
-                ).build()
-                INSTANCE = instance
-                instance
+                ).build().also { INSTANCE = it }
             }
         }
     }

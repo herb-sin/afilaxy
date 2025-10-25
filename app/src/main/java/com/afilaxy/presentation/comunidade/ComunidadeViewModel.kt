@@ -20,15 +20,13 @@ class ComunidadeViewModel : ViewModel() {
     }
     
     private fun loadComunidadeData() {
-        if (_uiState.value.isLoading) return // Prevent duplicate loading
+        if (_uiState.value.isLoading) return
         
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, errorMessage = null) }
             
             try {
-                // Use lazy initialization for better performance
                 val data = getCommunityData()
-                
                 _uiState.update { 
                     it.copy(
                         produtos = data.produtos,

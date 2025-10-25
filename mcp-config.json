@@ -1,9 +1,0 @@
-{
-  "mcpServers": {
-    "afilaxy-dev": {
-      "command": "node",
-      "args": ["mcp-server.js"],
-      "cwd": "/home/afilaxy/Projetos/afilaxy Kotlin/afilaxy"
-    }
-  }
-}

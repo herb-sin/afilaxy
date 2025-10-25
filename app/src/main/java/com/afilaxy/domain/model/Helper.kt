@@ -8,5 +8,5 @@ data class Helper(
     val latitude: Double? = null,
     val longitude: Double? = null,
     val isAvailable: Boolean = true,
-    val responseTime: String? = null
+    val tempoResposta: String? = null
 )

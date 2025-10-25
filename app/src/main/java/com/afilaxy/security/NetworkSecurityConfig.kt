@@ -33,30 +33,5 @@ object NetworkSecurityConfig {
         return AuthGuard.isUserAuthenticated()
     }
     
-    // Secure XML parser configuration to prevent XXE attacks
-    fun createSecureXmlParser(): javax.xml.parsers.DocumentBuilderFactory? {
-        return try {
-            if (!AuthGuard.isUserAuthenticated()) {
-                return null
-            }
-            
-            val factory = javax.xml.parsers.DocumentBuilderFactory.newInstance()
-            
-            // Comprehensive XXE prevention
-            factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
-            factory.setFeature("http://xml.org/sax/features/external-general-entities", false)
-            factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false)
-            factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false)
-            factory.setFeature("http://apache.org/xml/features/validation/schema", false)
-            factory.setFeature("http://javax.xml.XMLConstants/feature/secure-processing", true)
-            factory.isXIncludeAware = false
-            factory.isExpandEntityReferences = false
-            factory.isNamespaceAware = false
-            
-            factory
-        } catch (e: Exception) {
-            android.util.Log.e("NetworkSecurityConfig", "Failed to create secure XML parser")
-            null
-        }
-    }
+
 }

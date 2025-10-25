@@ -66,50 +66,10 @@ class HomeViewModel : ViewModel() {
                     
                     SecureLogger.d("HomeViewModel", "Document exists: ${userDoc.exists()}")
                     
-                    val isHelper: Boolean
-                    val userName: String
-                    
-                    if (!userDoc.exists()) {
-                        SecureLogger.d("HomeViewModel", "Creating user profile in Firestore")
-                        
-                        // Validate and sanitize user email before storing
-                        val userEmail = user.email
-                        val sanitizedEmail = if (userEmail != null && 
-                                                InputSanitizer.isValidEmail(userEmail) &&
-                                                SqlInjectionPrevention.isValidSqlInput(userEmail)) {
-                            userEmail
-                        } else {
-                            "usuario@exemplo.com"
-                        }
-                        
-                        val userData = mapOf<String, Any>(
-                            "name" to sanitizedEmail,
-                            "email" to sanitizedEmail,
-                            "isHelper" to true,
-                            "createdAt" to System.currentTimeMillis()
-                        )
-                        
-                        firestore.collection("users")
-                            .document(user.uid)
-                            .set(userData)
-                            .await()
-                        
-                        SecureLogger.userAction("CREATE_PROFILE", user.uid, true)
-                        
-                        isHelper = true
-                        userName = sanitizedEmail
+                    val (isHelper, userName) = if (!userDoc.exists()) {
+                        createUserProfile(user)
                     } else {
-                        isHelper = userDoc.getBoolean("isHelper") ?: true
-                        
-                        // Validate and sanitize stored name
-                        val storedName = userDoc.getString("name")
-                        userName = if (storedName != null && 
-                                      SqlInjectionPrevention.isValidSqlInput(storedName) &&
-                                      storedName.length <= 100) {
-                            InputSanitizer.sanitizeName(storedName).takeIf { it.isNotBlank() } ?: (user.email ?: "Usuário")
-                        } else {
-                            user.email ?: "Usuário"
-                        }
+                        loadExistingProfile(userDoc, user)
                     }
                     
                     SecureLogger.d("HomeViewModel", "User data loaded successfully")
@@ -254,5 +214,39 @@ class HomeViewModel : ViewModel() {
         }
     }
     
-
+    private suspend fun createUserProfile(user: com.google.firebase.auth.FirebaseUser): Pair<Boolean, String> {
+        SecureLogger.d("HomeViewModel", "Creating user profile in Firestore")
+        
+        val sanitizedEmail = user.email?.takeIf { 
+            InputSanitizer.isValidEmail(it) && SqlInjectionPrevention.isValidSqlInput(it) 
+        } ?: "usuario@exemplo.com"
+        
+        val userData = mapOf<String, Any>(
+            "name" to sanitizedEmail,
+            "email" to sanitizedEmail,
+            "isHelper" to true,
+            "createdAt" to System.currentTimeMillis()
+        )
+        
+        firestore.collection("users")
+            .document(user.uid)
+            .set(userData)
+            .await()
+        
+        SecureLogger.userAction("CREATE_PROFILE", user.uid, true)
+        return Pair(true, sanitizedEmail)
+    }
+    
+    private fun loadExistingProfile(userDoc: com.google.firebase.firestore.DocumentSnapshot, user: com.google.firebase.auth.FirebaseUser): Pair<Boolean, String> {
+        val isHelper = userDoc.getBoolean("isHelper") ?: true
+        val storedName = userDoc.getString("name")
+        val userName = if (storedName != null && 
+                          SqlInjectionPrevention.isValidSqlInput(storedName) &&
+                          storedName.length <= 100) {
+            InputSanitizer.sanitizeName(storedName).takeIf { it.isNotBlank() } ?: (user.email ?: "Usuário")
+        } else {
+            user.email ?: "Usuário"
+        }
+        return Pair(isHelper, userName)
+    }
 }

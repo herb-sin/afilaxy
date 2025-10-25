@@ -7,7 +7,7 @@ data class FAQItem(
 )
 
 object AsthmaFAQ {
-    val faqItems = listOf(
+    private val _faqItems by lazy { listOf(
         // Categoria: Sobre Asma
         FAQItem(
             question = "A asma tem cura?",
@@ -306,13 +306,15 @@ object AsthmaFAQ {
             """.trimIndent(),
             category = "Atividade Física"
         )
-    )
+    ) }
     
-    fun getCategories(): List<String> {
-        return faqItems.map { it.category }.distinct()
-    }
+    val faqItems: List<FAQItem> get() = _faqItems
+    
+    private val _categories by lazy { _faqItems.map { it.category }.distinct() }
+    
+    fun getCategories(): List<String> = _categories
     
     fun getItemsByCategory(category: String): List<FAQItem> {
-        return faqItems.filter { it.category == category }
+        return _faqItems.filter { it.category == category }
     }
 }

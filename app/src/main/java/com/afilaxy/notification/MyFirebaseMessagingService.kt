@@ -15,6 +15,8 @@ import com.afilaxy.MainActivity
 import com.afilaxy.R
 import com.afilaxy.security.AuthGuard
 import com.afilaxy.security.InputSanitizer
+import com.afilaxy.security.SecureXmlUtils
+import com.afilaxy.security.SecureLogger
 import com.afilaxy.utils.ErrorHandler
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -42,12 +44,15 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
     
     private fun handleEmergencyMessage(remoteMessage: RemoteMessage) {
-        if (!com.afilaxy.security.FinalSecurityLayer.isSecureContext()) {
-            com.afilaxy.security.SecurityUtils.safeLog("MessagingService", "Emergency message denied - insecure context", com.afilaxy.security.SecurityUtils.LogLevel.WARN)
+        if (!AuthGuard.isUserAuthenticated()) {
+            SecureLogger.security("EMERGENCY_MESSAGE", "DENIED_UNAUTHENTICATED")
             return
         }
         
-        val requesterName = com.afilaxy.security.SecureValidator.validateAndSanitizeInput(remoteMessage.data["requesterName"], 50).takeIf { it.isNotBlank() } ?: "Alguém"
+        // Sanitize input to prevent XXE and injection attacks
+        val rawName = remoteMessage.data["requesterName"] ?: ""
+        val requesterName = InputSanitizer.sanitizeName(rawName).takeIf { it.isNotBlank() } ?: "Alguém"
+        
         sendEmergencyNotification(
             "🚨 EMERGÊNCIA AFILAXY",
             "$requesterName precisa de bombinha próximo a você!"
@@ -55,14 +60,15 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
     
     private fun handleRegularMessage(remoteMessage: RemoteMessage) {
-        if (!com.afilaxy.security.FinalSecurityLayer.isSecureContext()) {
-            com.afilaxy.security.SecurityUtils.safeLog("MessagingService", "Regular message denied - insecure context", com.afilaxy.security.SecurityUtils.LogLevel.WARN)
+        if (!AuthGuard.isUserAuthenticated()) {
+            SecureLogger.security("REGULAR_MESSAGE", "DENIED_UNAUTHENTICATED")
             return
         }
         
         remoteMessage.notification?.let { notification ->
-            val title = com.afilaxy.security.SecureValidator.validateAndSanitizeInput(notification.title, 100).takeIf { it.isNotBlank() } ?: "Afilaxy"
-            val body = com.afilaxy.security.SecureValidator.validateAndSanitizeInput(notification.body, 200)
+            // Sanitize notification content to prevent XXE attacks
+            val title = InputSanitizer.sanitizeText(notification.title ?: "").takeIf { it.isNotBlank() } ?: "Afilaxy"
+            val body = InputSanitizer.sanitizeText(notification.body ?: "")
             sendNotification(title, body)
         }
     }

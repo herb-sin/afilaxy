@@ -1,6 +1,0 @@
-# Google Maps API Key
-# Obtenha sua chave em: https://console.cloud.google.com/apis/credentials
-MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY_HERE
-
-# Firebase configuration
-# Adicione outras configurações necessárias aqui

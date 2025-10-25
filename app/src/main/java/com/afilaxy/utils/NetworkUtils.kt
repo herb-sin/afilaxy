@@ -13,15 +13,14 @@ object NetworkUtils {
                 ?: return false
             
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            val network = connectivityManager.activeNetwork ?: return false
-            val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+                val network = connectivityManager.activeNetwork ?: return false
+                val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
             } else {
                 @Suppress("DEPRECATION")
-                val networkInfo = connectivityManager.activeNetworkInfo
-                networkInfo?.isConnected == true
+                connectivityManager.activeNetworkInfo?.isConnected == true
             }
         } catch (e: Exception) {
             false

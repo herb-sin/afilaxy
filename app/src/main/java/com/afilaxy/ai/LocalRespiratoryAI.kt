@@ -76,15 +76,16 @@ class LocalRespiratoryAI {
                 return "Por favor, faça uma pergunta válida sobre asma."
             }
             
-            // Check for injection attempts
-            if (SqlInjectionPrevention.containsSqlInjection(question) || 
-                SqlInjectionPrevention.containsNoSqlInjection(question)) {
+            // CRITICAL: Check for injection attempts first
+            if (containsInjectionPatterns(question)) {
                 SecureLogger.security("AI_QUERY", "INJECTION_BLOCKED")
                 return "Pergunta inválida. Use apenas texto simples."
             }
             
-            val sanitizedQuestion = InputSanitizer.sanitizeText(question)
+            // CRITICAL: Sanitize input to prevent NoSQL injection
+            val sanitizedQuestion = InputSanitizer.preventNoSQLInjection(question)
             if (sanitizedQuestion.isBlank()) {
+                SecureLogger.w("LocalRespiratoryAI", "Question sanitization resulted in empty string")
                 return "Por favor, faça uma pergunta válida sobre asma."
             }
             
@@ -978,5 +979,41 @@ class LocalRespiratoryAI {
         💡 LEMBRE-SE: Asma não tem cura, mas o SUS
         oferece tratamento completo e gratuito!
         """
+    }
+    
+    /**
+     * Enhanced injection pattern detection for NoSQL and other attacks
+     */
+    fun containsInjectionPatterns(input: String): Boolean {
+        val dangerousPatterns = listOf(
+            // NoSQL injection patterns
+            "\$where", "\$ne", "\$gt", "\$lt", "\$gte", "\$lte", "\$in", "\$nin",
+            "\$regex", "\$or", "\$and", "\$not", "\$exists", "\$elemMatch", "\$size",
+            "\$all", "\$mod", "\$type", "\$slice", "\$push", "\$pull", "\$set", "\$unset",
+            // JavaScript injection
+            "javascript:", "eval(", "function(", "setTimeout", "setInterval", "constructor",
+            "prototype", "__proto__", "toString", "valueOf",
+            // General injection patterns
+            "{", "}", "[", "]", "<script", "</script>", "<iframe", "</iframe>",
+            // Control characters and escape sequences
+            "\u0000", "\\x", "\\u", "\\n", "\\r", "\\t"
+        )
+        
+        return try {
+            // Check for dangerous patterns
+            val hasPattern = dangerousPatterns.any { pattern -> 
+                input.contains(pattern, ignoreCase = true) 
+            }
+            
+            // Additional check for suspicious character sequences
+            val hasSuspiciousChars = input.any { char ->
+                char.isISOControl() || char.code > 127
+            }
+            
+            hasPattern || hasSuspiciousChars
+        } catch (e: Exception) {
+            SecureLogger.e("LocalRespiratoryAI", "Injection detection error", e)
+            true // Fail safe - assume injection if error occurs
+        }
     }
 }

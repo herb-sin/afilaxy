@@ -4,7 +4,7 @@ import java.util.regex.Pattern
 
 object InputSanitizer {
     
-    // Strict whitelist patterns - NoSQL injection prevention
+    // Strict whitelist patterns - NoSQL injection prevention (CORRECTED REGEX)
     private val EMAIL_PATTERN = Pattern.compile("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,6}$")
     private val NAME_PATTERN = Pattern.compile("^[a-zA-ZÀ-ÿ\\s]{1,50}$")
     private val PHONE_PATTERN = Pattern.compile("^[0-9()\\s+-]{10,15}$")
@@ -17,18 +17,18 @@ object InputSanitizer {
         "\$all", "\$mod", "\$type", "\$slice", "\$push", "\$pull", "\$set", "\$unset"
     )
     
-    // Enhanced NoSQL injection detection with stricter patterns
+    // Enhanced NoSQL injection detection with CORRECTED patterns
     private val NOSQL_INJECTION_PATTERN = Pattern.compile(
-        "(\\\$[a-zA-Z_]+|javascript:|eval\\(|function\\(|setTimeout|setInterval|\\{[^}]*\\}|\\[[^\\]]*\\]|ObjectId\\(|new\\s+\\w+)",
+        "(\\\$[a-zA-Z_]+|javascript:|eval\\(|function\\(|setTimeout|setInterval|ObjectId\\(|new\\s+\\w+)",
         Pattern.CASE_INSENSITIVE
     )
     
-    // Comprehensive NoSQL injection prevention - enhanced
+    // Comprehensive NoSQL injection prevention - CORRECTED patterns
     private val BLOCKED_PATTERNS = setOf(
-        "\\\$where", "\\\$ne", "\\\$gt", "\\\$lt", "\\\$gte", "\\\$lte", "\\\$in", "\\\$nin", 
-        "\\\$regex", "\\\$or", "\\\$and", "\\\$not", "\\\$exists", "\\\$elemMatch", "\\\$size",
-        "\\\$all", "\\\$mod", "\\\$type", "\\\$slice", "\\\$push", "\\\$pull", "\\\$set", "\\\$unset",
-        "javascript:", "eval\\(", "function\\(", "setTimeout\\(", "setInterval\\(", "constructor",
+        "\$where", "\$ne", "\$gt", "\$lt", "\$gte", "\$lte", "\$in", "\$nin", 
+        "\$regex", "\$or", "\$and", "\$not", "\$exists", "\$elemMatch", "\$size",
+        "\$all", "\$mod", "\$type", "\$slice", "\$push", "\$pull", "\$set", "\$unset",
+        "javascript:", "eval(", "function(", "setTimeout(", "setInterval(", "constructor",
         "prototype", "__proto__", "toString", "valueOf"
     )
     private val DANGEROUS_CHARS = "\${}[]();'\"\\/*<>=".toCharArray().toSet()
@@ -86,7 +86,7 @@ object InputSanitizer {
             }
             
             // Remove any remaining special characters that could cause injection
-            sanitized = sanitized.replace("[{}\\[\\]()$]".toRegex(), "")
+            sanitized = sanitized.replace("[{}\\[\\]()\\$]".toRegex(), "")
             
             sanitized
         } catch (e: Exception) {

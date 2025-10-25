@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "${FIREBASE_PROJECT_NUMBER}",
-    "project_id": "${FIREBASE_PROJECT_ID}",
-    "storage_bucket": "${FIREBASE_STORAGE_BUCKET}"
+    "project_number": "{{PROJECT_NUMBER}}",
+    "project_id": "{{PROJECT_ID}}",
+    "storage_bucket": "{{STORAGE_BUCKET}}"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "${FIREBASE_MOBILE_SDK_APP_ID}",
+        "mobilesdk_app_id": "{{MOBILE_SDK_APP_ID}}",
         "android_client_info": {
           "package_name": "com.afilaxy"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "${FIREBASE_API_KEY}"
+          "current_key": "{{API_KEY}}"
         }
       ],
       "services": {
@@ -26,7 +26,7 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "${FIREBASE_MOBILE_SDK_APP_ID_DEBUG}",
+        "mobilesdk_app_id": "{{MOBILE_SDK_APP_ID_DEBUG}}",
         "android_client_info": {
           "package_name": "com.afilaxy.debug"
         }
@@ -34,7 +34,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "${FIREBASE_API_KEY}"
+          "current_key": "{{API_KEY}}"
         }
       ],
       "services": {

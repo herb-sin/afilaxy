@@ -209,11 +209,19 @@ class MainActivity : ComponentActivity() {
         var isLocationUpdatesActive by remember { mutableStateOf(false) }
         var currentCallback by remember { mutableStateOf<LocationCallback?>(null) }
         
-        val locationManager = remember { com.afilaxy.location.LocationManager() }
+        // Lazy initialization for better performance - removed unused locationManager
         
         LaunchedEffect(Unit) {
-            // Simplified location setup
-            isLocationUpdatesActive = true
+            try {
+                // Only initialize if user is authenticated
+                if (AuthGuard.isUserAuthenticated()) {
+                    isLocationUpdatesActive = true
+                } else {
+                    SecureLogger.w("MainActivity", "Location updates require authentication")
+                }
+            } catch (e: Exception) {
+                SecureLogger.e("MainActivity", "Location setup error", e)
+            }
         }
         
         return Pair(currentCallback, isLocationUpdatesActive)
@@ -285,6 +293,11 @@ class MainActivity : ComponentActivity() {
     }
     
     private fun requestBackgroundLocationPermission() {
+        if (!AuthGuard.isUserAuthenticated()) {
+            SecureLogger.security("LOCATION_PERMISSION", "UNAUTHENTICATED_REQUEST")
+            return
+        }
+        
         try {
             ActivityCompat.requestPermissions(
                 this,

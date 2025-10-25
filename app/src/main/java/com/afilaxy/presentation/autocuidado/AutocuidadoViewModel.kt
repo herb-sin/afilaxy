@@ -24,24 +24,15 @@ class AutocuidadoViewModel : ViewModel() {
         if (question.isBlank()) return
         
         viewModelScope.launch {
-            try {
-                _uiState.value = _uiState.value.copy(
-                    resposta = UiState.Loading,
-                    isLoading = true
-                )
-                
-                val response = respiratoryAI.getAsthmaInfo(question)
-                
-                _uiState.value = _uiState.value.copy(
-                    resposta = UiState.Success(response),
-                    isLoading = false
-                )
+            _uiState.value = _uiState.value.copy(resposta = UiState.Loading, isLoading = true)
+            
+            val response = try {
+                UiState.Success(respiratoryAI.getAsthmaInfo(question))
             } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    resposta = UiState.Error("Erro ao consultar IA: ${e.message}"),
-                    isLoading = false
-                )
+                UiState.Error("Erro ao consultar IA: ${e.message}")
             }
+            
+            _uiState.value = _uiState.value.copy(resposta = response, isLoading = false)
         }
     }
 }

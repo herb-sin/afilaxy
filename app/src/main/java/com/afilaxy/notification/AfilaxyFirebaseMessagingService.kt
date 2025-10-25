@@ -54,8 +54,7 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
                 }
             } ?: "unknown_sender"
             
-            SecureLogger.d(TAG, "From: $fromSender, Data size: ${remoteMessage.data.size}")
-            SecureLogger.d(TAG, "Has notification: ${remoteMessage.notification != null}")
+            SecureLogger.d(TAG, "Notification data processed")
             
             // Check if it's an emergency notification
             val notificationType = remoteMessage.data["type"]
@@ -117,8 +116,7 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
             } else "Pessoa"
             
             SecureLogger.d(TAG, "Emergency notification processed successfully")
-            SecureLogger.d(TAG, "Has title: ${title?.isNotBlank() ?: false}, Has body: ${body?.isNotBlank() ?: false}")
-            SecureLogger.d(TAG, "Has emergency ID: ${emergencyId?.isNotBlank() ?: false}, Has requester: ${requesterName?.isNotBlank() ?: false}")
+            SecureLogger.d(TAG, "Emergency notification data validated")
         
             // Create intent to open app on emergency screen
             val intent = Intent(this, MainActivity::class.java).apply {
