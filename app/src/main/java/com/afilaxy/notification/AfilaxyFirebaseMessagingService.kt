@@ -42,34 +42,31 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
         
-        try {
+        SecurityInterceptor.secureOperation("fcm_message_received") {
             SecureLogger.d(TAG, "Notification received")
             
-            // Validate and sanitize notification data
-            val fromSender = remoteMessage.from?.let { 
-                if (SqlInjectionPrevention.isValidSqlInput(it)) {
-                    InputSanitizer.sanitizeText(it)
-                } else {
-                    "unknown_sender"
-                }
+            // Validate sender with centralized validation
+            val fromSender = remoteMessage.from?.let { sender ->
+                val validationResult = CentralizedValidator.validateInput(sender, CentralizedValidator.InputType.GENERAL)
+                if (validationResult.isValid) sender else "unknown_sender"
             } ?: "unknown_sender"
             
-            SecureLogger.d(TAG, "Notification data processed")
-            
-            // Check if it's an emergency notification
-            val notificationType = remoteMessage.data["type"]
-            if (notificationType == "emergency_alert") {
-                SecureLogger.emergency("Processing emergency notification")
-                handleEmergencyNotification(remoteMessage)
-            } else {
-                SecureLogger.d(TAG, "Processing general notification")
-                handleGeneralNotification(remoteMessage)
+            // Validate notification type
+            val notificationType = remoteMessage.data["type"]?.let { type ->
+                val validationResult = CentralizedValidator.validateInput(type, CentralizedValidator.InputType.GENERAL)
+                if (validationResult.isValid) type else null
             }
             
-        } catch (e: Exception) {
-            val error = ErrorHandler.handleException(e, "PROCESS_NOTIFICATION")
-            SecureLogger.e(TAG, "Error processing notification", e)
-        }
+            when (notificationType) {
+                "emergency_alert" -> {
+                    SecurityMonitor.reportSecurityEvent("EMERGENCY_NOTIFICATION", "Processing emergency")
+                    handleEmergencyNotification(remoteMessage)
+                }
+                else -> {
+                    handleGeneralNotification(remoteMessage)
+                }
+            }
+        } ?: SecurityMonitor.reportSecurityEvent("FCM_VIOLATION", "Unauthorized message processing")
     }
     
     override fun onNewToken(token: String) {

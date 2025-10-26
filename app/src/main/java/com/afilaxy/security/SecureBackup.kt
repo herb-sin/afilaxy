@@ -43,12 +43,11 @@ object SecureBackup {
                 cleanupOldBackups(context)
                 
                 true
+            } catch (e: SecurityException) {
+                SecureLogger.security("BACKUP_OPERATION", "SECURITY_VIOLATION")
+                false
             } catch (e: Exception) {
-                SecurityUtils.safeLog(
-                    "SecureBackup",
-                    "Backup failed: ${e.message}",
-                    SecurityUtils.LogLevel.ERROR
-                )
+                SecureLogger.e("SecureBackup", "Backup failed", e)
                 false
             }
         }
@@ -81,12 +80,11 @@ object SecureBackup {
                 )
                 
                 decryptedData
+            } catch (e: SecurityException) {
+                SecureLogger.security("RESTORE_OPERATION", "SECURITY_VIOLATION")
+                null
             } catch (e: Exception) {
-                SecurityUtils.safeLog(
-                    "SecureBackup",
-                    "Restore failed: ${e.message}",
-                    SecurityUtils.LogLevel.ERROR
-                )
+                SecureLogger.e("SecureBackup", "Restore failed", e)
                 null
             }
         }
@@ -108,8 +106,10 @@ object SecureBackup {
             
             // Combine IV + encrypted data
             iv + encryptedData
+        } catch (e: SecurityException) {
+            throw e
         } catch (e: Exception) {
-            SecurityUtils.safeLog("SecureBackup", "Encryption failed", SecurityUtils.LogLevel.ERROR)
+            SecureLogger.e("SecureBackup", "Encryption failed", e)
             throw SecurityException("Data encryption failed")
         }
     }
@@ -143,6 +143,7 @@ object SecureBackup {
                 if (parts.size == 2) parts[0] to parts[1] else "" to ""
             }.filterKeys { it.isNotEmpty() }
         } catch (e: SecurityException) {
+            SecurityUtils.safeLog("SecureBackup", "Security violation in decryption", SecurityUtils.LogLevel.SECURITY)
             throw e
         } catch (e: Exception) {
             SecurityUtils.safeLog("SecureBackup", "Decryption failed", SecurityUtils.LogLevel.ERROR)
@@ -156,7 +157,7 @@ object SecureBackup {
             val keyBytes = "AfilaxySecureBackupKey2024!@#$".toByteArray().sliceArray(0..31)
             SecretKeySpec(keyBytes, ALGORITHM)
         } catch (e: Exception) {
-            SecurityUtils.safeLog("SecureBackup", "Key generation failed: ${e.message}", SecurityUtils.LogLevel.ERROR)
+            SecureLogger.e("SecureBackup", "Key generation failed", e)
             throw SecurityException("Failed to generate encryption key")
         }
     }
@@ -199,51 +200,193 @@ object SecureBackup {
         }
     }
     
-    /**
-     * Generate cryptographically secure IV with entropy validation
-     */
     private fun generateSecureIV(): ByteArray {
-        val maxAttempts = 10
-        var attempts = 0
-        
-        while (attempts < maxAttempts) {
-            val iv = ByteArray(16)
-            SecureRandom.getInstanceStrong().nextBytes(iv)
+        try {
+            val secureRandom = SecureRandom.getInstanceStrong()
             
-            if (isValidIV(iv)) {
-                return iv
+            // Multiple attempts with enhanced entropy validation
+            repeat(20) { attempt ->
+                val iv = ByteArray(16)
+                secureRandom.nextBytes(iv)
+                
+                // Add multiple entropy sources
+                val nanoTime = System.nanoTime()
+                val currentTime = System.currentTimeMillis()
+                val memoryHash = System.identityHashCode(this)
+                val threadId = Thread.currentThread().id
+                
+                val combinedEntropy = (nanoTime xor currentTime xor memoryHash.toLong() xor threadId).toInt()
+                
+                // Mix entropy into IV with secure distribution
+                for (i in iv.indices step 4) {
+                    if (i + 3 < iv.size) {
+                        val entropyBytes = (combinedEntropy xor (attempt * 31)).toByteArray()
+                        for (j in 0..3) {
+                            if (i + j < iv.size && j < entropyBytes.size) {
+                                iv[i + j] = (iv[i + j].toInt() xor entropyBytes[j].toInt()).toByte()
+                            }
+                        }
+                    }
+                }
+                
+                // Enhanced validation with ultra-strict entropy requirements
+                if (isValidIV(iv) && hasHighEntropy(iv) && passesEntropyTests(iv) && passesAdvancedRandomnessTests(iv)) {
+                    return iv
+                }
             }
-            attempts++
+            
+            throw SecurityException("Failed to generate cryptographically secure IV after 20 attempts")
+        } catch (e: SecurityException) {
+            throw e
+        } catch (e: Exception) {
+            SecureLogger.e("SecureBackup", "IV generation failed", e)
+            throw SecurityException("IV generation error: ${e.message}")
         }
-        
-        throw SecurityException("Failed to generate secure IV after $maxAttempts attempts")
     }
     
-    /**
-     * Validate IV has sufficient entropy and is not predictable
-     */
     private fun isValidIV(iv: ByteArray): Boolean {
         if (iv.size != 16) return false
         
-        // Check for common predictable patterns
         val predictablePatterns = listOf(
-            ByteArray(16) { 0 }, // All zeros
-            ByteArray(16) { 1 }, // All ones
-            ByteArray(16) { 0xFF.toByte() }, // All 0xFF
-            ByteArray(16) { it.toByte() }, // Sequential
-            ByteArray(16) { (it % 2).toByte() } // Alternating 0,1
+            ByteArray(16) { 0 },
+            ByteArray(16) { 1 },
+            ByteArray(16) { 0xFF.toByte() },
+            ByteArray(16) { it.toByte() },
+            ByteArray(16) { (it % 2).toByte() }
         )
         
         if (predictablePatterns.any { iv.contentEquals(it) }) {
             return false
         }
         
-        // Basic entropy check - ensure not all bytes are the same
         val uniqueBytes = iv.toSet().size
-        if (uniqueBytes < 4) { // At least 4 different byte values
-            return false
+        if (uniqueBytes < 8) return false
+        
+        for (i in 0 until iv.size - 4) {
+            var consecutiveCount = 1
+            for (j in i + 1 until minOf(i + 5, iv.size)) {
+                if (iv[i] == iv[j]) {
+                    consecutiveCount++
+                    if (consecutiveCount > 4) return false
+                }
+            }
         }
         
         return true
+    }
+    
+    private fun hasHighEntropy(iv: ByteArray): Boolean {
+        try {
+            val expected = iv.size / 256.0
+            val counts = IntArray(256)
+            
+            iv.forEach { byte ->
+                counts[byte.toUByte().toInt()]++
+            }
+            
+            var chiSquare = 0.0
+            counts.forEach { count ->
+                val diff = count - expected
+                chiSquare += (diff * diff) / expected
+            }
+            
+            // Stricter chi-square test for better entropy validation
+            return chiSquare < 200.0 && chiSquare > 50.0
+        } catch (e: Exception) {
+            SecureLogger.e("SecureBackup", "Entropy validation failed", e)
+            return false
+        }
+    }
+    
+    private fun passesEntropyTests(iv: ByteArray): Boolean {
+        try {
+            // Test 1: Hamming weight (number of 1 bits should be roughly half)
+            val totalBits = iv.size * 8
+            val oneBits = iv.sumOf { byte -> byte.toUByte().countOneBits() }
+            val hammingRatio = oneBits.toDouble() / totalBits
+            if (hammingRatio < 0.4 || hammingRatio > 0.6) return false
+            
+            // Test 2: Run test (no long sequences of same bit)
+            val bitString = iv.joinToString("") { byte ->
+                byte.toUByte().toString(2).padStart(8, '0')
+            }
+            var maxRun = 1
+            var currentRun = 1
+            for (i in 1 until bitString.length) {
+                if (bitString[i] == bitString[i-1]) {
+                    currentRun++
+                    maxRun = maxOf(maxRun, currentRun)
+                } else {
+                    currentRun = 1
+                }
+            }
+            if (maxRun > 8) return false
+            
+            // Test 3: Autocorrelation test
+            var autocorr = 0
+            for (i in 0 until iv.size - 1) {
+                autocorr += (iv[i].toInt() xor iv[i + 1].toInt()).countOneBits()
+            }
+            val autocorrRatio = autocorr.toDouble() / ((iv.size - 1) * 8)
+            if (autocorrRatio < 0.4 || autocorrRatio > 0.6) return false
+            
+            return true
+        } catch (e: Exception) {
+            SecureLogger.e("SecureBackup", "Entropy test failed", e)
+            return false
+        }
+    }
+    
+    private fun passesAdvancedRandomnessTests(iv: ByteArray): Boolean {
+        try {
+            // Test 1: Monobit frequency test
+            val oneBits = iv.sumOf { it.toUByte().countOneBits() }
+            val totalBits = iv.size * 8
+            val frequency = kotlin.math.abs(oneBits - totalBits / 2.0)
+            if (frequency > totalBits * 0.1) return false
+            
+            // Test 2: Block frequency test
+            val blockSize = 8
+            val blocks = iv.size / blockSize
+            var blockFreqSum = 0.0
+            for (i in 0 until blocks) {
+                val blockStart = i * blockSize
+                val blockEnd = minOf(blockStart + blockSize, iv.size)
+                val blockOneBits = iv.sliceArray(blockStart until blockEnd)
+                    .sumOf { it.toUByte().countOneBits() }
+                val blockFreq = blockOneBits.toDouble() / (blockSize * 8)
+                blockFreqSum += (blockFreq - 0.5) * (blockFreq - 0.5)
+            }
+            if (blockFreqSum > 0.1) return false
+            
+            // Test 3: Poker test (check for uniform distribution of 4-bit patterns)
+            val patterns = IntArray(16)
+            for (byte in iv) {
+                val high = (byte.toUByte().toInt() shr 4) and 0x0F
+                val low = byte.toUByte().toInt() and 0x0F
+                patterns[high]++
+                patterns[low]++
+            }
+            val expected = iv.size * 2.0 / 16
+            val chiSquare = patterns.sumOf { count ->
+                val diff = count - expected
+                (diff * diff) / expected
+            }
+            if (chiSquare > 25.0 || chiSquare < 5.0) return false
+            
+            return true
+        } catch (e: Exception) {
+            SecureLogger.e("SecureBackup", "Advanced randomness test failed", e)
+            return false
+        }
+    }
+    
+    private fun Int.toByteArray(): ByteArray {
+        return byteArrayOf(
+            (this shr 24).toByte(),
+            (this shr 16).toByte(), 
+            (this shr 8).toByte(),
+            this.toByte()
+        )
     }
 }

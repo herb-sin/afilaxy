@@ -69,36 +69,16 @@ class LocalRespiratoryAI {
      * @return Evidence-based response or error message
      */
     fun getAsthmaInfo(question: String): String {
-        return try {
-            // Comprehensive input validation
-            if (question.isBlank() || question.length > 500) {
-                SecureLogger.w("LocalRespiratoryAI", "Invalid question length")
-                return "Por favor, faça uma pergunta válida sobre asma."
+        return SecurityInterceptor.secureOperation("ai_query") {
+            val validationResult = CentralizedValidator.validateInput(question, CentralizedValidator.InputType.GENERAL)
+            if (!validationResult.isValid) {
+                SecurityMonitor.reportSecurityEvent("AI_INJECTION_ATTEMPT", "Invalid question: ${validationResult.error}")
+                return@secureOperation "Por favor, faça uma pergunta válida sobre asma."
             }
             
-            // CRITICAL: Check for injection attempts first
-            if (containsInjectionPatterns(question)) {
-                SecureLogger.security("AI_QUERY", "INJECTION_BLOCKED")
-                return "Pergunta inválida. Use apenas texto simples."
-            }
-            
-            // CRITICAL: Sanitize input to prevent NoSQL injection
-            val sanitizedQuestion = InputSanitizer.preventNoSQLInjection(question)
-            if (sanitizedQuestion.isBlank()) {
-                SecureLogger.w("LocalRespiratoryAI", "Question sanitization resulted in empty string")
-                return "Por favor, faça uma pergunta válida sobre asma."
-            }
-            
-            val input = sanitizedQuestion.lowercase().trim()
-            SecureLogger.d("LocalRespiratoryAI", "Processing valid question")
-            
+            val input = question.lowercase().trim()
             processAsthmaQuestion(input)
-            
-        } catch (e: Exception) {
-            val error = ErrorHandler.handleException(e, "AI_QUERY")
-            SecureLogger.e("LocalRespiratoryAI", "Error processing question", e)
-            "Desculpe, ocorreu um erro ao processar sua pergunta. Tente novamente."
-        }
+        } ?: "Desculpe, ocorreu um erro ao processar sua pergunta. Tente novamente."
     }
     
     private fun processAsthmaQuestion(input: String): String {
@@ -984,28 +964,21 @@ class LocalRespiratoryAI {
     /**
      * Enhanced injection pattern detection for NoSQL and other attacks
      */
-    fun containsInjectionPatterns(input: String): Boolean {
+    private fun containsInjectionPatterns(input: String): Boolean {
         val dangerousPatterns = listOf(
-            // NoSQL injection patterns
             "\$where", "\$ne", "\$gt", "\$lt", "\$gte", "\$lte", "\$in", "\$nin",
             "\$regex", "\$or", "\$and", "\$not", "\$exists", "\$elemMatch", "\$size",
             "\$all", "\$mod", "\$type", "\$slice", "\$push", "\$pull", "\$set", "\$unset",
-            // JavaScript injection
             "javascript:", "eval(", "function(", "setTimeout", "setInterval", "constructor",
             "prototype", "__proto__", "toString", "valueOf",
-            // General injection patterns
-            "{", "}", "[", "]", "<script", "</script>", "<iframe", "</iframe>",
-            // Control characters and escape sequences
-            "\u0000", "\\x", "\\u", "\\n", "\\r", "\\t"
+            "{", "}", "[", "]", "<script", "</script>", "<iframe", "</iframe>"
         )
         
         return try {
-            // Check for dangerous patterns
             val hasPattern = dangerousPatterns.any { pattern -> 
                 input.contains(pattern, ignoreCase = true) 
             }
             
-            // Additional check for suspicious character sequences
             val hasSuspiciousChars = input.any { char ->
                 char.isISOControl() || char.code > 127
             }
@@ -1013,7 +986,7 @@ class LocalRespiratoryAI {
             hasPattern || hasSuspiciousChars
         } catch (e: Exception) {
             SecureLogger.e("LocalRespiratoryAI", "Injection detection error", e)
-            true // Fail safe - assume injection if error occurs
+            true
         }
     }
 }

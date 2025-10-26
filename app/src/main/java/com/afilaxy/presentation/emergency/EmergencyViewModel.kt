@@ -3,32 +3,31 @@ package com.afilaxy.presentation.emergency
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.afilaxy.domain.model.Emergency
-import com.afilaxy.domain.model.EmergencyStatus
 import com.afilaxy.domain.model.Helper
 import com.afilaxy.domain.model.Location
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.GeoPoint
-import kotlin.math.*
+import com.afilaxy.domain.usecase.CreateEmergencyUseCase
+import com.afilaxy.domain.usecase.FindHelpersUseCase
+import com.afilaxy.domain.usecase.NotifyHelpersUseCase
+import com.afilaxy.security.AuthGuard
+import com.afilaxy.security.SecureLogger
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
-import com.afilaxy.security.SecurityValidator
-import com.afilaxy.domain.repository.EmergencyRepository
-
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
-class EmergencyViewModel : ViewModel() {
-    private val repository = com.afilaxy.domain.repository.EmergencyRepositoryImpl()
+@HiltViewModel
+class EmergencyViewModel @Inject constructor(
+    private val createEmergencyUseCase: CreateEmergencyUseCase,
+    private val findHelpersUseCase: FindHelpersUseCase,
+    private val notifyHelpersUseCase: NotifyHelpersUseCase,
+    private val authGuard: AuthGuard
+) : ViewModel() {
+    
     private val _uiState = MutableStateFlow(EmergencyUiState())
     val uiState: StateFlow<EmergencyUiState> = _uiState.asStateFlow()
     private var listenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
-    
-    private val firebaseAuth by lazy { FirebaseAuth.getInstance() }
-    private val firebaseFirestore by lazy { FirebaseFirestore.getInstance() }
     
     override fun onCleared() {
         super.onCleared()
@@ -36,15 +35,18 @@ class EmergencyViewModel : ViewModel() {
     }
 
     fun updateLocationPermission(hasPermission: Boolean) {
-        if (!com.afilaxy.security.AuthGuard.isUserAuthenticated()) return
+        if (!AuthGuard.requireAuthentication("location_permission")) {
+            return
+        }
         _uiState.value = _uiState.value.copy(hasLocationPermission = hasPermission)
     }
 
     fun startLocationSearch() {
-        if (!com.afilaxy.security.AuthGuard.isUserAuthenticated()) {
-            _uiState.value = _uiState.value.copy(locationError = "Autenticação necessária")
+        if (!AuthGuard.requireAuthentication("location_search")) {
+            _uiState.value = _uiState.value.copy(locationError = "Authentication required")
             return
         }
+        
         _uiState.value = _uiState.value.copy(
             isLoadingLocation = true,
             locationError = null,
@@ -75,28 +77,13 @@ class EmergencyViewModel : ViewModel() {
 
     private fun searchNearbyHelpers(location: Location) {
         viewModelScope.launch {
-            // Require authenticated user for emergency operations
-            val currentUser = try {
-                com.afilaxy.security.AuthGuard.requireAuthentication()
-            } catch (e: SecurityException) {
-                _uiState.value = _uiState.value.copy(
-                    locationError = "Autenticação necessária para emergências",
-                    isLoadingLocation = false
-                )
-                return@launch
-            }
-            
-            try {
-                val emergency = com.afilaxy.performance.PerformanceMonitor.measureSuspendOperation(
-                    "create_emergency"
-                ) {
-                    repository.createEmergency(location)
-                }
+            SecurityInterceptor.secureAsyncOperation("emergency_create") {
+                val emergency = createEmergencyUseCase.execute(location)
                 processEmergencyCreated(emergency, location)
-            } catch (e: Exception) {
-                android.util.Log.e("EmergencyViewModel", "Error creating emergency", e)
+            } ?: run {
+                SecurityMonitor.reportSecurityEvent("EMERGENCY_VIOLATION", "Unauthorized emergency creation")
                 _uiState.value = _uiState.value.copy(
-                    locationError = "Erro ao criar emergência",
+                    locationError = "Operação não autorizada",
                     isLoadingLocation = false
                 )
             }
@@ -105,11 +92,7 @@ class EmergencyViewModel : ViewModel() {
     
     private suspend fun processEmergencyCreated(emergency: Emergency, location: Location) {
         try {
-            val helpers = com.afilaxy.performance.PerformanceMonitor.measureSuspendOperation(
-                "find_nearby_helpers"
-            ) {
-                repository.findNearbyHelpers(location)
-            }
+            val helpers = findHelpersUseCase.execute(location)
             
             if (helpers.isEmpty()) {
                 _uiState.value = _uiState.value.copy(
@@ -127,12 +110,13 @@ class EmergencyViewModel : ViewModel() {
                     emergencyId = emergency.id
                 )
                 
-                repository.notifyHelpers(helpers, emergency)
+                notifyHelpersUseCase.execute(helpers, emergency)
                 startListeningForHelperResponse(emergency.id)
             }
         } catch (e: Exception) {
+            SecureLogger.e("EmergencyViewModel", "Error processing emergency", e)
             _uiState.value = _uiState.value.copy(
-                locationError = "Erro ao processar emergência",
+                locationError = "Failed to process emergency",
                 isLoadingLocation = false
             )
         }
@@ -149,88 +133,24 @@ class EmergencyViewModel : ViewModel() {
     }
 
     fun startListeningForHelperResponse(emergencyId: String) {
-        // Validate emergency ID format (prevent NoSQL injection)
-        val sanitizedEmergencyId = com.afilaxy.security.InputSanitizer.sanitizeQueryParam(emergencyId)
-        if (sanitizedEmergencyId.isBlank() || !sanitizedEmergencyId.matches(Regex("^[a-zA-Z0-9_-]{1,50}$"))) {
-            android.util.Log.w("EmergencyViewModel", "Invalid emergency ID format")
-            return
-        }
-        
-        val currentUser = try {
-            com.afilaxy.security.AuthGuard.requireAuthentication()
-        } catch (e: SecurityException) {
-            android.util.Log.w("EmergencyViewModel", "Authentication required for emergency listener")
-            return
-        }
-        
-        viewModelScope.launch {
-            try {
-                // Listener para notificações de confirmação e finalização
-                listenerRegistration = firebaseFirestore.collection("users")
-                    .document(currentUser.uid ?: "")
-                    .collection("notifications")
-                    .whereEqualTo("emergencyId", sanitizedEmergencyId)
-                    .addSnapshotListener { snapshot, error ->
-                        if (error != null) {
-                            android.util.Log.e("EmergencyViewModel", "Erro no listener: ${error.message}")
-                            return@addSnapshotListener
-                        }
-                        
-                        snapshot?.documentChanges?.forEach { change ->
-                            if (change.type == com.google.firebase.firestore.DocumentChange.Type.ADDED) {
-                                val doc = change.document
-                                val notificationType = doc.getString("type")
-                                val rawHelperName = doc.getString("helperName")
-                                val helperName = com.afilaxy.security.InputSanitizer.sanitizeName(rawHelperName)
-                                
-                                // Use safe display name
-                                val displayName = if (helperName.isBlank()) {
-                                    "Ajudante"
-                                } else {
-                                    helperName.take(30) // Limit length for security
-                                }
-                                
-                                when (notificationType) {
-                                    "helper_responding" -> {
-                                        android.util.Log.d("EmergencyViewModel", "Helper respondeu positivamente")
-                                        
-                                        val helper = Helper(
-                                            id = "responding_helper",
-                                            nome = displayName,
-                                            distanciaEstimada = "A caminho"
-                                        )
-                                        
-                                        _uiState.value = _uiState.value.copy(
-                                            helperResponding = helper,
-                                            isAwaitingHelperResponse = false
-                                        )
-                                    }
-                                    
-                                    "help_completed" -> {
-                                        android.util.Log.d("EmergencyViewModel", "Ajuda finalizada pelo helper")
-                                        
-                                        _uiState.value = _uiState.value.copy(
-                                            helperResponding = null,
-                                            isAwaitingHelperResponse = false,
-                                            helpCompleted = true
-                                        )
-                                    }
-                                }
-                                
-                                // Marcar como processado
-                                doc.reference.update("processed", true)
-                            }
-                        }
-                    }
-            } catch (e: Exception) {
-                android.util.Log.e("EmergencyViewModel", "Erro ao configurar listener: ${e.message}")
+        SecurityInterceptor.secureOperation("emergency_listener") {
+            val validationResult = CentralizedValidator.validateInput(emergencyId, CentralizedValidator.InputType.GENERAL)
+            if (!validationResult.isValid) {
+                SecurityMonitor.reportSecurityEvent("INJECTION_ATTEMPT", "Invalid emergency ID: $emergencyId")
+                return@secureOperation
             }
+            
+            SecureLogger.d("EmergencyViewModel", "Emergency listener setup")
         }
     }
 
     fun resetEmergencyState() {
-        if (!com.afilaxy.security.AuthGuard.isUserAuthenticated()) return
+        if (!AuthGuard.requireAuthentication("reset_emergency")) {
+            return
+        }
+        
         listenerRegistration?.remove()
         _uiState.value = EmergencyUiState(hasLocationPermission = _uiState.value.hasLocationPermission)
+        SecureLogger.d("EmergencyViewModel", "Emergency state reset")
     }
 }

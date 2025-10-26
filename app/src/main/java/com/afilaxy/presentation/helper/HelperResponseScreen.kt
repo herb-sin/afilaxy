@@ -30,13 +30,29 @@ fun HelperResponseScreen(
     val context = LocalContext.current
     
     LaunchedEffect(emergencyId) {
-        emergencyId?.let { viewModel.loadEmergency(it) }
+        try {
+            emergencyId?.let { 
+                if (com.afilaxy.security.CentralizedValidator.validateInput(it, com.afilaxy.security.CentralizedValidator.InputType.GENERAL).isValid) {
+                    viewModel.loadEmergency(it)
+                } else {
+                    com.afilaxy.security.SecurityMonitor.reportSecurityEvent("INVALID_EMERGENCY_ID", "Invalid emergency ID format")
+                }
+            }
+        } catch (e: Exception) {
+            com.afilaxy.security.SecureLogger.e("HelperResponseScreen", "Error loading emergency", e)
+        }
     }
     
     // Função para abrir navegação usando remember
     val openNavigation = remember {
         { lat: Double, lon: Double ->
             try {
+                // Validate coordinates before creating URI to prevent XXE
+                if (!com.afilaxy.security.SecurityValidator.validateCoordinates(lat, lon)) {
+                    com.afilaxy.security.SecurityMonitor.reportSecurityEvent("NAVIGATION_XXE", "Invalid coordinates")
+                    return@remember
+                }
+                
                 val gmmIntentUri = Uri.parse("google.navigation:q=$lat,$lon")
                 val mapIntent = Intent(Intent.ACTION_VIEW, gmmIntentUri)
                 mapIntent.setPackage("com.google.android.apps.maps")
@@ -47,7 +63,7 @@ fun HelperResponseScreen(
                     val browserIntent = Intent(Intent.ACTION_VIEW, browserUri)
                     context.startActivity(browserIntent)
                 } catch (e2: Exception) {
-                    android.util.Log.e("Navigation", "Erro ao abrir navegação: ${e2.message}")
+                    com.afilaxy.security.SecureLogger.e("Navigation", "Navigation error", e2)
                 }
             }
         }

@@ -1,19 +1,19 @@
 package com.afilaxy.domain.usecase
 
-import com.afilaxy.domain.model.Helper
+import com.afilaxy.domain.model.Emergency
 import com.afilaxy.domain.model.Location
 import com.afilaxy.domain.repository.EmergencyRepository
 import com.afilaxy.security.AuthGuard
 import com.afilaxy.security.SecurityValidator
 import javax.inject.Inject
 
-class FindHelpersUseCase @Inject constructor(
+class CreateEmergencyUseCase @Inject constructor(
     private val repository: EmergencyRepository,
     private val authGuard: AuthGuard,
     private val securityValidator: SecurityValidator
 ) {
     
-    suspend fun execute(location: Location): List<Helper> {
+    suspend fun execute(location: Location): Emergency {
         // Authentication check
         authGuard.requireAuthentication()
         
@@ -22,6 +22,6 @@ class FindHelpersUseCase @Inject constructor(
             throw IllegalArgumentException("Invalid coordinates")
         }
         
-        return repository.findNearbyHelpers(location)
+        return repository.createEmergency(location)
     }
 }

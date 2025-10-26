@@ -2,108 +2,104 @@ package com.afilaxy.security
 
 import android.util.Log
 
-/**
- * Secure logging utility that prevents log injection attacks
- * and provides standardized logging across the Afilaxy application
- */
 object SecureLogger {
     
-    private const val MAX_LOG_LENGTH = 200
-    private const val APP_PREFIX = "Afilaxy"
+    private const val MAX_LOG_LENGTH = 4000
     
-    /**
-     * Log debug message with injection prevention
-     */
     fun d(tag: String, message: String) {
-        Log.d(sanitizeTag(tag), sanitizeMessage(message))
+        val sanitizedTag = sanitize(tag)
+        val sanitizedMessage = sanitize(message)
+        Log.d(sanitizedTag, sanitizedMessage)
     }
     
-    /**
-     * Log info message with injection prevention
-     */
     fun i(tag: String, message: String) {
-        Log.i(sanitizeTag(tag), sanitizeMessage(message))
+        val sanitizedTag = sanitize(tag)
+        val sanitizedMessage = sanitize(message)
+        Log.i(sanitizedTag, sanitizedMessage)
     }
     
-    /**
-     * Log warning message with injection prevention
-     */
     fun w(tag: String, message: String) {
-        Log.w(sanitizeTag(tag), sanitizeMessage(message))
+        val sanitizedTag = sanitize(tag)
+        val sanitizedMessage = sanitize(message)
+        Log.w(sanitizedTag, sanitizedMessage)
     }
     
-    /**
-     * Log error message with injection prevention
-     */
     fun e(tag: String, message: String, throwable: Throwable? = null) {
+        val sanitizedTag = sanitize(tag)
+        val sanitizedMessage = sanitize(message)
         if (throwable != null) {
-            Log.e(sanitizeTag(tag), sanitizeMessage(message), throwable)
+            Log.e(sanitizedTag, sanitizedMessage, throwable)
         } else {
-            Log.e(sanitizeTag(tag), sanitizeMessage(message))
+            Log.e(sanitizedTag, sanitizedMessage)
         }
     }
     
-    /**
-     * Log security event with enhanced protection
-     */
-    fun security(operation: String, result: String, userId: String? = null) {
-        val safeUserId = userId?.let { "user_${sanitizeMessage(it).take(8)}" } ?: "anonymous"
-        val message = "Security: ${sanitizeMessage(operation)} - ${sanitizeMessage(result)} - $safeUserId"
-        Log.w("${APP_PREFIX}Security", sanitizeMessage(message))
+    fun security(tag: String, message: String) {
+        try {
+            if (!AuthGuard.isUserAuthenticated()) {
+                return // Don't log security events for unauthenticated users
+            }
+            val sanitizedTag = sanitizeSecurityTag(tag)
+            val sanitizedMessage = sanitizeSecurityMessage(message)
+            Log.e("SECURITY_$sanitizedTag", sanitizedMessage)
+        } catch (e: Exception) {
+            // Fail silently to prevent log injection through exception messages
+        }
     }
     
-    /**
-     * Log performance metrics safely
-     */
     fun performance(operation: String, duration: Long, success: Boolean) {
-        val status = if (success) "SUCCESS" else "FAILED"
-        val safeDuration = if (duration in 0..300000) duration else 0 // Max 5 minutes
-        val message = "Performance: ${sanitizeMessage(operation)} - ${safeDuration}ms - $status"
-        Log.i("${APP_PREFIX}Performance", sanitizeMessage(message))
+        val sanitizedOperation = sanitize(operation)
+        Log.i("PERFORMANCE", "$sanitizedOperation: ${duration}ms success: $success")
     }
     
-    /**
-     * Sanitize log tag to prevent injection
-     */
-    private fun sanitizeTag(tag: String): String {
-        return "$APP_PREFIX${tag.replace(Regex("[^a-zA-Z0-9_]"), "").take(20)}"
+    private fun sanitize(input: String): String {
+        return try {
+            input
+                .replace("\n", "_")
+                .replace("\r", "_")
+                .replace("\t", "_")
+                .replace("\u0000", "_")
+                .replace(Regex("[\\p{Cntrl}]"), "_")
+                .replace("%n", "_")
+                .replace("%s", "_")
+                .replace("%d", "_")
+                .replace("%x", "_")
+                .replace("%c", "_")
+                .replace("\\x", "_")
+                .replace("\\u", "_")
+                .replace("\\n", "_")
+                .replace("\\r", "_")
+                .replace("\\t", "_")
+                .take(MAX_LOG_LENGTH)
+                .filter { it.isLetterOrDigit() || it in "_-. :()[]{}/" }
+                .ifBlank { "SANITIZED" }
+        } catch (e: Exception) {
+            "SANITIZED"
+        }
     }
     
-    /**
-     * Sanitize log message to prevent injection attacks
-     */
-    private fun sanitizeMessage(message: String): String {
-        return message
-            .replace("\n", " ") // Remove newlines
-            .replace("\r", " ") // Remove carriage returns
-            .replace("\t", " ") // Replace tabs with spaces
-            .replace("\u0000", "") // Remove null bytes
-            .replace(Regex("[\\p{Cntrl}]"), "") // Remove control characters
-            .replace(Regex("[\\x00-\\x1F\\x7F]"), "") // Remove ASCII control chars
-            .replace("\\x1B\\[[0-9;]*m".toRegex(), "") // Remove ANSI escape sequences
-            .replace("\\u001B\\[[;\\d]*m".toRegex(), "") // Remove Unicode escape sequences
-            .replace("%n", " ") // Prevent format string attacks
-            .replace("%s", " ") // Prevent format string attacks
-            .replace("%d", " ") // Prevent format string attacks
-            .take(MAX_LOG_LENGTH) // Limit length
+    private fun sanitizeSecurityTag(tag: String): String {
+        return try {
+            tag.filter { it.isLetterOrDigit() || it == '_' }
+                .take(50)
+                .ifBlank { "SECURITY" }
+        } catch (e: Exception) {
+            "SECURITY"
+        }
     }
     
-    /**
-     * Log user action with privacy protection
-     */
-    fun userAction(action: String, userId: String, success: Boolean) {
-        val safeUserId = "user_${sanitizeMessage(userId).take(8)}"
-        val status = if (success) "SUCCESS" else "FAILED"
-        val message = "UserAction: ${sanitizeMessage(action)} - $safeUserId - $status"
-        Log.i("${APP_PREFIX}UserAction", sanitizeMessage(message))
-    }
-    
-    /**
-     * Log emergency events with high priority
-     */
-    fun emergency(event: String, location: String? = null) {
-        val safeLocation = location?.let { "location_provided" } ?: "no_location"
-        val message = "Emergency: ${sanitizeMessage(event)} - $safeLocation"
-        Log.w("${APP_PREFIX}Emergency", sanitizeMessage(message))
+    private fun sanitizeSecurityMessage(message: String): String {
+        return try {
+            message
+                .replace(Regex("[\\r\\n\\t\\x00-\\x1F\\x7F-\\x9F]"), "_")
+                .replace(Regex("%[nsdxc]"), "_")
+                .replace(Regex("\\\\[nrtx]"), "_")
+                .replace(Regex("\\\\u[0-9a-fA-F]{4}"), "_")
+                .filter { it.code in 32..126 || it == '_' }
+                .take(500)
+                .ifBlank { "SECURITY_EVENT" }
+        } catch (e: Exception) {
+            "SECURITY_EVENT"
+        }
     }
 }
