@@ -15,7 +15,7 @@ import com.afilaxy.MainActivity
 import com.afilaxy.R
 import com.afilaxy.security.AuthGuard
 import com.afilaxy.security.InputSanitizer
-import com.afilaxy.security.SecureXmlUtils
+import com.afilaxy.security.XXEPrevention
 import com.afilaxy.security.SecureLogger
 import com.afilaxy.utils.ErrorHandler
 import com.google.firebase.messaging.FirebaseMessagingService
@@ -44,13 +44,16 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
     
     private fun handleEmergencyMessage(remoteMessage: RemoteMessage) {
-        if (!AuthGuard.isUserAuthenticated()) {
-            SecureLogger.security("EMERGENCY_MESSAGE", "DENIED_UNAUTHENTICATED")
+        if (!AuthGuard.requireAuthentication("emergency_message")) {
             return
         }
         
-        // Sanitize input to prevent XXE and injection attacks
         val rawName = remoteMessage.data["requesterName"] ?: ""
+        if (!XXEPrevention.validateXMLContent(rawName)) {
+            SecureLogger.security("EMERGENCY_MESSAGE", "XXE_BLOCKED")
+            return
+        }
+        
         val requesterName = InputSanitizer.sanitizeName(rawName).takeIf { it.isNotBlank() } ?: "Alguém"
         
         sendEmergencyNotification(
@@ -60,15 +63,21 @@ class MyFirebaseMessagingService : FirebaseMessagingService() {
     }
     
     private fun handleRegularMessage(remoteMessage: RemoteMessage) {
-        if (!AuthGuard.isUserAuthenticated()) {
-            SecureLogger.security("REGULAR_MESSAGE", "DENIED_UNAUTHENTICATED")
+        if (!AuthGuard.requireAuthentication("regular_message")) {
             return
         }
         
         remoteMessage.notification?.let { notification ->
-            // Sanitize notification content to prevent XXE attacks
-            val title = InputSanitizer.sanitizeText(notification.title ?: "").takeIf { it.isNotBlank() } ?: "Afilaxy"
-            val body = InputSanitizer.sanitizeText(notification.body ?: "")
+            val rawTitle = notification.title ?: ""
+            val rawBody = notification.body ?: ""
+            
+            if (!XXEPrevention.validateXMLContent(rawTitle) || !XXEPrevention.validateXMLContent(rawBody)) {
+                SecureLogger.security("REGULAR_MESSAGE", "XXE_BLOCKED")
+                return
+            }
+            
+            val title = InputSanitizer.sanitizeText(rawTitle).takeIf { it.isNotBlank() } ?: "Afilaxy"
+            val body = InputSanitizer.sanitizeText(rawBody)
             sendNotification(title, body)
         }
     }

@@ -24,9 +24,14 @@ object SecurityValidator {
     
     fun validateInput(input: String): Boolean {
         return try {
+            // Authentication check for input validation
+            if (!com.afilaxy.security.AuthGuard.isUserAuthenticated()) {
+                SecureLogger.security("INPUT_VALIDATION", "UNAUTHENTICATED_ACCESS")
+                return false
+            }
             !containsSqlInjection(input) && !containsPathTraversal(input)
         } catch (e: Exception) {
-            Log.e(TAG, "Input validation error", e)
+            SecureLogger.e(TAG, "Input validation error", e)
             false
         }
     }
@@ -68,80 +73,89 @@ object SecurityValidator {
         }
     }
     
-    // Safe file extensions - medical app specific (whitelist approach)
     private val SAFE_EXTENSIONS = setOf(".jpg", ".jpeg", ".png", ".pdf", ".txt")
     
-    // Comprehensive dangerous extensions blocklist - CRITICAL SECURITY
     private val DANGEROUS_EXTENSIONS = setOf(
-        // Executables
-        ".exe", ".bat", ".cmd", ".com", ".pif", ".scr", ".msi", ".app", ".run",
-        // Scripts
+        ".exe", ".bat", ".cmd", ".com", ".pif", ".scr", ".msi", ".app", ".run", ".bin",
         ".vbs", ".js", ".ps1", ".py", ".rb", ".pl", ".lua", ".sh", ".php", ".asp", ".jsp",
-        // Archives (potential malware containers)
-        ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz", ".iso", ".img",
-        // Libraries/Binaries
-        ".dll", ".so", ".dylib", ".jar", ".class", ".war", ".ear",
-        // System files
+        ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2", ".xz", ".iso", ".img", ".cab",
+        ".dll", ".so", ".dylib", ".jar", ".class", ".war", ".ear", ".dex",
         ".reg", ".inf", ".cpl", ".msc", ".lnk", ".url", ".gadget", ".application",
-        // Web/Markup (XSS risk)
-        ".html", ".htm", ".svg", ".xml", ".xhtml", ".xht",
-        // Package files
-        ".deb", ".pkg", ".dmg", ".apk", ".ipa",
-        // Windows specific
-        ".hta", ".wsf", ".wsh", ".vbe", ".jse", ".wsc", ".wsf"
+        ".html", ".htm", ".svg", ".xml", ".xhtml", ".xht", ".xsl", ".xslt",
+        ".deb", ".pkg", ".dmg", ".apk", ".ipa", ".rpm",
+        ".hta", ".wsf", ".wsh", ".vbe", ".jse", ".wsc", ".msp", ".mst"
     )
     
     fun validateFileExtension(filename: String): Boolean {
-        return try {
-            if (filename.isBlank() || !filename.contains('.') || filename.length > 255) return false
+        return SecurityInterceptor.secureOperation("file_extension_validation") {
+            if (filename.isBlank() || filename.length > 255 || !filename.contains('.')) {
+                SecurityMonitor.reportSecurityEvent("FILE_UPLOAD_VIOLATION", "Invalid filename format")
+                return@secureOperation false
+            }
             
             val normalizedName = filename.lowercase().trim()
             
-            // CRITICAL: Prevent null byte injection and control characters
-            if (normalizedName.contains('\u0000') || normalizedName.any { it.isISOControl() }) {
-                SecureLogger.w(TAG, "Control characters detected in filename")
-                return false
+            // Strict control character and null byte detection
+            if (normalizedName.any { it.isISOControl() || it.code < 32 || it.code == 127 || it == '\u0000' }) {
+                SecurityMonitor.reportSecurityEvent("FILE_UPLOAD_VIOLATION", "Control characters detected")
+                return@secureOperation false
             }
             
-            // CRITICAL: Extract all extensions to prevent double extension attacks
+            // Zero-tolerance suspicious pattern detection
+            val suspiciousPatterns = listOf(
+                "con.", "prn.", "aux.", "nul.", "com1.", "com2.", "lpt1.", "lpt2.",
+                "..", "./", ".\\\\", "~", "%", "$", "&", "|", ";", "<", ">", "?", "*", ":"
+            )
+            if (suspiciousPatterns.any { normalizedName.contains(it, ignoreCase = true) }) {
+                SecurityMonitor.reportSecurityEvent("FILE_UPLOAD_VIOLATION", "Suspicious pattern: $filename")
+                return@secureOperation false
+            }
+            
             val parts = normalizedName.split('.')
-            if (parts.size < 2) return false // Must have extension
+            if (parts.size < 2 || parts.size > 3) {
+                SecurityMonitor.reportSecurityEvent("FILE_UPLOAD_VIOLATION", "Invalid extension count")
+                return@secureOperation false
+            }
             
             val allExtensions = parts.drop(1).map { ".$it" }
             
-            // CRITICAL: Block ANY dangerous extension in the chain
-            val hasDangerousExtension = allExtensions.any { ext -> 
-                DANGEROUS_EXTENSIONS.contains(ext)
+            // ABSOLUTE rejection of ANY dangerous extension
+            if (allExtensions.any { ext -> DANGEROUS_EXTENSIONS.contains(ext) }) {
+                SecurityMonitor.reportSecurityEvent("FILE_UPLOAD_VIOLATION", "Dangerous extension: $filename")
+                return@secureOperation false
             }
             
-            if (hasDangerousExtension) {
-                SecureLogger.security("FILE_VALIDATION", "DANGEROUS_EXTENSION_BLOCKED")
-                return false
+            // Enhanced malware indicator detection
+            val malwareIndicators = listOf(
+                "setup", "install", "update", "patch", "crack", "keygen", "loader", "hack",
+                "exploit", "payload", "shell", "backdoor", "trojan", "virus", "malware", "worm"
+            )
+            if (malwareIndicators.any { normalizedName.contains(it, ignoreCase = true) }) {
+                SecurityMonitor.reportSecurityEvent("FILE_UPLOAD_VIOLATION", "Malware indicator: $filename")
+                return@secureOperation false
             }
             
-            // CRITICAL: Additional check for executable patterns
-            val hasExecutablePattern = normalizedName.contains(".exe.") || 
-                                     normalizedName.contains(".bat.") ||
-                                     normalizedName.contains(".scr.")
-            
-            if (hasExecutablePattern) {
-                SecureLogger.security("FILE_VALIDATION", "EXECUTABLE_PATTERN_BLOCKED")
-                return false
+            // STRICT WHITELIST - Only medical app safe extensions
+            val finalExtension = allExtensions.last()
+            if (!SAFE_EXTENSIONS.contains(finalExtension)) {
+                SecurityMonitor.reportSecurityEvent("FILE_UPLOAD_VIOLATION", "Non-whitelisted extension: $finalExtension")
+                return@secureOperation false
             }
             
-            // WHITELIST ONLY: Final extension must be explicitly safe
-            val finalExtension = allExtensions.lastOrNull() ?: return false
-            val isAllowed = SAFE_EXTENSIONS.contains(finalExtension)
+            // Ultra-strict base filename validation
+            val baseFilename = parts.first()
+            val isValidBase = baseFilename.length in 1..50 && 
+                             baseFilename.matches(Regex("^[a-zA-Z0-9_-]+$")) &&
+                             !baseFilename.startsWith("_") &&
+                             !baseFilename.endsWith("_")
             
-            if (!isAllowed) {
-                SecureLogger.w(TAG, "File extension not in whitelist")
+            if (!isValidBase) {
+                SecurityMonitor.reportSecurityEvent("FILE_UPLOAD_VIOLATION", "Invalid base filename: $baseFilename")
+                return@secureOperation false
             }
             
-            isAllowed
-        } catch (e: Exception) {
-            SecureLogger.e(TAG, "File extension validation error", e)
-            false
-        }
+            true
+        } ?: false
     }
     
     fun validateFileName(filename: String): Boolean {
@@ -221,6 +235,25 @@ object SecurityValidator {
             }
         } catch (e: Exception) {
             Log.e(TAG, "File content validation error", e)
+            false
+        }
+    }
+    
+    /**
+     * Validate geographic coordinates
+     */
+    fun validateCoordinates(latitude: Double, longitude: Double): Boolean {
+        return try {
+            if (!AuthGuard.requireAuthentication("coordinate_validation")) {
+                return false
+            }
+            
+            val isValidLat = latitude in -90.0..90.0 && !latitude.isNaN() && !latitude.isInfinite()
+            val isValidLon = longitude in -180.0..180.0 && !longitude.isNaN() && !longitude.isInfinite()
+            
+            isValidLat && isValidLon
+        } catch (e: Exception) {
+            SecurityUtils.safeLog(TAG, "Coordinate validation error", SecurityUtils.LogLevel.ERROR)
             false
         }
     }

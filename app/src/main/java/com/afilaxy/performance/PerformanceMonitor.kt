@@ -69,37 +69,49 @@ object PerformanceMonitor {
         }
     }
     
-    /**
-     * Log performance metrics with input sanitization
-     */
     fun logPerformance(operationName: String, duration: Long, success: Boolean) {
-        // CRITICAL: Sanitize operation name to prevent log injection
-        val sanitizedName = sanitizeForLogging(operationName)
-        
-        when {
-            duration > VERY_SLOW_OPERATION_THRESHOLD_MS -> {
-                SecureLogger.w("Performance", "VERY SLOW: $sanitizedName took ${duration}ms")
+        try {
+            if (!AuthGuard.requireAuthentication("performance_log")) {
+                return
             }
-            duration > SLOW_OPERATION_THRESHOLD_MS -> {
-                SecureLogger.w("Performance", "SLOW: $sanitizedName took ${duration}ms")
+            
+            val sanitizedName = sanitizeForLogging(operationName)
+            val safeDuration = duration.coerceIn(0, 300_000)
+            
+            if (sanitizedName.isBlank()) {
+                SecureLogger.w("Performance", "Invalid operation name")
+                return
             }
-            else -> {
-                SecureLogger.performance(sanitizedName, duration, success)
+            
+            when {
+                safeDuration > VERY_SLOW_OPERATION_THRESHOLD_MS -> {
+                    SecurityUtils.safeLog("Performance", "VERY_SLOW_OP detected", SecurityUtils.LogLevel.WARN)
+                }
+                safeDuration > SLOW_OPERATION_THRESHOLD_MS -> {
+                    SecurityUtils.safeLog("Performance", "SLOW_OP detected", SecurityUtils.LogLevel.WARN)
+                }
+                else -> {
+                    SecurityUtils.safeLog("Performance", "Operation completed", SecurityUtils.LogLevel.INFO)
+                }
             }
+        } catch (e: Exception) {
+            SecureLogger.e("PerformanceMonitor", "Error logging performance", e)
         }
     }
     
-    /**
-     * Sanitize input for safe logging (prevents log injection)
-     */
     private fun sanitizeForLogging(input: String): String {
         return input
             .replace("\n", "_")
             .replace("\r", "_")
             .replace("\t", "_")
             .replace("\u0000", "_")
-            .take(100) // Limit length
+            .replace(Regex("[\\p{Cntrl}]"), "_")
+            .replace("%n", "_")
+            .replace("%s", "_")
+            .replace("%d", "_")
+            .take(50)
             .filter { it.isLetterOrDigit() || it in "_-. " }
+            .ifBlank { "UNKNOWN_OPERATION" }
     }
     
     /**

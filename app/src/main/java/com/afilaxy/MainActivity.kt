@@ -158,26 +158,18 @@ class MainActivity : ComponentActivity() {
                 val rawRequesterName = intent.getStringExtra("requester_name") ?: ""
                 val rawNotificationType = intent.getStringExtra("notification_type") ?: ""
                 
-                // Validate inputs for injection attacks
-                val emergencyId = if (SqlInjectionPrevention.isValidSqlInput(rawEmergencyId)) {
-                    InputSanitizer.sanitizeText(rawEmergencyId)
-                } else {
+                val emergencyId = InputSanitizer.sanitizeText(rawEmergencyId)
+                val requesterName = InputSanitizer.sanitizeName(rawRequesterName)
+                val notificationType = InputSanitizer.sanitizeText(rawNotificationType)
+                
+                if (emergencyId.isBlank() && rawEmergencyId.isNotBlank()) {
                     SecureLogger.security("INTENT_VALIDATION", "INVALID_EMERGENCY_ID")
-                    ""
                 }
-                
-                val requesterName = if (SqlInjectionPrevention.isValidSqlInput(rawRequesterName)) {
-                    InputSanitizer.sanitizeName(rawRequesterName)
-                } else {
+                if (requesterName.isBlank() && rawRequesterName.isNotBlank()) {
                     SecureLogger.security("INTENT_VALIDATION", "INVALID_REQUESTER_NAME")
-                    ""
                 }
-                
-                val notificationType = if (SqlInjectionPrevention.isValidSqlInput(rawNotificationType)) {
-                    InputSanitizer.sanitizeText(rawNotificationType)
-                } else {
+                if (notificationType.isBlank() && rawNotificationType.isNotBlank()) {
                     SecureLogger.security("INTENT_VALIDATION", "INVALID_NOTIFICATION_TYPE")
-                    ""
                 }
                 
                 SecureLogger.d("MainActivity", "Intent data validated")
@@ -293,8 +285,7 @@ class MainActivity : ComponentActivity() {
     }
     
     private fun requestBackgroundLocationPermission() {
-        if (!AuthGuard.isUserAuthenticated()) {
-            SecureLogger.security("LOCATION_PERMISSION", "UNAUTHENTICATED_REQUEST")
+        if (!AuthGuard.requireAuthentication("location_permission")) {
             return
         }
         

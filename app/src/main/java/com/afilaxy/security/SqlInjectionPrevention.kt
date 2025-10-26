@@ -46,8 +46,13 @@ object SqlInjectionPrevention {
      * Check if input contains SQL injection patterns
      */
     fun containsSqlInjection(input: String): Boolean {
-        return SQL_INJECTION_PATTERNS.any { pattern ->
-            pattern.matcher(input).find()
+        return try {
+            SQL_INJECTION_PATTERNS.any { pattern ->
+                pattern.matcher(input).find()
+            }
+        } catch (e: Exception) {
+            SecureLogger.e("SqlInjectionPrevention", "Error checking SQL injection", e)
+            true // Fail secure - assume injection if error
         }
     }
     
@@ -55,8 +60,13 @@ object SqlInjectionPrevention {
      * Check if input contains NoSQL injection patterns
      */
     fun containsNoSqlInjection(input: String): Boolean {
-        return NOSQL_INJECTION_PATTERNS.any { pattern ->
-            pattern.matcher(input).find()
+        return try {
+            NOSQL_INJECTION_PATTERNS.any { pattern ->
+                pattern.matcher(input).find()
+            }
+        } catch (e: Exception) {
+            SecureLogger.e("SqlInjectionPrevention", "Error checking NoSQL injection", e)
+            true // Fail secure - assume injection if error
         }
     }
     
@@ -75,8 +85,9 @@ object SqlInjectionPrevention {
      * Sanitize input for SQL queries (use with caution - validation preferred)
      */
     fun sanitizeForSql(input: String): String {
-        return input
-            .replace("'", "''") // Escape single quotes
+        return try {
+            input
+                .replace("'", "''") // Escape single quotes
             .replace("\"", "\\\"") // Escape double quotes
             .replace("\\", "\\\\") // Escape backslashes
             .replace("\n", " ") // Replace newlines
@@ -88,6 +99,10 @@ object SqlInjectionPrevention {
             .replace("*/", "") // Remove SQL comments
             .replace(";", "") // Remove statement terminators
             .take(255) // Limit length
+        } catch (e: Exception) {
+            SecureLogger.e("SqlInjectionPrevention", "Error sanitizing SQL input", e)
+            "" // Return empty string on error
+        }
     }
     
     /**
@@ -104,7 +119,17 @@ object SqlInjectionPrevention {
      * Validate multiple parameters for SQL safety
      */
     fun validateParameters(vararg parameters: String): Boolean {
-        return parameters.all { isValidSqlInput(it) }
+        return try {
+            // Authentication check for parameter validation
+            if (!com.afilaxy.security.AuthGuard.isUserAuthenticated()) {
+                SecureLogger.security("SQL_VALIDATION", "UNAUTHENTICATED_ACCESS")
+                return false
+            }
+            parameters.all { isValidSqlInput(it) }
+        } catch (e: Exception) {
+            SecureLogger.e("SqlInjectionPrevention", "Error validating parameters", e)
+            false
+        }
     }
     
     /**

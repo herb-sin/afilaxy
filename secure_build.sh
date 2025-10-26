@@ -6,7 +6,9 @@ echo "========================"
 # Carregar .env se existir
 if [ -f ".env" ]; then
     echo "📁 Carregando configurações do .env..."
-    export $(cat .env | xargs)
+    set -a
+    source .env
+    set +a
 fi
 
 # Verificar se API keys estão disponíveis
@@ -15,6 +17,7 @@ if [ -z "$GEMINI_API_KEY" ] || [ -z "$MAPS_API_KEY" ]; then
     echo "Opção 1: Crie arquivo .env com suas keys"
     echo "Opção 2: Configure: export GEMINI_API_KEY=sua_key"
     echo "Opção 3: Configure: export MAPS_API_KEY=sua_key"
+    echo "Para mais informações, consulte o README.md"
     exit 1
 fi
 
@@ -24,10 +27,16 @@ echo "MAPS_API_KEY=$MAPS_API_KEY" >> local.properties.temp
 
 # Build seguro
 echo "📦 Gerando build seguro..."
-./gradlew bundleRelease
+if ! ./gradlew bundleRelease; then
+    echo "❌ ERRO: Falha no build"
+    rm -f local.properties.temp
+    exit 1
+fi
 
 # Limpar credenciais temporárias
-rm -f local.properties.temp
+if [ -f "local.properties.temp" ]; then
+    rm -f local.properties.temp
+fi
 
 # Verificar se build não contém credenciais reais
 echo "🔍 Verificando segurança do build..."

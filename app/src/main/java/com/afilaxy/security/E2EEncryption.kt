@@ -11,10 +11,15 @@ object E2EEncryption {
     private const val TRANSFORMATION = "RSA/ECB/PKCS1Padding"
     private const val KEY_SIZE = 2048
     
-    fun generateKeyPair(): KeyPair {
-        val keyPairGenerator = KeyPairGenerator.getInstance(ALGORITHM)
-        keyPairGenerator.initialize(KEY_SIZE)
-        return keyPairGenerator.generateKeyPair()
+    fun generateKeyPair(): KeyPair? {
+        return try {
+            val keyPairGenerator = KeyPairGenerator.getInstance(ALGORITHM)
+            keyPairGenerator.initialize(KEY_SIZE)
+            keyPairGenerator.generateKeyPair()
+        } catch (e: Exception) {
+            SecurityUtils.safeLog("E2EEncryption", "Key generation failed", SecurityUtils.LogLevel.ERROR)
+            null
+        }
     }
     
     fun encryptMessage(message: String, publicKeyString: String): String? {

@@ -64,8 +64,11 @@ class SyncWorker @AssistedInject constructor(
                         emergencyDao.markAsSynced(emergency.id)
                         syncedCount++
                         true
+                    } catch (e: SecurityException) {
+                        SecureLogger.security("SYNC_BATCH", "SECURITY_VIOLATION")
+                        false
                     } catch (e: Exception) {
-                        SecureLogger.w("SyncWorker", "Failed to sync emergency record")
+                        SecureLogger.w("SyncWorker", "Failed to sync emergency record", e)
                         false
                     }
                 }
@@ -79,6 +82,15 @@ class SyncWorker @AssistedInject constructor(
             SecureLogger.i("SyncWorker", "Sync completed: $syncedCount records processed")
             
             Result.success()
+        } catch (e: SecurityException) {
+            SecureLogger.security("SYNC_WORKER", "SECURITY_VIOLATION")
+            Result.failure()
+        } catch (e: java.net.UnknownHostException) {
+            SecureLogger.w("SyncWorker", "Network connectivity issue")
+            Result.retry()
+        } catch (e: java.net.SocketTimeoutException) {
+            SecureLogger.w("SyncWorker", "Network timeout")
+            Result.retry()
         } catch (e: Exception) {
             SecureLogger.e("SyncWorker", "Sync operation failed", e)
             Result.failure()

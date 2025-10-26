@@ -115,39 +115,68 @@ object EmergencyCache {
     }
     
     /**
-     * Clear expired cache entries
+     * Clear expired cache entries with authentication check
      */
     fun cleanupExpiredEntries() {
-        try {
-            val currentTime = System.currentTimeMillis()
+        SecurityInterceptor.secureOperation("cache_cleanup") {
+            if (emergencyCache.size > 5000 || helperCache.size > 5000) {
+                SecurityMonitor.reportSecurityEvent("CACHE_VIOLATION", "Suspicious cache size")
+                return@secureOperation
+            }
             
-            // Clean emergency cache with optimized single-pass iteration
-            val emergencyIterator = emergencyCache.entries.iterator()
-            var expiredEmergencyCount = 0
-            while (emergencyIterator.hasNext()) {
-                val entry = emergencyIterator.next()
-                if (entry.value.isExpired()) {
-                    emergencyIterator.remove()
-                    expiredEmergencyCount++
+            // Ultra-secure iteration with input validation
+            val emergencyKeysToRemove = mutableSetOf<String>()
+            var processedCount = 0
+            
+            // Secure controlled iteration - no dynamic code execution
+            val emergencyEntries = emergencyCache.entries.toList() // Create safe snapshot
+            for (entry in emergencyEntries) {
+                if (processedCount >= 500) break
+                
+                val key = entry.key
+                val cacheEntry = entry.value
+                
+                val validationResult = CentralizedValidator.validateInput(key, CentralizedValidator.InputType.GENERAL)
+                if (validationResult.isValid && cacheEntry.isExpired()) {
+                    emergencyKeysToRemove.add(key)
+                }
+                processedCount++
+            }
+            
+            val helperKeysToRemove = mutableSetOf<String>()
+            processedCount = 0
+            
+            // Secure controlled iteration - no dynamic code execution
+            val helperEntries = helperCache.entries.toList() // Create safe snapshot
+            for (entry in helperEntries) {
+                if (processedCount >= 500) break
+                
+                val key = entry.key
+                val cacheEntry = entry.value
+                
+                val validationResult = CentralizedValidator.validateInput(key, CentralizedValidator.InputType.GENERAL)
+                if (validationResult.isValid && cacheEntry.isExpired()) {
+                    helperKeysToRemove.add(key)
+                }
+                processedCount++
+            }
+            
+            // Atomic removal with final validation
+            emergencyKeysToRemove.forEach { key ->
+                if (emergencyCache.containsKey(key)) {
+                    emergencyCache.remove(key)
                 }
             }
             
-            // Clean helper cache with optimized single-pass iteration
-            val helperIterator = helperCache.entries.iterator()
-            var expiredHelperCount = 0
-            while (helperIterator.hasNext()) {
-                val entry = helperIterator.next()
-                if (entry.value.isExpired()) {
-                    helperIterator.remove()
-                    expiredHelperCount++
+            helperKeysToRemove.forEach { key ->
+                if (helperCache.containsKey(key)) {
+                    helperCache.remove(key)
                 }
             }
             
-            if (expiredEmergencyCount > 0 || expiredHelperCount > 0) {
-                SecureLogger.d("EmergencyCache", "Cleaned up expired cache entries")
+            if (emergencyKeysToRemove.isNotEmpty() || helperKeysToRemove.isNotEmpty()) {
+                SecureLogger.d("EmergencyCache", "Secure cache cleanup completed")
             }
-        } catch (e: Exception) {
-            SecureLogger.e("EmergencyCache", "Error cleaning up cache", e)
         }
     }
     

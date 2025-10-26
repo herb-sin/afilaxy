@@ -7,7 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import com.afilaxy.analytics.AnalyticsManager
-import com.afilaxy.security.SecureXmlUtils
+import com.afilaxy.security.XXEPrevention
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingClient
 import com.google.android.gms.location.GeofencingRequest
@@ -54,8 +54,10 @@ class GeofenceManager @Inject constructor(
                 .build()
             
             geofencingClient.addGeofences(geofencingRequest, geofencePendingIntent)
+        } catch (e: SecurityException) {
+            SecureLogger.security("GEOFENCE_ADD", "SECURITY_VIOLATION")
         } catch (e: Exception) {
-            android.util.Log.e("GeofenceManager", "Error adding geofence", e)
+            SecureLogger.e("GeofenceManager", "Error adding geofence", e)
         }
     }
     
@@ -70,8 +72,10 @@ class GeofenceManager @Inject constructor(
             highRiskAreas.forEachIndexed { index, (location, radius) ->
                 addHighRiskArea(location, radius, "default_area_$index")
             }
+        } catch (e: SecurityException) {
+            SecureLogger.security("GEOFENCE_SETUP", "SECURITY_VIOLATION")
         } catch (e: Exception) {
-            android.util.Log.e("GeofenceManager", "Error setting up geofences", e)
+            SecureLogger.e("GeofenceManager", "Error setting up geofences", e)
         }
     }
     
