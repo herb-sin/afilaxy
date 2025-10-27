@@ -384,10 +384,8 @@ security(input): adiciona sanitização de dados
 
 ## Dúvidas?
 
-- 📧 **Email**: dev@afilaxy.com
+- 📧 **Email**: afilaxy@gmail.com
 - 💬 **Discussions**: [GitHub Discussions](https://github.com/herb-sin/afilaxy/discussions)
 - 🐛 **Issues**: [GitHub Issues](https://github.com/herb-sin/afilaxy/issues)
 
 ---
-
-**Obrigado por contribuir com o Afilaxy! Juntos podemos salvar vidas! 🫁❤️**
