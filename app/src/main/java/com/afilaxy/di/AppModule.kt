@@ -82,9 +82,9 @@ object AppModule {
     
     @Provides
     @Singleton
-    fun provideEmergencyRepository(): EmergencyRepository {
+    fun provideEmergencyRepository(firestore: FirebaseFirestore): EmergencyRepository {
         return try {
-            EmergencyRepositoryImpl()
+            EmergencyRepositoryImpl(firestore)
         } catch (e: Exception) {
             com.afilaxy.security.SecureLogger.e("AppModule", "Error creating repository", e)
             throw SecurityException("Failed to create EmergencyRepository")
@@ -93,13 +93,7 @@ object AppModule {
     
     @Provides
     @Singleton
-    fun provideSecurityValidator(): com.afilaxy.security.SecurityValidator {
-        return com.afilaxy.security.SecurityValidator
-    }
-    
-    @Provides
-    @Singleton
-    fun provideRateLimiter(): com.afilaxy.security.RateLimiter {
-        return com.afilaxy.security.RateLimiter
+    fun provideAuthGuard(): com.afilaxy.security.AuthGuard {
+        return com.afilaxy.security.AuthGuard
     }
 }

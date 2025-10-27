@@ -69,10 +69,9 @@ fun LoginScreen(
             isRegisterMode = uiState.isRegisterMode,
             isLoading = uiState.isLoading,
             onLoginClick = { 
-                viewModel.login {
-                    saveUserLocation(context)
-                    onLoginSuccess()
-                }
+                viewModel.login()
+                saveUserLocation(context)
+                onLoginSuccess()
             },
             onRegisterClick = viewModel::register,
             onModeToggle = viewModel::toggleMode,

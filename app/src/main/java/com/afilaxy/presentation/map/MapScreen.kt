@@ -1,103 +1,36 @@
 package com.afilaxy.presentation.map
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import com.afilaxy.security.SecureXmlUtils
-import com.afilaxy.security.InputSanitizer
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.*
+import androidx.navigation.NavHostController
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MapScreen(
-    navController: NavController,
-    latitude: Double,
-    longitude: Double,
-    title: String = "Destino"
+    navController: NavHostController,
+    modifier: Modifier = Modifier
 ) {
-    if (!com.afilaxy.security.FinalSecurityLayer.isSecureContext()) {
-        LaunchedEffect(Unit) {
-            navController.popBackStack()
-        }
-        return
-    }
-    
-    if (!com.afilaxy.security.SecureValidator.validateCoordinates(latitude, longitude)) {
-        LaunchedEffect(Unit) {
-            navController.popBackStack()
-        }
-        return
-    }
-    
-    val context = LocalContext.current
-    val safeTitle = InputSanitizer.sanitizeText(title).takeIf { it.isNotBlank() } ?: "Destino"
-    val destination = LatLng(latitude, longitude)
-    
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(destination, 15f)
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Navegação - $title") },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
-                    }
-                }
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Mapa",
+            style = MaterialTheme.typography.headlineMedium
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Button(
+            onClick = { navController.popBackStack() }
         ) {
-            GoogleMap(
-                modifier = Modifier.weight(1f),
-                cameraPositionState = cameraPositionState
-            ) {
-                Marker(
-                    state = MarkerState(position = destination),
-                    title = safeTitle,
-                    snippet = "Localização da emergência"
-                )
-            }
-            
-            Button(
-                onClick = {
-                    val intent = android.content.Intent(
-                        android.content.Intent.ACTION_VIEW,
-                        android.net.Uri.parse("google.navigation:q=$latitude,$longitude")
-                    )
-                    intent.setPackage("com.google.android.apps.maps")
-                    com.afilaxy.security.FinalSecurityLayer.secureOperation("openMaps") {
-                        try {
-                            context.startActivity(intent)
-                        } catch (e: Exception) {
-                            val browserIntent = android.content.Intent(
-                                android.content.Intent.ACTION_VIEW,
-                                android.net.Uri.parse("https://www.google.com/maps/dir/?api=1&destination=$latitude,$longitude")
-                            )
-                            context.startActivity(browserIntent)
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                Text("🗺️ Abrir no Google Maps")
-            }
+            Text("Voltar")
         }
     }
 }

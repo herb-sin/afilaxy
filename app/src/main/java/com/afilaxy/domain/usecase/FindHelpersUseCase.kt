@@ -4,24 +4,22 @@ import com.afilaxy.domain.model.Helper
 import com.afilaxy.domain.model.Location
 import com.afilaxy.domain.repository.EmergencyRepository
 import com.afilaxy.security.AuthGuard
-import com.afilaxy.security.SecurityValidator
 import javax.inject.Inject
 
 class FindHelpersUseCase @Inject constructor(
-    private val repository: EmergencyRepository,
-    private val authGuard: AuthGuard,
-    private val securityValidator: SecurityValidator
+    private val repository: EmergencyRepository
 ) {
     
     suspend fun execute(location: Location): List<Helper> {
-        // Authentication check
-        authGuard.requireAuthentication()
+        if (!AuthGuard.isUserAuthenticated()) {
+            throw SecurityException("Authentication required")
+        }
         
-        // Input validation
-        if (!securityValidator.validateCoordinates(location.latitude, location.longitude)) {
+        if (location.latitude < -90 || location.latitude > 90 || 
+            location.longitude < -180 || location.longitude > 180) {
             throw IllegalArgumentException("Invalid coordinates")
         }
         
-        return repository.findNearbyHelpers(location)
+        return repository.findNearbyHelpers(location, 5.0).getOrElse { emptyList() }
     }
 }

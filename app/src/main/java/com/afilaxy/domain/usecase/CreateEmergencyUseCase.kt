@@ -1,27 +1,26 @@
 package com.afilaxy.domain.usecase
 
 import com.afilaxy.domain.model.Emergency
-import com.afilaxy.domain.model.Location
 import com.afilaxy.domain.repository.EmergencyRepository
 import com.afilaxy.security.AuthGuard
-import com.afilaxy.security.SecurityValidator
+import com.afilaxy.security.SecurityUtils
 import javax.inject.Inject
 
 class CreateEmergencyUseCase @Inject constructor(
-    private val repository: EmergencyRepository,
-    private val authGuard: AuthGuard,
-    private val securityValidator: SecurityValidator
+    private val repository: EmergencyRepository
 ) {
     
-    suspend fun execute(location: Location): Emergency {
+    suspend fun execute(emergency: Emergency): Result<String> {
         // Authentication check
-        authGuard.requireAuthentication()
-        
-        // Input validation
-        if (!securityValidator.validateCoordinates(location.latitude, location.longitude)) {
-            throw IllegalArgumentException("Invalid coordinates")
+        if (!AuthGuard.isUserAuthenticated()) {
+            return Result.failure(SecurityException("Authentication required"))
         }
         
-        return repository.createEmergency(location)
+        // Input validation
+        if (!SecurityUtils.isValidCoordinate(emergency.location.latitude, emergency.location.longitude)) {
+            return Result.failure(IllegalArgumentException("Invalid coordinates"))
+        }
+        
+        return repository.createEmergency(emergency)
     }
 }

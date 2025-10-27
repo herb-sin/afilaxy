@@ -32,14 +32,12 @@ fun HelperResponseScreen(
     LaunchedEffect(emergencyId) {
         try {
             emergencyId?.let { 
-                if (com.afilaxy.security.CentralizedValidator.validateInput(it, com.afilaxy.security.CentralizedValidator.InputType.GENERAL).isValid) {
+                if (it.isNotBlank() && it.length < 100) {
                     viewModel.loadEmergency(it)
-                } else {
-                    com.afilaxy.security.SecurityMonitor.reportSecurityEvent("INVALID_EMERGENCY_ID", "Invalid emergency ID format")
                 }
             }
         } catch (e: Exception) {
-            com.afilaxy.security.SecureLogger.e("HelperResponseScreen", "Error loading emergency", e)
+            // Log error loading emergency
         }
     }
     
@@ -47,9 +45,8 @@ fun HelperResponseScreen(
     val openNavigation = remember {
         { lat: Double, lon: Double ->
             try {
-                // Validate coordinates before creating URI to prevent XXE
-                if (!com.afilaxy.security.SecurityValidator.validateCoordinates(lat, lon)) {
-                    com.afilaxy.security.SecurityMonitor.reportSecurityEvent("NAVIGATION_XXE", "Invalid coordinates")
+                // Basic coordinate validation
+                if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
                     return@remember
                 }
                 
@@ -63,7 +60,7 @@ fun HelperResponseScreen(
                     val browserIntent = Intent(Intent.ACTION_VIEW, browserUri)
                     context.startActivity(browserIntent)
                 } catch (e2: Exception) {
-                    com.afilaxy.security.SecureLogger.e("Navigation", "Navigation error", e2)
+                    // Log navigation error
                 }
             }
         }

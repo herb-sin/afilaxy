@@ -6,6 +6,7 @@ import com.afilaxy.domain.model.Location
 import com.afilaxy.security.AuthGuard
 import com.afilaxy.security.InputSanitizer
 import com.afilaxy.security.SecureLogger
+import com.afilaxy.security.SecurityUtils
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.tasks.await
@@ -19,21 +20,34 @@ class EmergencyRepositoryImpl @Inject constructor(
 
     override suspend fun createEmergency(emergency: Emergency): Result<String> {
         return try {
-            if (!AuthGuard.requireAuthentication("create_emergency")) {
+            // Enhanced authentication check
+            if (!AuthGuard.isUserAuthenticated()) {
+                SecureLogger.security("EMERGENCY_CREATE", "UNAUTHORIZED_ACCESS_ATTEMPT")
                 return Result.failure(SecurityException("Authentication required"))
             }
 
+            // Enhanced input sanitization
             val sanitizedEmergency = emergency.copy(
                 description = InputSanitizer.sanitizeText(emergency.description),
+                userName = InputSanitizer.sanitizeName(emergency.userName),
                 location = emergency.location.copy(
                     address = InputSanitizer.sanitizeText(emergency.location.address)
                 )
             )
+            
+            // Coordinate validation
+            if (!SecurityUtils.isValidCoordinate(
+                sanitizedEmergency.location.latitude, 
+                sanitizedEmergency.location.longitude
+            )) {
+                SecureLogger.security("EMERGENCY_CREATE", "INVALID_COORDINATES")
+                return Result.failure(IllegalArgumentException("Invalid coordinates"))
+            }
 
             val docRef = firestore.collection("emergencies").document()
             docRef.set(sanitizedEmergency).await()
             
-            SecureLogger.d("EmergencyRepository", "Emergency created successfully")
+            SecureLogger.d("EmergencyRepository", "Emergency created successfully with ID: ${docRef.id}")
             Result.success(docRef.id)
         } catch (e: Exception) {
             SecureLogger.e("EmergencyRepository", "Failed to create emergency", e)

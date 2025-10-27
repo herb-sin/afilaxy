@@ -181,10 +181,7 @@ fun AppNavigation(
             val title = backStackEntry.arguments?.getString("title") ?: "Destino"
             
             com.afilaxy.presentation.map.MapScreen(
-                navController = navController,
-                latitude = latitude,
-                longitude = longitude,
-                title = title
+                navController = navController
             )
         }
         
