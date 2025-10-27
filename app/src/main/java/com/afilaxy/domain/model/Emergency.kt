@@ -5,6 +5,7 @@ data class Emergency(
     val userId: String,
     val userName: String,
     val location: Location,
+    val description: String = "Emergency assistance needed",
     val timestamp: Long,
     val status: EmergencyStatus = EmergencyStatus.ACTIVE,
     val assignedHelperId: String? = null,

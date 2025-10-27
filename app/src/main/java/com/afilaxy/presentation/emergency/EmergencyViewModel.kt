@@ -10,6 +10,9 @@ import com.afilaxy.domain.usecase.FindHelpersUseCase
 import com.afilaxy.domain.usecase.NotifyHelpersUseCase
 import com.afilaxy.security.AuthGuard
 import com.afilaxy.security.SecureLogger
+import com.afilaxy.security.SecurityMonitor
+import com.afilaxy.security.CentralizedValidator
+import com.afilaxy.security.ValidationResult
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,14 +38,14 @@ class EmergencyViewModel @Inject constructor(
     }
 
     fun updateLocationPermission(hasPermission: Boolean) {
-        if (!AuthGuard.requireAuthentication("location_permission")) {
+        if (!AuthGuard.isUserAuthenticated()) {
             return
         }
         _uiState.value = _uiState.value.copy(hasLocationPermission = hasPermission)
     }
 
     fun startLocationSearch() {
-        if (!AuthGuard.requireAuthentication("location_search")) {
+        if (!AuthGuard.isUserAuthenticated()) {
             _uiState.value = _uiState.value.copy(locationError = "Authentication required")
             return
         }
@@ -77,13 +80,57 @@ class EmergencyViewModel @Inject constructor(
 
     private fun searchNearbyHelpers(location: Location) {
         viewModelScope.launch {
-            SecurityInterceptor.secureAsyncOperation("emergency_create") {
-                val emergency = createEmergencyUseCase.execute(location)
-                processEmergencyCreated(emergency, location)
-            } ?: run {
-                SecurityMonitor.reportSecurityEvent("EMERGENCY_VIOLATION", "Unauthorized emergency creation")
+            try {
+                // Security validation
+                if (!AuthGuard.isUserAuthenticated()) {
+                    SecurityMonitor.logThreat("UNAUTHORIZED_EMERGENCY", "Unauthenticated emergency creation attempt")
+                    _uiState.value = _uiState.value.copy(
+                        locationError = "Autenticação necessária",
+                        isLoadingLocation = false
+                    )
+                    return@launch
+                }
+                
+                // Coordinate validation
+                val validationResult = CentralizedValidator.validateInput(
+                    "${location.latitude},${location.longitude}", 
+                    CentralizedValidator.InputType.COORDINATE
+                )
+                
+                if (validationResult !is ValidationResult.Valid) {
+                    SecurityMonitor.logThreat("INVALID_COORDINATES", "Invalid emergency coordinates")
+                    _uiState.value = _uiState.value.copy(
+                        locationError = "Coordenadas inválidas",
+                        isLoadingLocation = false
+                    )
+                    return@launch
+                }
+                
+                val emergency = Emergency.create(
+                    id = System.currentTimeMillis().toString(),
+                    userId = "current_user",
+                    userName = "User",
+                    location = location
+                )
+                
+                val result = createEmergencyUseCase.execute(emergency)
+                result.fold(
+                    onSuccess = { emergencyId ->
+                        SecureLogger.d("EmergencyViewModel", "Emergency created with ID: $emergencyId")
+                        processEmergencyCreated(emergency, location)
+                    },
+                    onFailure = { error ->
+                        SecurityMonitor.logThreat("EMERGENCY_CREATION_FAILED", error.message ?: "Unknown error")
+                        _uiState.value = _uiState.value.copy(
+                            locationError = "Falha ao criar emergência",
+                            isLoadingLocation = false
+                        )
+                    }
+                )
+            } catch (e: Exception) {
+                SecurityMonitor.logThreat("EMERGENCY_EXCEPTION", e.message ?: "Unknown exception")
                 _uiState.value = _uiState.value.copy(
-                    locationError = "Operação não autorizada",
+                    locationError = "Erro ao criar emergência",
                     isLoadingLocation = false
                 )
             }
@@ -133,19 +180,13 @@ class EmergencyViewModel @Inject constructor(
     }
 
     fun startListeningForHelperResponse(emergencyId: String) {
-        SecurityInterceptor.secureOperation("emergency_listener") {
-            val validationResult = CentralizedValidator.validateInput(emergencyId, CentralizedValidator.InputType.GENERAL)
-            if (!validationResult.isValid) {
-                SecurityMonitor.reportSecurityEvent("INJECTION_ATTEMPT", "Invalid emergency ID: $emergencyId")
-                return@secureOperation
-            }
-            
+        if (emergencyId.isNotBlank() && emergencyId.length < 100) {
             SecureLogger.d("EmergencyViewModel", "Emergency listener setup")
         }
     }
 
     fun resetEmergencyState() {
-        if (!AuthGuard.requireAuthentication("reset_emergency")) {
+        if (!AuthGuard.isUserAuthenticated()) {
             return
         }
         

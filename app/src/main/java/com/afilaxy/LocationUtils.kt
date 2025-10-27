@@ -29,7 +29,7 @@ fun startSignificantMovementUpdates(
     try {
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, null)
     } catch (e: SecurityException) {
-        com.afilaxy.security.SecurityUtils.safeLog("LocationUtils", "Permission denied for location access", com.afilaxy.security.SecurityUtils.LogLevel.ERROR)
+        com.afilaxy.security.SecureLogger.e("LocationUtils", "Permission denied for location access")
     }
     
     return locationCallback
@@ -41,23 +41,23 @@ fun stopLocationUpdates(context: Context, locationCallback: LocationCallback) {
 }
 
 fun saveUserLocationWithCoords(context: Context, lat: Double, lon: Double) {
-    if (!com.afilaxy.security.SecureValidator.requireAuthentication("saveUserLocationWithCoords")) {
+    if (!com.afilaxy.security.AuthGuard.isUserAuthenticated()) {
         return
     }
     
-    if (!com.afilaxy.security.SecureValidator.validateCoordinates(lat, lon)) {
-        com.afilaxy.security.SecurityUtils.safeLog("LocationUtils", "Invalid coordinates rejected", com.afilaxy.security.SecurityUtils.LogLevel.WARN)
+    if (!com.afilaxy.security.SecurityUtils.isValidCoordinate(lat, lon)) {
+        com.afilaxy.security.SecureLogger.w("LocationUtils", "Invalid coordinates rejected")
         return
     }
     
     val coordinates = com.afilaxy.security.SecurityUtils.formatSafeCoordinates(lat, lon)
-    com.afilaxy.security.SecurityUtils.safeLog("LocationUtils", "Location saved: $coordinates")
+    com.afilaxy.security.SecureLogger.d("LocationUtils", "Location saved: $coordinates")
 }
 
 fun saveUserLocation(context: Context) {
-    if (!com.afilaxy.security.SecureValidator.requireAuthentication("saveUserLocation")) {
+    if (!com.afilaxy.security.AuthGuard.isUserAuthenticated()) {
         return
     }
     
-    com.afilaxy.security.SecurityUtils.safeLog("LocationUtils", "User location save requested")
+    com.afilaxy.security.SecureLogger.d("LocationUtils", "User location save requested")
 }
