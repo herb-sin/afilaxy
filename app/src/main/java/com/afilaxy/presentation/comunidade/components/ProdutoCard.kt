@@ -24,7 +24,7 @@ fun ProdutoCard(produto: Produto) {
         modifier = Modifier
             .width(180.dp)
             .heightIn(min = 120.dp)
-            .padding(vertical = 8.dp),
+            .padding(horizontal = 4.dp, vertical = 8.dp),
         shape = MaterialTheme.shapes.medium,
         elevation = CardDefaults.cardElevation(6.dp)
     ) {

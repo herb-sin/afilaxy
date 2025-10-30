@@ -24,7 +24,7 @@ fun ProjetoCard(info: ProjetoInfo) {
         modifier = Modifier
             .width(180.dp)
             .heightIn(min = 100.dp)
-            .padding(vertical = 8.dp),
+            .padding(horizontal = 4.dp, vertical = 8.dp),
         shape = MaterialTheme.shapes.medium,
         elevation = CardDefaults.cardElevation(6.dp)
     ) {

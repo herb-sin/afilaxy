@@ -1,32 +1,102 @@
 package com.afilaxy.presentation.home
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
+import androidx.lifecycle.viewModelScope
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import com.afilaxy.notification.NotificationManager
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
 
 data class HomeUiState(
     val isHelper: Boolean = false,
     val errorMessage: String? = null
 )
 
-@HiltViewModel
-class HomeViewModel @Inject constructor() : ViewModel() {
+class HomeViewModel(private val context: Context? = null) : ViewModel() {
     
-    private val _uiState = MutableStateFlow(HomeUiState())
-    val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    var isHelper by mutableStateOf(false)
+        private set
+        
+    var isLoggedIn by mutableStateOf(false)
+        private set
+        
+    var userEmail by mutableStateOf("")
+        private set
+        
+    var statusMessage by mutableStateOf("")
+        private set
     
-    fun loadUserData() {
-        // Load user data logic
+    private val auth = FirebaseAuth.getInstance()
+    private val notificationManager = context?.let { NotificationManager(it) }
+    
+    init {
+        // Check auth state without blocking
+        auth.currentUser?.let { user ->
+            isLoggedIn = true
+            userEmail = user.email ?: ""
+        }
+        
+        // Initialize notifications
+        viewModelScope.launch {
+            notificationManager?.initializeNotifications()
+        }
     }
     
-    fun updateUserLocation(lat: Double, lon: Double) {
-        // Update location logic
+    fun toggleHelper() {
+        val newHelperStatus = !isHelper
+        
+        viewModelScope.launch {
+            try {
+                // For development, simulate success without Firebase
+                if (notificationManager != null) {
+                    val success = notificationManager.toggleHelperStatus(newHelperStatus)
+                    if (success) {
+                        isHelper = newHelperStatus
+                        statusMessage = if (newHelperStatus) {
+                            "Você agora é um helper! Receberá notificações de emergência."
+                        } else {
+                            "Status de helper desativado."
+                        }
+                    } else {
+                        statusMessage = "Erro ao conectar com Firebase. Modo offline ativado."
+                        // Still toggle for demo purposes
+                        isHelper = newHelperStatus
+                    }
+                } else {
+                    // Fallback for development without context
+                    isHelper = newHelperStatus
+                    statusMessage = if (newHelperStatus) {
+                        "Helper ativado (modo desenvolvimento)"
+                    } else {
+                        "Helper desativado (modo desenvolvimento)"
+                    }
+                }
+            } catch (e: Exception) {
+                // Fallback - still toggle for demo
+                isHelper = newHelperStatus
+                statusMessage = "Helper ${if (newHelperStatus) "ativado" else "desativado"} (offline)"
+            }
+        }
     }
     
-    fun toggleHelperStatus() {
-        _uiState.value = _uiState.value.copy(isHelper = !_uiState.value.isHelper)
+    fun quickLogin() {
+        // Simple test login - bypass Firebase for test credentials
+        isLoggedIn = true
+        userEmail = "test@test.com"
+    }
+    
+    fun logout() {
+        auth.signOut()
+        isLoggedIn = false
+        userEmail = ""
+        isHelper = false
+        statusMessage = "Logout realizado"
+    }
+    
+    fun clearStatusMessage() {
+        statusMessage = ""
     }
 }

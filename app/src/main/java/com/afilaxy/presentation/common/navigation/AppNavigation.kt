@@ -3,10 +3,12 @@ package com.afilaxy.presentation.common.navigation
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import com.google.firebase.auth.FirebaseAuth
 import androidx.navigation.NavHostController
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
@@ -17,7 +19,7 @@ import androidx.navigation.NavType
 import com.afilaxy.LocationPermissionDialog
 import com.afilaxy.presentation.autocuidado.AutocuidadoScreen
 import com.afilaxy.presentation.comunidade.ComunidadeScreen
-import com.afilaxy.presentation.emergency.EmergencyScreen
+import com.afilaxy.presentation.emergency.EmergencyScreenMaps
 import com.afilaxy.presentation.helper.HelperResponseScreen
 import com.afilaxy.presentation.home.HomeScreen
 import com.afilaxy.presentation.login.LoginScreen
@@ -34,24 +36,18 @@ fun AppNavigation(
     var isCheckingAuth by remember { mutableStateOf(true) }
     var startDestination by remember { mutableStateOf(AppRoutes.TELA_LOGIN) }
     
-    // Verificar se usuário já está logado
+    // Check authentication state
     LaunchedEffect(Unit) {
-        try {
-            val currentUser = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser
-            startDestination = if (currentUser != null && currentUser.isEmailVerified) {
-                AppRoutes.TELA_INICIAL
-            } else {
-                AppRoutes.TELA_LOGIN
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("AppNavigation", "Erro ao verificar autenticação: ${e.message}")
-            startDestination = AppRoutes.TELA_LOGIN
+        val currentUser = FirebaseAuth.getInstance().currentUser
+        startDestination = if (currentUser != null) {
+            AppRoutes.TELA_INICIAL
+        } else {
+            AppRoutes.TELA_LOGIN
         }
         isCheckingAuth = false
     }
     
     if (isCheckingAuth) {
-        // Tela de loading enquanto verifica autenticação
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
@@ -97,7 +93,7 @@ fun AppNavigation(
         }
         
         composable(AppRoutes.TELA_EMERGENCIA) {
-            EmergencyScreen(
+            EmergencyScreenMaps(
                 navController = navController,
                 modifier = modifier
             )
@@ -127,18 +123,8 @@ fun AppNavigation(
             val emergencyId = backStackEntry.arguments?.getString("emergencyId") ?: ""
             val requesterName = backStackEntry.arguments?.getString("requesterName") ?: "Pessoa"
             
-            com.afilaxy.presentation.emergency.EmergencyResponseScreen(
-                emergencyId = emergencyId,
-                requesterName = requesterName,
-                onNavigateBack = { navController.popBackStack() },
-                onAcceptHelp = {
-                    // Navegar para mapa ou confirmar ajuda
-                    navController.navigate("navigation/0.0/0.0/$requesterName")
-                },
-                onDeclineHelp = {
-                    navController.popBackStack()
-                }
-            )
+            // EmergencyResponseScreen temporarily disabled
+            Text("Emergency Response: $emergencyId for $requesterName")
         }
         
         composable(
@@ -189,6 +175,13 @@ fun AppNavigation(
             com.afilaxy.ui.screens.TermsScreen(navController)
         }
         
+        composable(AppRoutes.TELA_SOBRE_PROJETO) {
+            com.afilaxy.presentation.sobre.SobreProjetoScreen(
+                navController = navController,
+                modifier = modifier
+            )
+        }
+        
         composable(AppRoutes.TELA_LGPD) {
             com.afilaxy.ui.screens.LGPDScreen(navController)
         }
@@ -212,5 +205,7 @@ fun AppNavigation(
                 onBackPressed = { navController.popBackStack() }
             )
         }
+        
+
     }
 }

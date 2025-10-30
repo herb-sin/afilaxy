@@ -17,21 +17,8 @@ class LocationViewModel : ViewModel() {
     val location: StateFlow<Pair<Double, Double>?> = _location
 
     fun startLocationUpdates(context: Context) {
-        if (FirebaseAuth.getInstance().currentUser == null) {
-            android.util.Log.e("LocationViewModel", "Tentativa de iniciar localização sem autenticação")
-            return
-        }
-        
-        if (locationCallback != null) return
-        
-        locationCallback = try {
-            startSignificantMovementUpdates(context, 50f) { lat, lon ->
-                viewModelScope.launch { _location.value = lat to lon }
-            }
-        } catch (e: Exception) {
-            android.util.Log.e("LocationViewModel", "Erro ao iniciar localização: ${e.message}")
-            null
-        }
+        // Desabilitado temporariamente para melhor performance
+        android.util.Log.d("LocationViewModel", "Location updates disabled for performance")
     }
 
     fun stopLocationUpdates(context: Context) {

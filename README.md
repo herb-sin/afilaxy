@@ -20,26 +20,31 @@
 O **Afilaxy** é um aplicativo Android que identifica a pessoa mais próxima com uma "bombinha" de asma em casos emergenciais. Desenvolvido para alcançar pacientes fora do ambiente clínico, o app entrega boas práticas médicas, engajando pacientes no tratamento disponibilizado pelo SUS.
 
 ### 🎯 Missão
-Facilitar o acesso a medicamentos de emergência para asma e promover o engajamento de pacientes ao tratamento através da tecnologia.
+
+Facilitar o acesso a medicamentos de emergência para asma e promover o engajamento de pacientes ao tratamento disponibilizado pelo SUS.
 
 ## ✨ Funcionalidades
 
 ### 🔐 Autenticação e Segurança
+
 - **Firebase Authentication**: Cadastro, login seguro e verificação de e-mail
 - **Recuperação de senha**: Sistema robusto de recuperação de acesso
 - **Validação de campos**: Mensagens de erro em português com feedback visual
 
 ### 🗺️ Geolocalização e Comunidade
+
 - **Mapeamento em tempo real**: Localização de usuários próximos com medicamentos
 - **Sistema de emergência**: Solicitação rápida de ajuda em crises de asma
 - **Comunidade**: Tela dedicada com produtos, eventos e informações sobre o projeto
 
 ### 🎨 Interface Moderna
+
 - **Jetpack Compose**: Interface nativa, responsiva e intuitiva
 - **Material Design 3**: Design system moderno e acessível
 - **Tema customizado**: Cores e componentes adaptados para saúde
 
 ### 🔔 Notificações (Em Desenvolvimento)
+
 - **Firebase Cloud Messaging**: Alertas de emergência em tempo real
 - **Notificações de proximidade**: Avisos quando ajuda está disponível próxima
 
@@ -70,6 +75,7 @@ app/
 ## 🚀 Como executar o projeto
 
 ### Pré-requisitos
+
 - **Android Studio** Flamingo ou superior
 - **JDK 17** ou superior
 - **Android SDK** versão 34+
@@ -78,12 +84,14 @@ app/
 ### Configuração
 
 1. **Clone o repositório:**
+
    ```bash
    git clone https://github.com/herb-sin/afilaxy.git
    cd afilaxy
    ```
 
 2. **Configure o Firebase de forma segura:**
+
    - Crie um projeto no [Firebase Console](https://console.firebase.google.com/)
    - Ative **Authentication** com método e-mail/senha
    - Ative **Firestore Database**
@@ -98,6 +106,7 @@ app/
 3. **Abra o projeto no Android Studio**
 
 4. **Sincronize as dependências:**
+
    ```bash
    ./gradlew build
    ```
@@ -109,14 +118,17 @@ app/
 ## 🔒 Configuração de Segurança
 
 ### Firebase Configuration (Método Seguro)
+
 1. Execute o script de configuração automática:
+
    ```bash
    ./setup_secure_config.sh
    ```
 
 2. Insira suas credenciais quando solicitado:
+
    - Project Number
-   - Project ID  
+   - Project ID
    - Storage Bucket
    - Mobile SDK App ID
    - API Key
@@ -124,12 +136,15 @@ app/
 3. **IMPORTANTE**: O arquivo `google-services.json` é automaticamente protegido pelo `.gitignore`
 
 ### Validação de Segurança
+
 Execute o script de validação antes de fazer deploy:
+
 ```bash
 ./security_check.sh
 ```
 
 ### Recursos de Segurança Implementados
+
 - ✅ **Prevenção de injeção NoSQL** - Sanitização rigorosa de inputs com whitelist
 - ✅ **Prevenção XXE** - Parsers XML seguros com `SecureXmlUtils`
 - ✅ **Logging seguro** - Prevenção de injeção de logs em notificações
@@ -141,37 +156,41 @@ Execute o script de validação antes de fazer deploy:
 
 ## 🛠️ Tecnologias Utilizadas
 
-| Categoria | Tecnologia | Versão |
-|-----------|------------|--------|
-| **Linguagem** | Kotlin | 1.9+ |
-| **UI Framework** | Jetpack Compose | 1.5+ |
-| **Arquitetura** | MVVM + Clean Architecture | - |
-| **Backend** | Firebase | Latest |
-| **Autenticação** | Firebase Auth | Latest |
-| **Banco de Dados** | Firebase Firestore | Latest |
-| **Mapas** | Google Maps SDK | - |
-| **Notificações** | Firebase Cloud Messaging | Latest |
-| **Navegação** | Navigation Compose | Latest |
-| **Injeção de Dependência** | Hilt/Dagger | Latest |
+| Categoria                  | Tecnologia                | Versão |
+| -------------------------- | ------------------------- | ------ |
+| **Linguagem**              | Kotlin                    | 1.9+   |
+| **UI Framework**           | Jetpack Compose           | 1.5+   |
+| **Arquitetura**            | MVVM + Clean Architecture | -      |
+| **Backend**                | Firebase                  | Latest |
+| **Autenticação**           | Firebase Auth             | Latest |
+| **Banco de Dados**         | Firebase Firestore        | Latest |
+| **Mapas**                  | Google Maps SDK           | -      |
+| **Notificações**           | Firebase Cloud Messaging  | Latest |
+| **Navegação**              | Navigation Compose        | Latest |
+| **Injeção de Dependência** | Hilt/Dagger               | Latest |
 
 ## 📊 Funcionalidades por Tela
 
 ### 🏠 Tela Principal
+
 - Dashboard com status do usuário
 - Botão de emergência destacado
 - Navegação para outras seções
 
 ### 🆘 Tela de Emergência
+
 - Solicitação de ajuda com um toque
 - Localização automática
 - Lista de pessoas próximas com medicamentos
 
 ### 👥 Tela da Comunidade
+
 - **Produtos**: Informações sobre medicamentos para asma
 - **Eventos**: Lives, palestras e atividades educativas
 - **Sobre o Projeto**: Missão, visão e impacto social
 
 ### 🔐 Autenticação
+
 - Login e cadastro intuitivos
 - Validação em tempo real
 - Recuperação de senha segura
@@ -189,6 +208,7 @@ Contribuições são muito bem-vindas! Este projeto tem um impacto social import
 5. **Abra** um Pull Request
 
 ### Diretrizes:
+
 - Siga os padrões de código existentes
 - Adicione testes quando necessário
 - Documente mudanças significativas
@@ -237,4 +257,3 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICE
 Desenvolvido com ❤️ por [@herb-sin](https://github.com/herb-sin)
 
 ---
-

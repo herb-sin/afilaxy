@@ -61,6 +61,7 @@ captures/
 # Google Services (e.g. APIs or Firebase)
 # CRITICAL SECURITY: Never commit real Firebase credentials
 google-services.json
+google-services-*.json
 !google-services.json.template
 
 # Freeline

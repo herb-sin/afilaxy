@@ -12,45 +12,38 @@ import com.afilaxy.domain.model.Evento
 import com.afilaxy.domain.model.ProjetoInfo
 
 class ComunidadeViewModel : ViewModel() {
-    private val _uiState = MutableStateFlow(ComunidadeUiState())
-    val uiState: StateFlow<ComunidadeUiState> = _uiState.asStateFlow()
     
-    init {
-        loadComunidadeData()
-    }
+    val produtos = listOf(
+        Produto("1", "Bombinha de Salbutamol", "Broncodilatador para alívio rápido"),
+        Produto("2", "Espaçador", "Dispositivo para melhor inalação"),
+        Produto("3", "Nebulizador", "Para medicação em casa")
+    )
     
-    private fun loadComunidadeData() {
-        if (_uiState.value.isLoading) return
-        
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
-            
-            try {
-                val data = getCommunityData()
-                _uiState.update { 
-                    it.copy(
-                        produtos = data.produtos,
-                        eventos = data.eventos,
-                        projetos = data.projetos,
-                        isLoading = false
-                    ) 
-                }
-            } catch (e: Exception) {
-                _uiState.update { 
-                    it.copy(
-                        isLoading = false,
-                        errorMessage = "Erro ao carregar dados da comunidade"
-                    ) 
-                }
-            }
-        }
-    }
+    val eventos = listOf(
+        Evento("1", "Live: Controle da Asma", "25/01/2025", "Dicas para o dia a dia"),
+        Evento("2", "Palestra: Medicamentos", "30/01/2025", "Uso correto dos inaladores")
+    )
+    
+    val projetos = listOf(
+        ProjetoInfo("1", "Missão Afilaxy", "Conectar pessoas com asma em emergências"),
+        ProjetoInfo("2", "Parceria SUS", "Engajamento no tratamento público")
+    )
     
     private fun getCommunityData(): CommunityData {
         return CommunityData(
-            produtos = emptyList(),
-            eventos = emptyList(),
-            projetos = emptyList()
+            produtos = listOf(
+                Produto("1", "Bombinha de Salbutamol", "Broncodilatador para alívio rápido"),
+                Produto("2", "Espaçador", "Dispositivo para melhor inalação"),
+                Produto("3", "Nebulizador", "Para medicação em casa")
+            ),
+            eventos = listOf(
+                Evento("1", "Live: Controle da Asma", "25/01/2025", "Dicas para o dia a dia"),
+                Evento("2", "Palestra: Medicamentos", "30/01/2025", "Uso correto dos inaladores")
+            ),
+            projetos = listOf(
+                ProjetoInfo("1", "Missão Afilaxy", "Conectar pessoas com asma em emergências"),
+                ProjetoInfo("2", "Parceria SUS", "Engajamento no tratamento público")
+            )
         )
     }
     

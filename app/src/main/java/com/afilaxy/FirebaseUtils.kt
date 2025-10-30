@@ -7,33 +7,40 @@ import com.google.firebase.functions.FirebaseFunctions
 import android.content.Context
 
 fun saveFcmTokenToFirestore(context: Context) {
-    val user = FirebaseAuth.getInstance().currentUser
-    
-    // Verificação crítica de autenticação
-    if (user == null) {
-        android.util.Log.e("FirebaseUtils", "Tentativa de salvar token FCM sem autenticação")
-        return
-    }
-    
-    if (!user.isEmailVerified) {
-        android.util.Log.e("FirebaseUtils", "Tentativa de salvar token FCM com email não verificado")
-        return
-    }
-    
-    FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
-        if (task.isSuccessful) {
-            val token = task.result
-            val db = FirebaseFirestore.getInstance()
-            db.collection("users").document(user.uid)
-                .update("fcmToken", token)
-                .addOnSuccessListener {
-                    android.util.Log.d("FirebaseUtils", "Token FCM salvo com sucesso")
+    // Executar em background thread para evitar ANR
+    Thread {
+        try {
+            val user = FirebaseAuth.getInstance().currentUser
+            
+            // Verificação crítica de autenticação
+            if (user == null) {
+                android.util.Log.e("FirebaseUtils", "Tentativa de salvar token FCM sem autenticação")
+                return@Thread
+            }
+            
+            if (!user.isEmailVerified) {
+                android.util.Log.e("FirebaseUtils", "Tentativa de salvar token FCM com email não verificado")
+                return@Thread
+            }
+            
+            FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val token = task.result
+                    val db = FirebaseFirestore.getInstance()
+                    db.collection("users").document(user.uid)
+                        .update("fcmToken", token)
+                        .addOnSuccessListener {
+                            android.util.Log.d("FirebaseUtils", "Token FCM salvo com sucesso")
+                        }
+                        .addOnFailureListener { e ->
+                            android.util.Log.e("FirebaseUtils", "Erro ao salvar token FCM: ${e.message}")
+                        }
                 }
-                .addOnFailureListener { e ->
-                    android.util.Log.e("FirebaseUtils", "Erro ao salvar token FCM: ${e.message}")
-                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("FirebaseUtils", "Erro ao processar token FCM: ${e.message}")
         }
-    }
+    }.start()
 }
 
 fun sendAfilaxyAlert(

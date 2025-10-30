@@ -9,7 +9,7 @@ object SecurityMonitor {
     private val blockedIPs = mutableSetOf<String>()
     
     fun logThreat(type: String, details: String) {
-        threatCount[type] = threatCount.getOrDefault(type, 0) + 1
+        threatCount[type] = (threatCount[type] ?: 0) + 1
         SecureLogger.security("THREAT_DETECTED", "$type: $details")
         
         // Auto-block after multiple threats

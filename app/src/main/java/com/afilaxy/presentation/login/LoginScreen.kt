@@ -16,20 +16,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.afilaxy.R
-import com.afilaxy.saveUserLocation
+import com.afilaxy.utils.LocationUtils
 
-fun translateFirebaseError(error: String): String {
-    return when {
-        error.contains("The email address is badly formatted") -> "Formato de e-mail inválido"
-        error.contains("Password should be at least 6 characters") -> "A senha deve ter pelo menos 6 caracteres"
-        error.contains("The password is invalid") -> "Senha inválida"
-        error.contains("There is no user record") -> "Usuário não encontrado"
-        error.contains("The email address is already in use") -> "E-mail já cadastrado"
-        error.contains("A network error") -> "Erro de rede"
-        error.contains("An internal error has occurred") -> "Erro interno do servidor"
-        else -> error
-    }
-}
+
 
 @Composable
 fun LoginScreen(
@@ -69,9 +58,13 @@ fun LoginScreen(
             isRegisterMode = uiState.isRegisterMode,
             isLoading = uiState.isLoading,
             onLoginClick = { 
-                viewModel.login()
-                saveUserLocation(context)
-                onLoginSuccess()
+                viewModel.login { success ->
+                    if (success) {
+                        // Salvar localização após login bem-sucedido
+                        LocationUtils.saveUserLocation(context)
+                        onLoginSuccess()
+                    }
+                }
             },
             onRegisterClick = viewModel::register,
             onModeToggle = viewModel::toggleMode,
