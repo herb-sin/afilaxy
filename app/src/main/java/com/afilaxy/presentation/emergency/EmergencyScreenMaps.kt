@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -27,7 +28,8 @@ fun EmergencyScreenMaps(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
-    val viewModel: EmergencyViewModel = viewModel()
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val viewModel: EmergencyViewModel = viewModel { EmergencyViewModel(context) }
     var hasLocationPermission by remember { mutableStateOf(false) }
 
     LocationPermissionHandler(
@@ -55,19 +57,19 @@ private fun EmergencyMapContent(
     hasLocationPermission: Boolean,
     modifier: Modifier = Modifier
 ) {
-    // Parse user location with validation
+    // Localização do usuário (GPS ou padrão)
     val userLatLng = remember(viewModel.userLocation) {
         if (viewModel.userLocation.contains(",")) {
             val coords = viewModel.userLocation.split(",")
             try {
                 val lat = coords[0].trim().toDouble()
                 val lng = coords[1].trim().toDouble()
-                MapsOptimizer.validateCoordinates(lat, lng)
+                LatLng(lat, lng)
             } catch (e: Exception) {
-                LatLng(-23.5505, -46.6333) // São Paulo fallback
+                LatLng(-23.5505, -46.6333) // Fallback
             }
         } else {
-            LatLng(-23.5505, -46.6333) // São Paulo fallback
+            LatLng(-23.5505, -46.6333) // Fallback
         }
     }
     
@@ -75,22 +77,30 @@ private fun EmergencyMapContent(
         position = CameraPosition.fromLatLngZoom(userLatLng, 15f)
     }
 
-    // Update camera when location changes with optimized delay
+    // Update camera when location changes
     LaunchedEffect(userLatLng) {
-        MapsOptimizer.safeCameraOperation {
+        try {
             cameraPositionState.animate(
                 CameraUpdateFactory.newLatLngZoom(userLatLng, 15f)
             )
+        } catch (e: Exception) {
+            // Ignore camera errors
         }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // Google Maps with optimized settings
+        // Google Maps
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
             cameraPositionState = cameraPositionState,
-            properties = MapsOptimizer.getOptimizedMapProperties(hasLocationPermission),
-            uiSettings = MapsOptimizer.getOptimizedMapUiSettings()
+            properties = MapProperties(
+                isMyLocationEnabled = false,
+                mapType = MapType.NORMAL
+            ),
+            uiSettings = MapUiSettings(
+                zoomControlsEnabled = true,
+                myLocationButtonEnabled = false
+            )
         ) {
             // User location marker
             Marker(
@@ -99,17 +109,13 @@ private fun EmergencyMapContent(
                 snippet = "Você está aqui"
             )
             
-            // Helper markers when emergency is active (optimized)
-            if (viewModel.emergencyActive) {
-                val helpers = remember(userLatLng) {
-                    MapsOptimizer.generateOptimizedHelpers(userLatLng, viewModel.helpersFound)
-                }
-                
-                helpers.forEachIndexed { index, location ->
+            // Helper markers reais do Firebase
+            if (viewModel.emergencyActive && viewModel.nearbyHelpers.isNotEmpty()) {
+                viewModel.nearbyHelpers.forEach { helper ->
                     Marker(
-                        state = MarkerState(position = location),
-                        title = "Helper ${index + 1}",
-                        snippet = "Bombinha disponível - ${(100..500).random()}m"
+                        state = MarkerState(position = LatLng(helper.latitude, helper.longitude)),
+                        title = helper.name,
+                        snippet = "Bombinha disponível - ${String.format("%.0f", helper.distance * 1000)}m"
                     )
                 }
             }
@@ -206,10 +212,18 @@ private fun EmergencyMapContent(
                         color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "${viewModel.helpersFound} helpers próximos no mapa",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    if (viewModel.helpersFound > 0) {
+                        Text(
+                            "${viewModel.helpersFound} helpers encontrados no mapa",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    } else {
+                        Text(
+                            "Nenhum helper próximo encontrado",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                     Spacer(modifier = Modifier.height(12.dp))
                     
                     Button(

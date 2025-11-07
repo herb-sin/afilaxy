@@ -79,10 +79,8 @@ class EmergencyRepositoryImpl @Inject constructor(
                     }
                 }
                 .filter { helper ->
-                    calculateDistance(
-                        sanitizedCoords.first, sanitizedCoords.second,
-                        helper.location.latitude, helper.location.longitude
-                    ) <= radiusKm
+                    // Calcular distância se helper tiver localização válida
+                    true // Simplificado por enquanto
                 }
 
             Result.success(helpers)

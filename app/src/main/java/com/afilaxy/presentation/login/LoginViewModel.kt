@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import com.google.firebase.auth.FirebaseAuth
+import com.afilaxy.data.NotificationRepository
 
 data class LoginUiState(
     val email: String = "",
@@ -24,6 +25,7 @@ class LoginViewModel : ViewModel() {
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
     
     private val firebaseAuth = FirebaseAuth.getInstance()
+    private val notificationRepository = NotificationRepository()
     
     fun updateEmail(email: String) {
         _uiState.value = _uiState.value.copy(email = email)
@@ -43,12 +45,7 @@ class LoginViewModel : ViewModel() {
             return
         }
         
-        // Test credentials for development - bypass Firebase
-        if (_uiState.value.email == "test@test.com" && _uiState.value.password == "123456") {
-            _uiState.value = _uiState.value.copy(isLoading = false, errorMessage = null)
-            onResult(true)
-            return
-        }
+
         
         _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
         
@@ -58,6 +55,12 @@ class LoginViewModel : ViewModel() {
                     .addOnCompleteListener { task ->
                         _uiState.value = _uiState.value.copy(isLoading = false)
                         if (task.isSuccessful) {
+                            // Save FCM token for notifications
+                            firebaseAuth.currentUser?.uid?.let { userId ->
+                                viewModelScope.launch {
+                                    notificationRepository.saveUserToken(userId)
+                                }
+                            }
                             onResult(true)
                         } else {
                             val errorMsg = when {

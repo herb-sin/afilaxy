@@ -7,6 +7,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import com.afilaxy.notification.NotificationManager
+import com.afilaxy.data.repository.HelperRepository
+import com.afilaxy.data.repository.LocationRepository
+import com.afilaxy.data.NotificationRepository
+import com.afilaxy.domain.usecase.ToggleHelperUseCase
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 
@@ -15,7 +19,7 @@ data class HomeUiState(
     val errorMessage: String? = null
 )
 
-class HomeViewModel(private val context: Context? = null) : ViewModel() {
+class HomeViewModel(context: Context) : ViewModel() {
     
     var isHelper by mutableStateOf(false)
         private set
@@ -30,7 +34,12 @@ class HomeViewModel(private val context: Context? = null) : ViewModel() {
         private set
     
     private val auth = FirebaseAuth.getInstance()
-    private val notificationManager = context?.let { NotificationManager(it) }
+    private val notificationManager = NotificationManager(context)
+    private val locationRepository = LocationRepository(context)
+    private val helperRepository = HelperRepository()
+    private val toggleHelperUseCase = ToggleHelperUseCase(locationRepository, helperRepository)
+    private val notificationRepository = NotificationRepository()
+    private val sharedPrefs = context.getSharedPreferences("afilaxy_prefs", Context.MODE_PRIVATE)
     
     init {
         // Check auth state without blocking
@@ -39,9 +48,17 @@ class HomeViewModel(private val context: Context? = null) : ViewModel() {
             userEmail = user.email ?: ""
         }
         
-        // Initialize notifications
+        // Load helper status from SharedPreferences
+        isHelper = sharedPrefs.getBoolean("is_helper", false)
+        
+        // Initialize notifications and save FCM token
         viewModelScope.launch {
-            notificationManager?.initializeNotifications()
+            notificationManager.initializeNotifications()
+            
+            // Save FCM token if user is logged in
+            auth.currentUser?.uid?.let { userId ->
+                notificationRepository.saveUserToken(userId)
+            }
         }
     }
     
@@ -49,37 +66,40 @@ class HomeViewModel(private val context: Context? = null) : ViewModel() {
         val newHelperStatus = !isHelper
         
         viewModelScope.launch {
-            try {
-                // For development, simulate success without Firebase
-                if (notificationManager != null) {
-                    val success = notificationManager.toggleHelperStatus(newHelperStatus)
-                    if (success) {
-                        isHelper = newHelperStatus
-                        statusMessage = if (newHelperStatus) {
-                            "Você agora é um helper! Receberá notificações de emergência."
-                        } else {
-                            "Status de helper desativado."
-                        }
-                    } else {
-                        statusMessage = "Erro ao conectar com Firebase. Modo offline ativado."
-                        // Still toggle for demo purposes
-                        isHelper = newHelperStatus
-                    }
-                } else {
-                    // Fallback for development without context
+            val result = if (newHelperStatus) {
+                toggleHelperUseCase.activateHelper()
+            } else {
+                toggleHelperUseCase.deactivateHelper()
+            }
+            
+            when (result) {
+                is ToggleHelperUseCase.Result.Success -> {
                     isHelper = newHelperStatus
+                    saveHelperStatus(newHelperStatus)
                     statusMessage = if (newHelperStatus) {
-                        "Helper ativado (modo desenvolvimento)"
+                        "👥 Helper ativo! Você receberá notificações de emergência."
                     } else {
-                        "Helper desativado (modo desenvolvimento)"
+                        "Helper desativado."
                     }
                 }
-            } catch (e: Exception) {
-                // Fallback - still toggle for demo
-                isHelper = newHelperStatus
-                statusMessage = "Helper ${if (newHelperStatus) "ativado" else "desativado"} (offline)"
+                is ToggleHelperUseCase.Result.LocationPermissionRequired -> {
+                    statusMessage = "Erro: Permissão de localização necessária."
+                }
+                is ToggleHelperUseCase.Result.LocationNotAvailable -> {
+                    statusMessage = "Erro: Não foi possível obter localização. Verifique se o GPS está ativo."
+                }
+                is ToggleHelperUseCase.Result.NetworkError -> {
+                    statusMessage = "Erro de rede. Tente novamente."
+                }
+                is ToggleHelperUseCase.Result.Error -> {
+                    statusMessage = "Erro: ${result.message}"
+                }
             }
         }
+    }
+    
+    private fun saveHelperStatus(status: Boolean) {
+        sharedPrefs.edit().putBoolean("is_helper", status).apply()
     }
     
     fun quickLogin() {
@@ -89,10 +109,21 @@ class HomeViewModel(private val context: Context? = null) : ViewModel() {
     }
     
     fun logout() {
+        // Remove helper status before logout
+        if (isHelper) {
+            viewModelScope.launch {
+                helperRepository.removeHelper()
+            }
+        }
+        
         auth.signOut()
         isLoggedIn = false
         userEmail = ""
         isHelper = false
+        
+        // Clear helper status from SharedPreferences
+        saveHelperStatus(false)
+        
         statusMessage = "Logout realizado"
     }
     

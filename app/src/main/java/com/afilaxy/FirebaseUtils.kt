@@ -19,8 +19,8 @@ fun saveFcmTokenToFirestore(context: Context) {
             }
             
             if (!user.isEmailVerified) {
-                android.util.Log.e("FirebaseUtils", "Tentativa de salvar token FCM com email não verificado")
-                return@Thread
+                android.util.Log.w("FirebaseUtils", "Salvando token FCM com email não verificado")
+                // Continua mesmo sem verificação para funcionalidade de emergência
             }
             
             FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->

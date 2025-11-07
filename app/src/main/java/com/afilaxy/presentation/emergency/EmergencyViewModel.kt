@@ -6,18 +6,28 @@ import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import com.afilaxy.location.RealLocationManager
-import com.afilaxy.location.LocationResult
-import com.afilaxy.notification.NotificationManager
-import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
+import com.afilaxy.data.repository.LocationRepository
+import com.afilaxy.data.repository.HelperRepository
+import com.afilaxy.data.repository.EmergencyRequestRepository
+import com.afilaxy.data.NotificationRepository
+import com.afilaxy.domain.usecase.RequestEmergencyHelpUseCase
+import com.afilaxy.domain.model.Helper
 import kotlinx.coroutines.launch
 
-class EmergencyViewModel(private val context: Context? = null) : ViewModel() {
+class EmergencyViewModel(context: Context) : ViewModel() {
     
     var emergencyActive by mutableStateOf(false)
         private set
         
     var helpersFound by mutableStateOf(0)
+        private set
+        
+    var nearbyHelpers by mutableStateOf<List<Helper>>(emptyList())
+        private set
+        
+    var currentRequestId by mutableStateOf<String?>(null)
         private set
         
     var userLocation by mutableStateOf("-23.5505, -46.6333") // São Paulo como padrão
@@ -28,60 +38,42 @@ class EmergencyViewModel(private val context: Context? = null) : ViewModel() {
         
     var statusMessage by mutableStateOf("")
         private set
+        
+    var timeRemaining by mutableStateOf(0)
+        private set
+        
+    private var timerJob: Job? = null
     
-    private val auth = FirebaseAuth.getInstance()
-    private val notificationManager = context?.let { NotificationManager(it) }
-    private val locationManager = context?.let { RealLocationManager(it) }
+    private val locationRepository = LocationRepository(context)
+    private val helperRepository = HelperRepository()
+    private val emergencyRequestRepository = EmergencyRequestRepository()
+    private val notificationRepository = NotificationRepository()
+    private val requestEmergencyHelpUseCase = RequestEmergencyHelpUseCase(
+        locationRepository, helperRepository, emergencyRequestRepository, notificationRepository
+    )
     
     init {
         getCurrentLocation()
-        initializeNotifications()
     }
     
     private fun getCurrentLocation() {
         viewModelScope.launch {
-            statusMessage = "Obtendo localização..."
+            statusMessage = "Obtendo localização GPS..."
             
             try {
-                if (locationManager != null) {
-                    // Heavy operation in IO, but state updates on Main
-                    val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        kotlinx.coroutines.withTimeout(3000) {
-                            locationManager.getCurrentLocation()
-                        }
-                    }
-                    
-                    when (result) {
-                        is LocationResult.Success -> {
-                            userLocation = "${result.latitude}, ${result.longitude}"
-                            statusMessage = "Localização obtida com sucesso"
-                        }
-                        is LocationResult.Error -> {
-                            userLocation = "-23.5505, -46.6333"
-                            statusMessage = "Usando localização padrão: ${result.message}"
-                        }
-                        is LocationResult.PermissionDenied -> {
-                            userLocation = "-23.5505, -46.6333"
-                            statusMessage = "Permissão negada. Usando localização padrão."
-                        }
-                    }
+                val location = locationRepository.getCurrentLocation()
+                
+                if (location != null) {
+                    userLocation = "${location.latitude}, ${location.longitude}"
+                    statusMessage = "📍 GPS: ${String.format("%.4f", location.latitude)}, ${String.format("%.4f", location.longitude)}"
                 } else {
                     userLocation = "-23.5505, -46.6333"
-                    statusMessage = "Modo desenvolvimento - localização simulada"
+                    statusMessage = "GPS indisponível. Usando São Paulo como padrão."
                 }
-            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                userLocation = "-23.5505, -46.6333"
-                statusMessage = "Timeout na localização. Usando padrão."
             } catch (e: Exception) {
                 userLocation = "-23.5505, -46.6333"
-                statusMessage = "Erro na localização. Usando padrão."
+                statusMessage = "Erro GPS: ${e.message}. Usando localização padrão."
             }
-        }
-    }
-    
-    private fun initializeNotifications() {
-        viewModelScope.launch {
-            notificationManager?.initializeNotifications()
         }
     }
     
@@ -90,55 +82,78 @@ class EmergencyViewModel(private val context: Context? = null) : ViewModel() {
         statusMessage = "Enviando pedido de ajuda..."
         
         viewModelScope.launch {
-            try {
-                // Heavy operations in IO, state updates on Main
-                val success = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    kotlinx.coroutines.delay(500)
-                    
-                    kotlinx.coroutines.withTimeout(5000) {
-                        if (notificationManager != null && auth.currentUser != null) {
-                            val coords = userLocation.split(",")
-                            val lat = coords[0].trim().toDouble()
-                            val lng = coords[1].trim().toDouble()
-                            
-                            notificationManager.sendEmergencyNotification(
-                                latitude = lat,
-                                longitude = lng,
-                                message = "Preciso de ajuda com asma! Localização: São Paulo, SP"
-                            )
-                        } else {
-                            true // Demo mode
-                        }
-                    }
+            val result = requestEmergencyHelpUseCase.execute()
+            
+            when (result) {
+                is RequestEmergencyHelpUseCase.Result.Success -> {
+                    emergencyActive = true
+                    currentRequestId = result.requestId
+                    nearbyHelpers = result.helpers
+                    helpersFound = result.helpers.size
+                    statusMessage = "${result.helpers.size} helpers encontrados! Notificações enviadas."
+                    startTimer()
                 }
-                
-                // State updates on Main thread
-                emergencyActive = true
-                helpersFound = 3
-                statusMessage = if (success) {
-                    "Ajuda solicitada! Helpers notificados via Firebase."
-                } else {
-                    "Emergência ativa (modo offline)"
+                is RequestEmergencyHelpUseCase.Result.LocationInvalid -> {
+                    statusMessage = "Localização inválida: ${result.reason}"
                 }
-                
-            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
-                emergencyActive = true
-                helpersFound = 3
-                statusMessage = "Emergência ativa (timeout na rede)"
-            } catch (e: Exception) {
-                emergencyActive = true
-                helpersFound = 3
-                statusMessage = "Emergência ativa (modo demonstração)"
-            } finally {
-                isLoading = false
+                is RequestEmergencyHelpUseCase.Result.LocationPermissionRequired -> {
+                    statusMessage = "Permissão de localização necessária."
+                }
+                is RequestEmergencyHelpUseCase.Result.LocationNotAvailable -> {
+                    statusMessage = "Não foi possível obter localização. Verifique se o GPS está ativo."
+                }
+                is RequestEmergencyHelpUseCase.Result.NoHelpersFound -> {
+                    emergencyActive = true
+                    helpersFound = 0
+                    statusMessage = "Nenhum helper próximo encontrado. Tente novamente."
+                }
+                is RequestEmergencyHelpUseCase.Result.Error -> {
+                    statusMessage = "Erro: ${result.message}"
+                }
             }
+            
+            isLoading = false
         }
     }
     
     fun cancelHelp() {
-        emergencyActive = false
-        helpersFound = 0
-        statusMessage = "Solicitação cancelada"
+        viewModelScope.launch {
+            currentRequestId?.let { requestId ->
+                val success = emergencyRequestRepository.cancelEmergencyRequest(requestId)
+                if (success) {
+                    statusMessage = "Solicitação cancelada com sucesso"
+                } else {
+                    statusMessage = "Erro ao cancelar solicitação"
+                }
+            }
+            
+            emergencyActive = false
+            currentRequestId = null
+            helpersFound = 0
+            nearbyHelpers = emptyList()
+            stopTimer()
+        }
+    }
+    
+    private fun startTimer() {
+        timeRemaining = 300 // 5 minutos em segundos
+        timerJob = viewModelScope.launch {
+            while (timeRemaining > 0 && emergencyActive) {
+                delay(1000)
+                timeRemaining--
+                
+                if (timeRemaining == 0) {
+                    // Pedido expirou automaticamente
+                    emergencyActive = false
+                    statusMessage = "Pedido expirou após 5 minutos"
+                }
+            }
+        }
+    }
+    
+    private fun stopTimer() {
+        timerJob?.cancel()
+        timeRemaining = 0
     }
     
     fun refreshLocation() {

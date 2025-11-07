@@ -1,27 +1,57 @@
 package com.afilaxy.presentation.emergency
 
+import android.Manifest
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModel
 import androidx.navigation.NavController
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalPermissionsApi::class)
 @Composable
 fun EmergencyScreen(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
-    val viewModel: EmergencyViewModel = viewModel()
+    val context = LocalContext.current
+    val viewModel: EmergencyViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return EmergencyViewModel(context) as T
+            }
+        }
+    )
+    
+    // Permissões de localização
+    val locationPermissions = rememberMultiplePermissionsState(
+        permissions = listOf(
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+        )
+    )
+    
+    // Solicitar permissões automaticamente
+    LaunchedEffect(Unit) {
+        if (!locationPermissions.allPermissionsGranted) {
+            locationPermissions.launchMultiplePermissionRequest()
+        }
+    }
     
     // Localização padrão (São Paulo) caso não tenha GPS
     val defaultLocation = LatLng(-23.5505, -46.6333)
@@ -46,7 +76,14 @@ fun EmergencyScreen(
         // Mapa ocupando toda a tela
         GoogleMap(
             modifier = Modifier.fillMaxSize(),
-            cameraPositionState = cameraPositionState
+            cameraPositionState = cameraPositionState,
+            properties = MapProperties(
+                mapType = MapType.NORMAL
+            ),
+            uiSettings = MapUiSettings(
+                zoomControlsEnabled = true,
+                compassEnabled = true
+            )
         ) {
             // Marcador da localização do usuário
             Marker(
@@ -107,27 +144,66 @@ fun EmergencyScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 if (!viewModel.emergencyActive) {
-                    Text(
-                        "Precisa de uma bombinha de asma?",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    if (!locationPermissions.allPermissionsGranted) {
+                        Text(
+                            "📍 Permissão de localização necessária",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Button(
+                            onClick = { locationPermissions.launchMultiplePermissionRequest() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.LocationOn, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Permitir Localização")
+                        }
+                    } else {
+                        Text(
+                            "Precisa de uma bombinha de asma?",
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            viewModel.statusMessage,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     Spacer(modifier = Modifier.height(12.dp))
                     
-                    Button(
-                        onClick = { viewModel.requestHelp() },
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.error
-                        ),
-                        enabled = !viewModel.isLoading
-                    ) {
-                        if (viewModel.isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = MaterialTheme.colorScheme.onError
-                            )
-                        } else {
-                            Text("SOLICITAR AJUDA")
+                    if (locationPermissions.allPermissionsGranted) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = { viewModel.refreshLocation() },
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.secondary
+                                )
+                            ) {
+                                Icon(Icons.Default.LocationOn, contentDescription = null)
+                            }
+                            Button(
+                                onClick = { viewModel.requestHelp() },
+                                modifier = Modifier.weight(3f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.error
+                                ),
+                                enabled = !viewModel.isLoading
+                            ) {
+                                if (viewModel.isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        color = MaterialTheme.colorScheme.onError
+                                    )
+                                } else {
+                                    Text("SOLICITAR AJUDA")
+                                }
+                            }
                         }
                     }
                 } else {
@@ -140,6 +216,12 @@ fun EmergencyScreen(
                     Text(
                         "${viewModel.helpersFound} pessoas próximas notificadas",
                         style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        viewModel.statusMessage,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     

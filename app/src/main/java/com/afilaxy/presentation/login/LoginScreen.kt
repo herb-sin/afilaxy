@@ -60,8 +60,10 @@ fun LoginScreen(
             onLoginClick = { 
                 viewModel.login { success ->
                     if (success) {
-                        // Salvar localização após login bem-sucedido
-                        LocationUtils.saveUserLocation(context)
+                        // Obter localização após login bem-sucedido
+                        LocationUtils.getCurrentLocation(context) { lat, lng ->
+                            // Localização obtida: $lat, $lng
+                        }
                         onLoginSuccess()
                     }
                 }

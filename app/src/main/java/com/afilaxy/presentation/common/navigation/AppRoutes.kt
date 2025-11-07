@@ -10,6 +10,8 @@ object AppRoutes {
     const val TELA_SOBRE_PROJETO = "sobre_projeto"
     const val TELA_TERMOS = "tela_termos"
     const val TELA_LGPD = "tela_lgpd"
+    const val TELA_MAPA = "tela_mapa"
+    const val TELA_PROFILE = "tela_profile"
     
     // Aliases for compatibility
     const val LOGIN_SCREEN = TELA_LOGIN

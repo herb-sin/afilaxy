@@ -11,21 +11,24 @@ import kotlinx.coroutines.launch
  * Location utilities
  */
 object LocationUtils {
-    fun saveUserLocation(context: Context) {
+    fun getCurrentLocation(context: Context, callback: (Double?, Double?) -> Unit) {
         try {
-            Log.d("LocationUtils", "Saving user location...")
+            Log.d("LocationUtils", "Getting current location...")
             val locationManager = LocationManager(context)
             
             CoroutineScope(Dispatchers.IO).launch {
-                val success = locationManager.saveUserLocation()
-                if (success) {
-                    Log.d("LocationUtils", "Location saved successfully")
+                val location = locationManager.getCurrentLocation()
+                if (location != null) {
+                    Log.d("LocationUtils", "Location obtained: ${location.latitude}, ${location.longitude}")
+                    callback(location.latitude, location.longitude)
                 } else {
-                    Log.w("LocationUtils", "Failed to save location")
+                    Log.w("LocationUtils", "Failed to get location")
+                    callback(null, null)
                 }
             }
         } catch (e: Exception) {
-            Log.e("LocationUtils", "Error saving location", e)
+            Log.e("LocationUtils", "Error getting location", e)
+            callback(null, null)
         }
     }
 }

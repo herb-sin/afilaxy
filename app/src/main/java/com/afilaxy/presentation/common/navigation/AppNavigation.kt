@@ -186,6 +186,13 @@ fun AppNavigation(
             com.afilaxy.ui.screens.LGPDScreen(navController)
         }
         
+        composable(AppRoutes.TELA_MAPA) {
+            com.afilaxy.presentation.map.MapScreen(
+                navController = navController,
+                modifier = modifier
+            )
+        }
+        
         composable(
             route = "navigation/{lat}/{lng}/{name}",
             arguments = listOf(
