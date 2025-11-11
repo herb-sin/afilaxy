@@ -76,23 +76,23 @@ class HomeViewModel(context: Context) : ViewModel() {
                 is ToggleHelperUseCase.Result.Success -> {
                     isHelper = newHelperStatus
                     saveHelperStatus(newHelperStatus)
-                    statusMessage = if (newHelperStatus) {
-                        "👥 Helper ativo! Você receberá notificações de emergência."
-                    } else {
-                        "Helper desativado."
-                    }
+                    // Status refletido dinamicamente na UI
                 }
                 is ToggleHelperUseCase.Result.LocationPermissionRequired -> {
                     statusMessage = "Erro: Permissão de localização necessária."
+                    // Manter o estado anterior em caso de erro
                 }
                 is ToggleHelperUseCase.Result.LocationNotAvailable -> {
                     statusMessage = "Erro: Não foi possível obter localização. Verifique se o GPS está ativo."
+                    // Manter o estado anterior em caso de erro
                 }
                 is ToggleHelperUseCase.Result.NetworkError -> {
                     statusMessage = "Erro de rede. Tente novamente."
+                    // Manter o estado anterior em caso de erro
                 }
                 is ToggleHelperUseCase.Result.Error -> {
                     statusMessage = "Erro: ${result.message}"
+                    // Manter o estado anterior em caso de erro
                 }
             }
         }

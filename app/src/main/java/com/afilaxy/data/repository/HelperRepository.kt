@@ -62,7 +62,7 @@ class HelperRepository {
             
             firestore.collection("helpers")
                 .document(user.uid)
-                .update("isActive", false)
+                .delete()
                 .await()
             
             android.util.Log.d("HelperRepository", "Helper removido com sucesso")
@@ -76,17 +76,23 @@ class HelperRepository {
     /**
      * Busca helpers próximos (raio padrão de 260 metros)
      */
-    suspend fun getNearbyHelpers(latitude: Double, longitude: Double, radiusKm: Double = 0.26): List<Helper> {
+    suspend fun getNearbyHelpers(latitude: Double, longitude: Double, radiusKm: Double = 5.0): List<Helper> {
         return try {
             val currentUserId = auth.currentUser?.uid
             android.util.Log.d("HelperRepository", "Buscando helpers próximos em ($latitude, $longitude) com raio de ${radiusKm}km (excluindo usuário atual: $currentUserId)")
             
             val snapshot = firestore.collection("helpers")
-                .whereEqualTo("isActive", true)
                 .get()
                 .await()
             
             android.util.Log.d("HelperRepository", "Encontrados ${snapshot.documents.size} helpers ativos no banco")
+            
+            // Debug: listar todos os helpers encontrados
+            for (doc in snapshot.documents) {
+                val data = doc.data
+                val location = data?.get("location") as? GeoPoint
+                android.util.Log.d("HelperRepository", "Helper encontrado: ID=${doc.id}, Nome=${data?.get("name")}, Localização=${location?.latitude},${location?.longitude}")
+            }
             
             val helpers = mutableListOf<Helper>()
             

@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
+
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +26,9 @@ import com.afilaxy.presentation.common.navigation.AppRoutes
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import com.google.accompanist.permissions.isGranted
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import com.afilaxy.R
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalPermissionsApi::class, ExperimentalMaterial3Api::class)
@@ -34,7 +38,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val viewModel: HomeViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+    val viewModel: HomeViewModel = viewModel(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -121,7 +125,7 @@ fun HomeScreen(
                     
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Default.ExitToApp, contentDescription = null) },
-                        label = { Text("Logout") },
+                        label = { Text("Sair") },
                         selected = false,
                         onClick = {
                             viewModel.logout()
@@ -137,7 +141,19 @@ fun HomeScreen(
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("🫁 Afilaxy") },
+                    title = { 
+Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Image(
+                                painter = painterResource(id = R.drawable.afilaxy_icon_48),
+                                contentDescription = "Logo Afilaxy",
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Afilaxy")
+                        }
+                    },
                     navigationIcon = {
                         IconButton(
                             onClick = {
@@ -173,90 +189,42 @@ fun HomeScreen(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant
                 )
             ) {
-                Column(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Bem-vindo!",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center
-                    )
-                    Text(
-                        text = viewModel.userEmail,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = { 
-                            viewModel.logout()
-                            navController.navigate(AppRoutes.TELA_LOGIN) {
-                                popUpTo(AppRoutes.TELA_INICIAL) { inclusive = true }
+                    Column {
+                        Text(if (viewModel.isHelper) "Estou com a \"bombinha\"" else "Não estou com a \"bombinha\"")
+                        Text(
+                            if (viewModel.isHelper) "Receber pedidos de emergência" else "Não receber pedidos de emergência",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = viewModel.isHelper,
+                        onCheckedChange = { newValue ->
+                            if (newValue && !locationPermissions.allPermissionsGranted) {
+                                locationPermissions.launchMultiplePermissionRequest()
+                            } else {
+                                viewModel.toggleHelper()
                             }
                         }
-                    ) {
-                        Text("Sair")
-                    }
+                    )
                 }
             }
         }
         
         Spacer(modifier = Modifier.height(32.dp))
         
-        // Status Message
-        if (viewModel.statusMessage.isNotEmpty()) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
-                )
-            ) {
-                Text(
-                    text = viewModel.statusMessage,
-                    modifier = Modifier.padding(12.dp),
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-        }
+
         
-        // Helper Toggle
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text("Sou ajudante:")
-                Text(
-                    "Receber notificações de emergência",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Switch(
-                checked = viewModel.isHelper,
-                onCheckedChange = { newValue ->
-                    if (newValue && !locationPermissions.allPermissionsGranted) {
-                        locationPermissions.launchMultiplePermissionRequest()
-                    } else {
-                        viewModel.toggleHelper()
-                    }
-                }
-            )
-        }
+
         
-        // Handle permission result - activate helper when permissions granted
-        LaunchedEffect(locationPermissions.allPermissionsGranted) {
-            if (locationPermissions.allPermissionsGranted && !viewModel.isHelper) {
-                viewModel.toggleHelper()
-            }
-        }
+
         
         Spacer(modifier = Modifier.height(24.dp))
         

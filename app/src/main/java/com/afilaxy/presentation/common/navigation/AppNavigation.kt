@@ -147,7 +147,7 @@ fun AppNavigation(
             )
         }
         
-        composable("perfil") {
+        composable(AppRoutes.TELA_PROFILE) {
             com.afilaxy.presentation.profile.ProfileScreen(
                 navController = navController,
                 modifier = modifier

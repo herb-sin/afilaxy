@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
@@ -20,6 +21,7 @@ import androidx.navigation.NavController
 import com.afilaxy.data.AsthmaFAQ
 import com.afilaxy.data.FAQItem
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AutocuidadoScreen(
     navController: NavController,
@@ -27,19 +29,28 @@ fun AutocuidadoScreen(
 ) {
     var expandedIndex by remember { mutableStateOf(-1) }
     
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp)
-    ) {
-        Text(
-            text = "💚 Informações e Autocuidado",
-            style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(8.dp))
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("💚 Autocuidado") },
+                navigationIcon = {
+                    IconButton(
+                        onClick = { navController.popBackStack() }
+                    ) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Voltar")
+                    }
+                }
+            )
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(paddingValues)
+                .padding(16.dp)
+        ) {
+
         Text(
             text = "Perguntas frequentes sobre asma com orientações médicas baseadas em evidências científicas.",
             style = MaterialTheme.typography.bodyMedium,
@@ -63,13 +74,6 @@ fun AutocuidadoScreen(
             }
         }
         
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Button(
-            onClick = { navController.popBackStack() },
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Voltar")
         }
     }
 }

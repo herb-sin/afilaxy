@@ -1,6 +1,8 @@
 package com.afilaxy.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -29,6 +31,7 @@ fun LGPDScreen(navController: NavController? = null) {
             modifier = Modifier
                 .padding(paddingValues)
                 .padding(24.dp)
+                .verticalScroll(rememberScrollState())
         ) {
         Text(
             text = "Política de Privacidade e LGPD",
@@ -41,12 +44,11 @@ fun LGPDScreen(navController: NavController? = null) {
 
         Text("Seus direitos:", style = MaterialTheme.typography.titleMedium)
         PrivacyInfo.LGPD_RIGHTS.forEach { right ->
-            OutlinedButton(
-                onClick = { /* Placeholder for future implementation */ },
-                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)
-            ) {
-                Text(right)
-            }
+            Text(
+                text = "• $right",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.padding(vertical = 4.dp)
+            )
         }
         Spacer(modifier = Modifier.height(18.dp))
 

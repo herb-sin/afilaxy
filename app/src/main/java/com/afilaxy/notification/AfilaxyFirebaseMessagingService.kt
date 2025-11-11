@@ -17,11 +17,22 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
         
+        android.util.Log.d("AfilaxyFCM", "FCM message received: ${remoteMessage.data}")
+        
         // Handle emergency notifications
         when (remoteMessage.data["type"]) {
-            "emergency_request" -> handleEmergencyRequest(remoteMessage)
-            "helper_response" -> handleHelperResponse(remoteMessage)
-            else -> handleGeneralNotification(remoteMessage)
+            "emergency_request" -> {
+                android.util.Log.d("AfilaxyFCM", "Emergency request received")
+                handleEmergencyRequest(remoteMessage)
+            }
+            "helper_response" -> {
+                android.util.Log.d("AfilaxyFCM", "Helper response received")
+                handleHelperResponse(remoteMessage)
+            }
+            else -> {
+                android.util.Log.d("AfilaxyFCM", "General notification received")
+                handleGeneralNotification(remoteMessage)
+            }
         }
     }
 
