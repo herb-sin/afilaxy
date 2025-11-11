@@ -27,8 +27,13 @@ fun saveFcmTokenToFirestore(context: Context) {
                 if (task.isSuccessful) {
                     val token = task.result
                     val db = FirebaseFirestore.getInstance()
+                    val userData = mapOf(
+                        "fcmToken" to token,
+                        "createdAt" to System.currentTimeMillis(),
+                        "isHelper" to false
+                    )
                     db.collection("users").document(user.uid)
-                        .update("fcmToken", token)
+                        .set(userData)
                         .addOnSuccessListener {
                             android.util.Log.d("FirebaseUtils", "Token FCM salvo com sucesso")
                         }

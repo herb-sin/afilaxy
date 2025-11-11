@@ -95,6 +95,15 @@ fun EmailVerificationScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            Text(
+                text = "💡 Não encontrou? Verifique sua caixa de spam.",
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
             Spacer(modifier = Modifier.height(32.dp))
             
             Button(

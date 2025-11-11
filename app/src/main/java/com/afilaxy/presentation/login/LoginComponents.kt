@@ -10,6 +10,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.afilaxy.R
 
@@ -150,8 +151,9 @@ fun RegistrationSuccessCard(onDismiss: () -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
             
             Text(
-                text = "Agora você pode fazer login com suas credenciais.",
-                style = MaterialTheme.typography.bodyMedium
+                text = "Um e-mail de validação foi enviado, verifique sua caixa de SPAM",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center
             )
             
             Spacer(modifier = Modifier.height(16.dp))

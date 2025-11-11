@@ -44,12 +44,15 @@ class HomeViewModel(context: Context) : ViewModel() {
     init {
         // Check auth state without blocking
         auth.currentUser?.let { user ->
+            // Simplify - just check if user exists (email verification handled elsewhere)
             isLoggedIn = true
             userEmail = user.email ?: ""
+            // Load helper status only if authenticated
+            isHelper = sharedPrefs.getBoolean("is_helper", false)
+        } ?: run {
+            // No user logged in, clear any persisted data
+            clearUserData()
         }
-        
-        // Load helper status from SharedPreferences
-        isHelper = sharedPrefs.getBoolean("is_helper", false)
         
         // Initialize notifications and save FCM token
         viewModelScope.launch {
@@ -117,14 +120,16 @@ class HomeViewModel(context: Context) : ViewModel() {
         }
         
         auth.signOut()
+        clearUserData()
+        
+        statusMessage = "Logout realizado"
+    }
+    
+    private fun clearUserData() {
         isLoggedIn = false
         userEmail = ""
         isHelper = false
-        
-        // Clear helper status from SharedPreferences
         saveHelperStatus(false)
-        
-        statusMessage = "Logout realizado"
     }
     
     fun clearStatusMessage() {

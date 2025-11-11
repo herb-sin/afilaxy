@@ -1,3 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Afilaxy</string>
     
@@ -17,14 +18,4 @@
     <string name="loading">Carregando...</string>
     <string name="error">Erro</string>
     <string name="success">Sucesso</string>
-    
-    <!-- Strings antigas (manter para compatibilidade) -->
-    <string name="action_go">Ir</string>
-    <string name="baking_title">Cozinhando com Gemini</string>
-    <string name="label_prompt">Prompt</string>
-    <string name="prompt_placeholder">Forneça uma receita para os produtos assados na imagem</string>
-    <string name="image1_description">Cupcake</string>
-    <string name="image2_description">Cookies</string>
-    <string name="image3_description">Bolo</string>
-    <string name="results_placeholder">(Os resultados aparecerão aqui)</string>
 </resources>

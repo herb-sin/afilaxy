@@ -39,10 +39,10 @@ fun AppNavigation(
     // Check authentication state
     LaunchedEffect(Unit) {
         val currentUser = FirebaseAuth.getInstance().currentUser
-        startDestination = if (currentUser != null) {
-            AppRoutes.TELA_INICIAL
-        } else {
-            AppRoutes.TELA_LOGIN
+        startDestination = when {
+            currentUser == null -> AppRoutes.TELA_LOGIN
+            !currentUser.isEmailVerified -> "email_verification"
+            else -> AppRoutes.TELA_INICIAL
         }
         isCheckingAuth = false
     }
@@ -64,8 +64,15 @@ fun AppNavigation(
         composable(AppRoutes.TELA_LOGIN) {
             LoginScreen(
                 onLoginSuccess = {
-                    showLocationDialog = true
-                    saveFcmTokenToFirestore(context)
+                    val currentUser = FirebaseAuth.getInstance().currentUser
+                    if (currentUser?.isEmailVerified == true) {
+                        showLocationDialog = true
+                        saveFcmTokenToFirestore(context)
+                    } else {
+                        navController.navigate("email_verification") {
+                            popUpTo(AppRoutes.TELA_LOGIN) { inclusive = true }
+                        }
+                    }
                 }
             )
             if (showLocationDialog) {
@@ -74,6 +81,36 @@ fun AppNavigation(
                         showLocationDialog = false
                         navController.navigate(AppRoutes.TELA_INICIAL) {
                             popUpTo(AppRoutes.TELA_LOGIN) { 
+                                inclusive = true 
+                            }
+                        }
+                    },
+                    onDismiss = {
+                        showLocationDialog = false
+                    }
+                )
+            }
+        }
+        
+        composable("email_verification") {
+            com.afilaxy.presentation.auth.EmailVerificationScreen(
+                onVerified = {
+                    showLocationDialog = true
+                    saveFcmTokenToFirestore(context)
+                },
+                onLogout = {
+                    FirebaseAuth.getInstance().signOut()
+                    navController.navigate(AppRoutes.TELA_LOGIN) {
+                        popUpTo("email_verification") { inclusive = true }
+                    }
+                }
+            )
+            if (showLocationDialog) {
+                LocationPermissionDialog(
+                    onConfirm = {
+                        showLocationDialog = false
+                        navController.navigate(AppRoutes.TELA_INICIAL) {
+                            popUpTo("email_verification") { 
                                 inclusive = true 
                             }
                         }

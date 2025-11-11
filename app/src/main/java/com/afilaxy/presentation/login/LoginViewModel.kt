@@ -45,8 +45,6 @@ class LoginViewModel : ViewModel() {
             return
         }
         
-
-        
         _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
         
         viewModelScope.launch {
@@ -55,7 +53,6 @@ class LoginViewModel : ViewModel() {
                     .addOnCompleteListener { task ->
                         _uiState.value = _uiState.value.copy(isLoading = false)
                         if (task.isSuccessful) {
-                            // Save FCM token for notifications
                             firebaseAuth.currentUser?.uid?.let { userId ->
                                 viewModelScope.launch {
                                     notificationRepository.saveUserToken(userId)
@@ -63,12 +60,7 @@ class LoginViewModel : ViewModel() {
                             }
                             onResult(true)
                         } else {
-                            val errorMsg = when {
-                                task.exception?.message?.contains("credential") == true -> "Email ou senha incorretos"
-                                task.exception?.message?.contains("network") == true -> "Erro de conexão"
-                                task.exception?.message?.contains("user-not-found") == true -> "Usuário não encontrado"
-                                else -> "Erro no login: ${task.exception?.message}"
-                            }
+                            val errorMsg = translateFirebaseError(task.exception?.message ?: "")
                             _uiState.value = _uiState.value.copy(errorMessage = errorMsg)
                             onResult(false)
                         }
@@ -76,7 +68,7 @@ class LoginViewModel : ViewModel() {
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
-                    errorMessage = e.message ?: "Erro no login"
+                    errorMessage = translateFirebaseError(e.message ?: "Erro no login")
                 )
                 onResult(false)
             }
@@ -97,6 +89,8 @@ class LoginViewModel : ViewModel() {
                     .addOnCompleteListener { task ->
                         _uiState.value = _uiState.value.copy(isLoading = false)
                         if (task.isSuccessful) {
+                            // Send email verification immediately after registration
+                            firebaseAuth.currentUser?.sendEmailVerification()
                             _uiState.value = _uiState.value.copy(
                                 showRegistrationSuccess = true,
                                 isRegisterMode = false
