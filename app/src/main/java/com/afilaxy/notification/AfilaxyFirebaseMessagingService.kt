@@ -17,20 +17,21 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
         
-        android.util.Log.d("AfilaxyFCM", "FCM message received: ${remoteMessage.data}")
+        android.util.Log.d("AfilaxyFCM", "🔥 FCM RECEBIDO! Data: ${remoteMessage.data}")
+        android.util.Log.d("AfilaxyFCM", "🔥 FCM RECEBIDO! Notification: ${remoteMessage.notification}")
         
         // Handle emergency notifications
         when (remoteMessage.data["type"]) {
             "emergency_request" -> {
-                android.util.Log.d("AfilaxyFCM", "Emergency request received")
+                android.util.Log.d("AfilaxyFCM", "🆘 EMERGÊNCIA RECEBIDA!")
                 handleEmergencyRequest(remoteMessage)
             }
             "helper_response" -> {
-                android.util.Log.d("AfilaxyFCM", "Helper response received")
+                android.util.Log.d("AfilaxyFCM", "✅ RESPOSTA DE HELPER RECEBIDA!")
                 handleHelperResponse(remoteMessage)
             }
             else -> {
-                android.util.Log.d("AfilaxyFCM", "General notification received")
+                android.util.Log.d("AfilaxyFCM", "📱 NOTIFICAÇÃO GERAL RECEBIDA!")
                 handleGeneralNotification(remoteMessage)
             }
         }
@@ -96,6 +97,8 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
             .setPriority(priority)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setVibrate(longArrayOf(0, 1000, 500, 1000))
             .build()
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

@@ -259,4 +259,36 @@ Row(
             }
         }
     }
+    
+    // Diálogo customizado para permissão de localização
+    if (viewModel.showLocationDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissLocationDialog() },
+            title = { Text("Permissão de Localização") },
+            text = {
+                Text(
+                    "Para receber pedidos de emergência, é necessário permitir acesso à localização \"o tempo todo\".\n\n" +
+                    "Na próxima tela, selecione \"Permitir o tempo todo\" para ativar como helper.",
+                    textAlign = TextAlign.Start
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.dismissLocationDialog()
+                        locationPermissions.launchMultiplePermissionRequest()
+                    }
+                ) {
+                    Text("Entendi")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { viewModel.dismissLocationDialog() }
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
 }

@@ -18,7 +18,7 @@ fun MapScreen(
     modifier: Modifier = Modifier
 ) {
     // Localização padrão (São Paulo)
-    val defaultLocation = LatLng(-23.5505, -46.6333)
+    val defaultLocation = LatLng(0.0, 0.0) // Will be updated with real location
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(defaultLocation, 12f)
     }

@@ -14,7 +14,8 @@ class RequestEmergencyHelpUseCase(
     private val locationRepository: ILocationRepository,
     private val helperRepository: HelperRepository,
     private val emergencyRequestRepository: EmergencyRequestRepository,
-    private val notificationRepository: NotificationRepository
+    private val notificationRepository: NotificationRepository,
+    private val onHelperStatusChanged: ((Boolean) -> Unit)? = null
 ) {
     
     sealed class Result {
@@ -121,6 +122,10 @@ class RequestEmergencyHelpUseCase(
             )
             
             android.util.Log.d("RequestEmergencyHelpUseCase", "Solicitação de emergência concluída com sucesso")
+            
+            // Callback para desativar toggle no HomeViewModel
+            onHelperStatusChanged?.invoke(false)
+            
             Result.Success(nearbyHelpers, requestId)
             
         } catch (e: Exception) {

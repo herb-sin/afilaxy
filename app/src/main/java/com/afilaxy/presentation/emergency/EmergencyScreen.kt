@@ -54,7 +54,7 @@ fun EmergencyScreen(
     }
     
     // Localização padrão (São Paulo) caso não tenha GPS
-    val defaultLocation = LatLng(-23.5505, -46.6333)
+    val defaultLocation = LatLng(0.0, 0.0) // Will be updated with real location
     val userLatLng = remember(viewModel.userLocation) {
         if (viewModel.userLocation.contains(",")) {
             val coords = viewModel.userLocation.split(",")

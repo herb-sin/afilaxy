@@ -30,7 +30,7 @@ class EmergencyViewModel(context: Context) : ViewModel() {
     var currentRequestId by mutableStateOf<String?>(null)
         private set
         
-    var userLocation by mutableStateOf("-23.5505, -46.6333") // São Paulo como padrão
+    var userLocation by mutableStateOf("")
         private set
         
     var isLoading by mutableStateOf(false)
@@ -67,12 +67,10 @@ class EmergencyViewModel(context: Context) : ViewModel() {
                     userLocation = "${location.latitude}, ${location.longitude}"
                     statusMessage = "📍 GPS: ${String.format("%.4f", location.latitude)}, ${String.format("%.4f", location.longitude)}"
                 } else {
-                    userLocation = "-23.5505, -46.6333"
-                    statusMessage = "GPS indisponível. Usando São Paulo como padrão."
+                    statusMessage = "GPS indisponível. Ative a localização para usar o app."
                 }
             } catch (e: Exception) {
-                userLocation = "-23.5505, -46.6333"
-                statusMessage = "Erro GPS: ${e.message}. Usando localização padrão."
+                statusMessage = "Erro GPS: ${e.message}. Ative a localização para continuar."
             }
         }
     }

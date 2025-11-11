@@ -66,10 +66,10 @@ private fun EmergencyMapContent(
                 val lng = coords[1].trim().toDouble()
                 LatLng(lat, lng)
             } catch (e: Exception) {
-                LatLng(-23.5505, -46.6333) // Fallback
+                LatLng(0.0, 0.0) // Will use real GPS location
             }
         } else {
-            LatLng(-23.5505, -46.6333) // Fallback
+            LatLng(0.0, 0.0) // Will use real GPS location
         }
     }
     

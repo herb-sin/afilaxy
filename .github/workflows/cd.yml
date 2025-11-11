@@ -9,7 +9,7 @@ jobs:
   deploy-internal:
     name: Deploy to Firebase App Distribution
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && github.repository == 'herb-sin/afilaxy'
     
     steps:
     - name: Checkout code
@@ -40,7 +40,13 @@ jobs:
       run: echo "sdk.dir=$ANDROID_HOME" > local.properties
     
     - name: Decode Firebase config
-      run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
+      run: |
+        if [ -n "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
+          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
+        else
+          echo "Skipping deploy - secrets not configured"
+          exit 0
+        fi
     
     - name: Build release APK
       run: ./gradlew assembleRelease

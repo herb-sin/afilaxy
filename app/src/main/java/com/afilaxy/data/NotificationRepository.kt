@@ -22,21 +22,30 @@ class NotificationRepository {
 
     suspend fun sendEmergencyNotification(helperTokens: List<String>, requesterName: String, distance: String) {
         try {
-            val data = mapOf(
-                "type" to "emergency_request",
-                "title" to "Emergência de Asma",
-                "body" to "$requesterName precisa de ajuda a ${distance}m de você",
-                "requesterName" to requesterName,
-                "distance" to distance
-            )
+            android.util.Log.d("NotificationRepo", "🚨 ENVIANDO FCM para ${helperTokens.size} helpers")
+            
+            for (token in helperTokens) {
+                android.util.Log.d("NotificationRepo", "📱 Enviando para token: ${token.take(20)}...")
+                
+                val data = mapOf(
+                    "type" to "emergency_request",
+                    "title" to "🆘 Emergência de Asma",
+                    "body" to "$requesterName precisa de ajuda a ${distance}m de você",
+                    "requesterName" to requesterName,
+                    "distance" to distance,
+                    "fcmToken" to token,
+                    "timestamp" to System.currentTimeMillis()
+                )
 
-            // In a real app, you would call your backend API here
-            // For now, we'll just save the notification request to Firestore
-            firestore.collection("notifications")
-                .add(data)
-                .await()
+                // Salvar notificação no Firestore para debug
+                firestore.collection("notifications")
+                    .add(data)
+                    .await()
+                    
+                android.util.Log.d("NotificationRepo", "✅ Notificação salva no Firestore")
+            }
         } catch (e: Exception) {
-            // Log error silently
+            android.util.Log.e("NotificationRepo", "❌ Erro ao enviar FCM: ${e.message}")
         }
     }
 }

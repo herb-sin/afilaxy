@@ -55,7 +55,7 @@ object MapsOptimizer {
         return if (lat in -90.0..90.0 && lng in -180.0..180.0) {
             LatLng(lat, lng)
         } else {
-            LatLng(-23.5505, -46.6333) // São Paulo fallback
+            LatLng(0.0, 0.0) // Will use real GPS location
         }
     }
     

@@ -55,7 +55,7 @@ jobs:
     
     - name: Upload test results
       uses: actions/upload-artifact@v4
-      if: always()
+      if: always() && (hashFiles('app/build/reports/tests/**') != '' || hashFiles('app/build/reports/lint-results-debug.html') != '')
       with:
         name: test-results
         path: |

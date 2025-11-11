@@ -1,6 +1,8 @@
 package com.afilaxy.presentation.home
 
 import android.content.Context
+import android.content.pm.PackageManager
+import android.Manifest
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.mutableStateOf
@@ -16,7 +18,8 @@ import kotlinx.coroutines.launch
 
 data class HomeUiState(
     val isHelper: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val showLocationDialog: Boolean = false
 )
 
 class HomeViewModel(context: Context) : ViewModel() {
@@ -32,8 +35,12 @@ class HomeViewModel(context: Context) : ViewModel() {
         
     var statusMessage by mutableStateOf("")
         private set
+        
+    var showLocationDialog by mutableStateOf(false)
+        private set
     
     private val auth = FirebaseAuth.getInstance()
+    private val context = context
     private val notificationManager = NotificationManager(context)
     private val locationRepository = LocationRepository(context)
     private val helperRepository = HelperRepository()
@@ -68,6 +75,12 @@ class HomeViewModel(context: Context) : ViewModel() {
     fun toggleHelper() {
         val newHelperStatus = !isHelper
         
+        // Se ativando helper, verificar permissão background
+        if (newHelperStatus && !hasBackgroundLocationPermission()) {
+            showLocationDialog = true
+            return
+        }
+        
         viewModelScope.launch {
             val result = if (newHelperStatus) {
                 toggleHelperUseCase.activateHelper()
@@ -79,23 +92,18 @@ class HomeViewModel(context: Context) : ViewModel() {
                 is ToggleHelperUseCase.Result.Success -> {
                     isHelper = newHelperStatus
                     saveHelperStatus(newHelperStatus)
-                    // Status refletido dinamicamente na UI
                 }
                 is ToggleHelperUseCase.Result.LocationPermissionRequired -> {
                     statusMessage = "Erro: Permissão de localização necessária."
-                    // Manter o estado anterior em caso de erro
                 }
                 is ToggleHelperUseCase.Result.LocationNotAvailable -> {
                     statusMessage = "Erro: Não foi possível obter localização. Verifique se o GPS está ativo."
-                    // Manter o estado anterior em caso de erro
                 }
                 is ToggleHelperUseCase.Result.NetworkError -> {
                     statusMessage = "Erro de rede. Tente novamente."
-                    // Manter o estado anterior em caso de erro
                 }
                 is ToggleHelperUseCase.Result.Error -> {
                     statusMessage = "Erro: ${result.message}"
-                    // Manter o estado anterior em caso de erro
                 }
             }
         }
@@ -134,5 +142,13 @@ class HomeViewModel(context: Context) : ViewModel() {
     
     fun clearStatusMessage() {
         statusMessage = ""
+    }
+    
+    private fun hasBackgroundLocationPermission(): Boolean {
+        return context.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+    }
+    
+    fun dismissLocationDialog() {
+        showLocationDialog = false
     }
 }
