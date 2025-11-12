@@ -23,7 +23,7 @@ class HelperRepository {
                 return false
             }
             
-            android.util.Log.d("HelperRepository", "Salvando helper: ${user.uid} em ($latitude, $longitude)")
+            android.util.Log.d("HelperRepository", "Salvando helper em localização")
             
             val helper = mapOf(
                 "id" to user.uid,
@@ -42,7 +42,7 @@ class HelperRepository {
             android.util.Log.d("HelperRepository", "Helper salvo com sucesso")
             true
         } catch (e: Exception) {
-            android.util.Log.e("HelperRepository", "Erro ao salvar helper: ${e.message}")
+            android.util.Log.e("HelperRepository", "Erro ao salvar helper", e)
             false
         }
     }
@@ -58,7 +58,7 @@ class HelperRepository {
                 return false
             }
             
-            android.util.Log.d("HelperRepository", "Removendo usuário ${user.uid} como helper ativo")
+            android.util.Log.d("HelperRepository", "Removendo helper ativo")
             
             firestore.collection("helpers")
                 .document(user.uid)
@@ -68,7 +68,7 @@ class HelperRepository {
             android.util.Log.d("HelperRepository", "Helper removido com sucesso")
             true
         } catch (e: Exception) {
-            android.util.Log.e("HelperRepository", "Erro ao remover helper: ${e.message}")
+            android.util.Log.e("HelperRepository", "Erro ao remover helper", e)
             false
         }
     }
@@ -79,64 +79,43 @@ class HelperRepository {
     suspend fun getNearbyHelpers(latitude: Double, longitude: Double, radiusKm: Double = 5.0): List<Helper> {
         return try {
             val currentUserId = auth.currentUser?.uid
-            android.util.Log.d("HelperRepository", "Buscando helpers próximos em ($latitude, $longitude) com raio de ${radiusKm}km (excluindo usuário atual: $currentUserId)")
+            android.util.Log.d("HelperRepository", "Buscando helpers próximos")
             
             val snapshot = firestore.collection("helpers")
                 .get()
                 .await()
             
-            android.util.Log.d("HelperRepository", "Encontrados ${snapshot.documents.size} helpers ativos no banco")
+            android.util.Log.d("HelperRepository", "Processando ${snapshot.documents.size} helpers")
             
-            // Debug: listar todos os helpers encontrados
-            for (doc in snapshot.documents) {
-                val data = doc.data
-                val location = data?.get("location") as? GeoPoint
-                android.util.Log.d("HelperRepository", "Helper encontrado: ID=${doc.id}, Nome=${data?.get("name")}, Localização=${location?.latitude},${location?.longitude}")
-            }
-            
-            val helpers = mutableListOf<Helper>()
-            
-            for (document in snapshot.documents) {
-                val data = document.data ?: continue
-                val helperId = data["id"] as? String ?: ""
-                
-                // Excluir o próprio usuário
-                if (helperId == currentUserId) {
-                    android.util.Log.d("HelperRepository", "Excluindo o próprio usuário da lista de helpers")
-                    continue
+            val helpers = snapshot.documents
+                .mapNotNull { document ->
+                    val data = document.data ?: return@mapNotNull null
+                    val helperId = data["id"] as? String ?: return@mapNotNull null
+                    
+                    if (helperId == currentUserId) return@mapNotNull null
+                    
+                    val location = data["location"] as? GeoPoint ?: return@mapNotNull null
+                    val distance = calculateDistance(latitude, longitude, location.latitude, location.longitude)
+                    
+                    if (distance <= radiusKm) {
+                        Helper(
+                            id = helperId,
+                            name = "Helper Próximo",
+                            email = "",
+                            latitude = location.latitude,
+                            longitude = location.longitude,
+                            isActive = data["isActive"] as? Boolean ?: false,
+                            lastUpdate = data["lastUpdate"] as? Long ?: 0L,
+                            distance = distance
+                        )
+                    } else null
                 }
-                
-                val location = data["location"] as? GeoPoint ?: continue
-                
-                val distance = calculateDistance(
-                    latitude, longitude,
-                    location.latitude, location.longitude
-                )
-                
-                android.util.Log.d("HelperRepository", "Helper ${data["name"]} está a ${String.format("%.2f", distance)}km de distância")
-                
-                if (distance <= radiusKm) {
-                    val helper = Helper(
-                        id = helperId,
-                        name = "Helper Próximo", // Anonimizado por segurança
-                        email = "", // Não expor email
-                        latitude = location.latitude,
-                        longitude = location.longitude,
-                        isActive = data["isActive"] as? Boolean ?: false,
-                        lastUpdate = data["lastUpdate"] as? Long ?: 0L,
-                        distance = distance
-                    )
-                    helpers.add(helper)
-                    android.util.Log.d("HelperRepository", "Helper anônimo adicionado à lista (distância: ${String.format("%.0f", distance * 1000)}m)")
-                }
-            }
+                .sortedBy { it.distance }
             
-            android.util.Log.d("HelperRepository", "Total de helpers próximos encontrados: ${helpers.size}")
-            
-            // Ordena por distância
-            helpers.sortedBy { it.distance }
+            android.util.Log.d("HelperRepository", "Encontrados ${helpers.size} helpers próximos")
+            helpers
         } catch (e: Exception) {
-            android.util.Log.e("HelperRepository", "Erro ao buscar helpers próximos: ${e.message}")
+            android.util.Log.e("HelperRepository", "Erro ao buscar helpers próximos", e)
             emptyList()
         }
     }

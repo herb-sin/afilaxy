@@ -9,6 +9,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.afilaxy.MainActivity
 import com.afilaxy.R
+import com.afilaxy.presentation.emergency.EmergencyAlertActivity
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 
@@ -38,14 +39,29 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
     }
 
     private fun handleEmergencyRequest(remoteMessage: RemoteMessage) {
-        val title = "🆘 Emergência Próxima!"
-        val body = remoteMessage.data["message"] ?: "Alguém precisa de ajuda com asma"
+        val emergencyId = remoteMessage.data["emergency_id"] ?: ""
+        val requesterName = remoteMessage.data["requester_name"] ?: "Alguém"
+        val distance = remoteMessage.data["distance"] ?: "próximo"
         
-        showNotification(
+        // Mostrar alerta full-screen
+        val fullScreenIntent = EmergencyAlertActivity.createIntent(
+            context = this,
+            emergencyId = emergencyId,
+            requesterName = requesterName,
+            distance = distance
+        )
+        startActivity(fullScreenIntent)
+        
+        // Também criar notificação como backup
+        val title = "🆘 Emergência de Asma"
+        val body = "$requesterName precisa de ajuda a $distance de você"
+        
+        showEmergencyNotification(
             title = title,
             body = body,
-            channelId = EMERGENCY_CHANNEL_ID,
-            priority = NotificationCompat.PRIORITY_HIGH
+            emergencyId = emergencyId,
+            requesterName = requesterName,
+            distance = distance
         )
     }
 
@@ -73,6 +89,46 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
         )
     }
 
+    private fun showEmergencyNotification(
+        title: String,
+        body: String,
+        emergencyId: String,
+        requesterName: String,
+        distance: String
+    ) {
+        createNotificationChannel(EMERGENCY_CHANNEL_ID)
+        
+        val fullScreenIntent = EmergencyAlertActivity.createIntent(
+            context = this,
+            emergencyId = emergencyId,
+            requesterName = requesterName,
+            distance = distance
+        )
+        
+        val fullScreenPendingIntent = PendingIntent.getActivity(
+            this, 0, fullScreenIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val notification = NotificationCompat.Builder(this, EMERGENCY_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setContentIntent(fullScreenPendingIntent)
+            .setFullScreenIntent(fullScreenPendingIntent, true)
+            .setAutoCancel(true)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setVibrate(longArrayOf(0, 1000, 500, 1000, 500, 1000))
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setOngoing(false)
+            .build()
+
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(emergencyId.hashCode(), notification)
+    }
+    
     private fun showNotification(
         title: String,
         body: String,
@@ -91,14 +147,12 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
         )
 
         val notification = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(body)
             .setPriority(priority)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setVibrate(longArrayOf(0, 1000, 500, 1000))
             .build()
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -111,7 +165,7 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
                 EMERGENCY_CHANNEL_ID -> Triple(
                     "Emergências",
                     "Notificações de emergência de asma",
-                    NotificationManager.IMPORTANCE_HIGH
+                    NotificationManager.IMPORTANCE_MAX
                 )
                 HELPER_CHANNEL_ID -> Triple(
                     "Helpers",
@@ -127,6 +181,13 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
 
             val channel = NotificationChannel(channelId, name, importance).apply {
                 this.description = description
+                if (channelId == EMERGENCY_CHANNEL_ID) {
+                    enableVibration(true)
+                    vibrationPattern = longArrayOf(0, 1000, 500, 1000, 500, 1000)
+                    setBypassDnd(true)
+                    lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                    setShowBadge(true)
+                }
             }
 
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

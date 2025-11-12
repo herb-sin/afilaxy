@@ -17,10 +17,21 @@ fun MapScreen(
     navController: NavHostController,
     modifier: Modifier = Modifier
 ) {
-    // Localização padrão (São Paulo)
-    val defaultLocation = LatLng(0.0, 0.0) // Will be updated with real location
+    // Localização padrão com tratamento de erro
+    val defaultLocation = try {
+        LatLng(-23.5505, -46.6333) // São Paulo como fallback seguro
+    } catch (e: Exception) {
+        android.util.Log.e("MapScreen", "Erro ao criar localização padrão", e)
+        LatLng(0.0, 0.0)
+    }
+    
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(defaultLocation, 12f)
+        try {
+            position = CameraPosition.fromLatLngZoom(defaultLocation, 12f)
+        } catch (e: Exception) {
+            android.util.Log.e("MapScreen", "Erro ao inicializar câmera do mapa", e)
+            position = CameraPosition.fromLatLngZoom(LatLng(0.0, 0.0), 1f)
+        }
     }
 
     Column(modifier = modifier.fillMaxSize()) {

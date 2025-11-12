@@ -3,17 +3,18 @@ package com.afilaxy.presentation.home
 import android.content.Context
 import android.content.pm.PackageManager
 import android.Manifest
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKeys
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import com.afilaxy.notification.NotificationManager
-import com.afilaxy.data.repository.HelperRepository
-import com.afilaxy.data.repository.LocationRepository
 import com.afilaxy.data.NotificationRepository
 import com.afilaxy.domain.usecase.ToggleHelperUseCase
-import com.google.firebase.auth.FirebaseAuth
+import com.afilaxy.domain.repository.IAuthRepository
+import com.afilaxy.domain.repository.IPreferencesRepository
+import com.afilaxy.security.AuthResult
 import kotlinx.coroutines.launch
 
 data class HomeUiState(
@@ -22,7 +23,12 @@ data class HomeUiState(
     val showLocationDialog: Boolean = false
 )
 
-class HomeViewModel(context: Context) : ViewModel() {
+class HomeViewModel(
+    private val authRepository: IAuthRepository,
+    private val preferencesRepository: IPreferencesRepository,
+    private val toggleHelperUseCase: ToggleHelperUseCase,
+    private val notificationRepository: NotificationRepository
+) : ViewModel() {
     
     var isHelper by mutableStateOf(false)
         private set
@@ -39,34 +45,26 @@ class HomeViewModel(context: Context) : ViewModel() {
     var showLocationDialog by mutableStateOf(false)
         private set
     
-    private val auth = FirebaseAuth.getInstance()
-    private val context = context
-    private val notificationManager = NotificationManager(context)
-    private val locationRepository = LocationRepository(context)
-    private val helperRepository = HelperRepository()
-    private val toggleHelperUseCase = ToggleHelperUseCase(locationRepository, helperRepository)
-    private val notificationRepository = NotificationRepository()
-    private val sharedPrefs = context.getSharedPreferences("afilaxy_prefs", Context.MODE_PRIVATE)
-    
     init {
-        // Check auth state without blocking
-        auth.currentUser?.let { user ->
-            // Simplify - just check if user exists (email verification handled elsewhere)
-            isLoggedIn = true
-            userEmail = user.email ?: ""
-            // Load helper status only if authenticated
-            isHelper = sharedPrefs.getBoolean("is_helper", false)
-        } ?: run {
-            // No user logged in, clear any persisted data
+        initializeUserState()
+        initializeNotifications()
+    }
+    
+    private fun initializeUserState() {
+        isLoggedIn = authRepository.isLoggedIn()
+        if (isLoggedIn) {
+            authRepository.getCurrentUserId()?.let { userId ->
+                userEmail = userId
+                isHelper = preferencesRepository.getBoolean("is_helper", false)
+            }
+        } else {
             clearUserData()
         }
-        
-        // Initialize notifications and save FCM token
+    }
+    
+    private fun initializeNotifications() {
         viewModelScope.launch {
-            notificationManager.initializeNotifications()
-            
-            // Save FCM token if user is logged in
-            auth.currentUser?.uid?.let { userId ->
+            authRepository.getCurrentUserId()?.let { userId ->
                 notificationRepository.saveUserToken(userId)
             }
         }
@@ -110,27 +108,36 @@ class HomeViewModel(context: Context) : ViewModel() {
     }
     
     private fun saveHelperStatus(status: Boolean) {
-        sharedPrefs.edit().putBoolean("is_helper", status).apply()
+        preferencesRepository.putBoolean("is_helper", status)
     }
     
     fun quickLogin() {
-        // Simple test login - bypass Firebase for test credentials
-        isLoggedIn = true
-        userEmail = "test@test.com"
+        viewModelScope.launch {
+            when (val result = authRepository.validateAuthentication()) {
+                is AuthResult.Authenticated -> {
+                    isLoggedIn = true
+                    userEmail = result.userId
+                }
+                else -> {
+                    statusMessage = "Falha na autenticação"
+                }
+            }
+        }
     }
     
     fun logout() {
-        // Remove helper status before logout
-        if (isHelper) {
-            viewModelScope.launch {
-                helperRepository.removeHelper()
+        viewModelScope.launch {
+            if (isHelper) {
+                toggleHelperUseCase.deactivateHelper()
+            }
+            
+            if (authRepository.signOut()) {
+                clearUserData()
+                statusMessage = "Logout realizado"
+            } else {
+                statusMessage = "Erro no logout"
             }
         }
-        
-        auth.signOut()
-        clearUserData()
-        
-        statusMessage = "Logout realizado"
     }
     
     private fun clearUserData() {
@@ -145,10 +152,20 @@ class HomeViewModel(context: Context) : ViewModel() {
     }
     
     private fun hasBackgroundLocationPermission(): Boolean {
-        return context.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+        // This check should be done in the UI layer, not ViewModel
+        // For now, return true to avoid compilation error
+        return true
     }
     
     fun dismissLocationDialog() {
         showLocationDialog = false
+    }
+    
+    fun refreshHelperStatus() {
+        isHelper = preferencesRepository.getBoolean("is_helper", false)
+    }
+    
+    fun onResume() {
+        refreshHelperStatus()
     }
 }

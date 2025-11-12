@@ -12,17 +12,22 @@ class EmergencyRequestRepository {
     
     suspend fun createEmergencyRequest(latitude: Double, longitude: Double): String? {
         return try {
-            val user = auth.currentUser ?: return null
+            val user = auth.currentUser
+            if (user == null) {
+                android.util.Log.w("EmergencyRequestRepository", "Usuário não autenticado")
+                return null
+            }
             
+            val requestId = firestore.collection("emergency_requests").document().id
             val request = EmergencyRequest(
-                id = firestore.collection("emergency_requests").document().id,
+                id = requestId,
                 requesterId = user.uid,
                 requesterName = user.email?.substringBefore("@") ?: "Usuário",
                 latitude = latitude,
                 longitude = longitude
             )
             
-            android.util.Log.d("EmergencyRequestRepository", "Criando pedido de emergência: ${request.id}")
+            android.util.Log.d("EmergencyRequestRepository", "Criando pedido de emergência")
             
             firestore.collection("emergency_requests")
                 .document(request.id)
@@ -32,14 +37,14 @@ class EmergencyRequestRepository {
             android.util.Log.d("EmergencyRequestRepository", "Pedido criado com sucesso, expira em 5 minutos")
             request.id
         } catch (e: Exception) {
-            android.util.Log.e("EmergencyRequestRepository", "Erro ao criar pedido: ${e.message}")
+            android.util.Log.e("EmergencyRequestRepository", "Erro ao criar pedido", e)
             null
         }
     }
     
     suspend fun cancelEmergencyRequest(requestId: String): Boolean {
         return try {
-            android.util.Log.d("EmergencyRequestRepository", "Cancelando pedido: $requestId")
+            android.util.Log.d("EmergencyRequestRepository", "Cancelando pedido")
             
             firestore.collection("emergency_requests")
                 .document(requestId)
@@ -49,7 +54,7 @@ class EmergencyRequestRepository {
             android.util.Log.d("EmergencyRequestRepository", "Pedido cancelado com sucesso")
             true
         } catch (e: Exception) {
-            android.util.Log.e("EmergencyRequestRepository", "Erro ao cancelar pedido: ${e.message}")
+            android.util.Log.e("EmergencyRequestRepository", "Erro ao cancelar pedido", e)
             false
         }
     }
@@ -64,13 +69,13 @@ class EmergencyRequestRepository {
                 .get()
                 .await()
             
-            android.util.Log.d("EmergencyRequestRepository", "Limpando ${expiredRequests.size()} pedidos expirados")
+            android.util.Log.d("EmergencyRequestRepository", "Limpando pedidos expirados")
             
             for (doc in expiredRequests.documents) {
                 doc.reference.update("isActive", false).await()
             }
         } catch (e: Exception) {
-            android.util.Log.e("EmergencyRequestRepository", "Erro na limpeza: ${e.message}")
+            android.util.Log.e("EmergencyRequestRepository", "Erro na limpeza", e)
         }
     }
 }

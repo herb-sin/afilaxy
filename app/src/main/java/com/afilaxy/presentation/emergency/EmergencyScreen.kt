@@ -33,7 +33,7 @@ fun EmergencyScreen(
         factory = object : androidx.lifecycle.ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return EmergencyViewModel(context) as T
+                return EmergencyViewModel(context.applicationContext as android.app.Application) as T
             }
         }
     )
@@ -60,7 +60,11 @@ fun EmergencyScreen(
             val coords = viewModel.userLocation.split(",")
             try {
                 LatLng(coords[0].trim().toDouble(), coords[1].trim().toDouble())
-            } catch (e: Exception) {
+            } catch (e: NumberFormatException) {
+                android.util.Log.w("EmergencyScreen", "Coordenadas inválidas: ${viewModel.userLocation}")
+                defaultLocation
+            } catch (e: IndexOutOfBoundsException) {
+                android.util.Log.w("EmergencyScreen", "Formato de coordenadas inválido: ${viewModel.userLocation}")
                 defaultLocation
             }
         } else {
@@ -137,6 +141,9 @@ fun EmergencyScreen(
                 modifier = Modifier.padding(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                val onRefreshLocation = { viewModel.refreshLocation() }
+                val onRequestHelp = { viewModel.requestHelp() }
+                
                 Text(
                     "🆘 Emergência",
                     style = MaterialTheme.typography.headlineSmall
@@ -179,7 +186,7 @@ fun EmergencyScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Button(
-                                onClick = { viewModel.refreshLocation() },
+                                onClick = onRefreshLocation,
                                 modifier = Modifier.weight(1f),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.secondary
@@ -188,7 +195,7 @@ fun EmergencyScreen(
                                 Icon(Icons.Default.LocationOn, contentDescription = null)
                             }
                             Button(
-                                onClick = { viewModel.requestHelp() },
+                                onClick = onRequestHelp,
                                 modifier = Modifier.weight(3f),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = MaterialTheme.colorScheme.error

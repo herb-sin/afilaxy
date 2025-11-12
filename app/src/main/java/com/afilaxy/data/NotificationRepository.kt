@@ -9,6 +9,11 @@ class NotificationRepository {
     private val messaging = FirebaseMessaging.getInstance()
 
     suspend fun saveUserToken(userId: String) {
+        if (userId.isBlank()) {
+            android.util.Log.w("NotificationRepository", "ID de usuário inválido")
+            return
+        }
+        
         try {
             val token = messaging.token.await()
             firestore.collection("users")
@@ -16,36 +21,44 @@ class NotificationRepository {
                 .update("fcmToken", token)
                 .await()
         } catch (e: Exception) {
-            // Log error silently
+            android.util.Log.e("NotificationRepository", "Erro ao salvar token: ${e.javaClass.simpleName}", null)
         }
     }
 
     suspend fun sendEmergencyNotification(helperTokens: List<String>, requesterName: String, distance: String) {
+        if (helperTokens.isEmpty()) {
+            android.util.Log.w("NotificationRepo", "Nenhum token de helper fornecido")
+            return
+        }
+        
         try {
-            android.util.Log.d("NotificationRepo", "🚨 ENVIANDO FCM para ${helperTokens.size} helpers")
+            android.util.Log.d("NotificationRepo", "Enviando FCM para ${helperTokens.size} helpers")
             
             for (token in helperTokens) {
-                android.util.Log.d("NotificationRepo", "📱 Enviando para token: ${token.take(20)}...")
+                if (token.isBlank()) continue
                 
+                android.util.Log.d("NotificationRepo", "Preparando notificação para Firebase Function")
+                
+                // Salvar no Firestore - Firebase Function vai processar
                 val data = mapOf(
                     "type" to "emergency_request",
                     "title" to "🆘 Emergência de Asma",
-                    "body" to "$requesterName precisa de ajuda a ${distance}m de você",
-                    "requesterName" to requesterName,
+                    "body" to "Alguém precisa de ajuda a ${distance}m de você",
                     "distance" to distance,
                     "fcmToken" to token,
-                    "timestamp" to System.currentTimeMillis()
+                    "requesterName" to requesterName,
+                    "timestamp" to System.currentTimeMillis(),
+                    "sent" to false
                 )
-
-                // Salvar notificação no Firestore para debug
+                
                 firestore.collection("notifications")
                     .add(data)
                     .await()
                     
-                android.util.Log.d("NotificationRepo", "✅ Notificação salva no Firestore")
+                android.util.Log.d("NotificationRepo", "✅ FCM enviado para token")
             }
         } catch (e: Exception) {
-            android.util.Log.e("NotificationRepo", "❌ Erro ao enviar FCM: ${e.message}")
+            android.util.Log.e("NotificationRepo", "Erro ao enviar FCM: ${e.javaClass.simpleName}", null)
         }
     }
 }

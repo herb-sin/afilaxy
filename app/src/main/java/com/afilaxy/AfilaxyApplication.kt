@@ -20,10 +20,15 @@ class AfilaxyApplication : Application() {
     private suspend fun initializeServices() {
         withContext(Dispatchers.IO) {
             try {
-                // Firebase auto-initializes, but we can ensure it's ready
-                FirebaseApp.initializeApp(this@AfilaxyApplication)
+                // Garantir que Firebase está inicializado
+                val app = FirebaseApp.initializeApp(this@AfilaxyApplication)
+                if (app != null) {
+                    android.util.Log.d("AfilaxyApp", "Firebase inicializado com sucesso")
+                } else {
+                    android.util.Log.w("AfilaxyApp", "Firebase já estava inicializado")
+                }
             } catch (e: Exception) {
-                // Firebase already initialized or error - continue
+                android.util.Log.e("AfilaxyApp", "Erro ao inicializar Firebase: ${e.message}")
             }
         }
     }

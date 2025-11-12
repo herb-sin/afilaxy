@@ -17,35 +17,35 @@ class ToggleHelperUseCase(
     }
     
     suspend fun activateHelper(): Result {
-        android.util.Log.d("ToggleHelperUseCase", "Ativando helper...")
-        
-        if (!locationRepository.hasLocationPermission()) {
-            android.util.Log.w("ToggleHelperUseCase", "Permissão de localização não concedida")
-            return Result.LocationPermissionRequired
-        }
-        
-        val location = locationRepository.getCurrentLocation()
-        if (location == null) {
-            android.util.Log.w("ToggleHelperUseCase", "Localização não disponível")
-            return Result.LocationNotAvailable
-        }
-        
-        android.util.Log.d("ToggleHelperUseCase", "Salvando helper em (${location.latitude}, ${location.longitude})")
-        
-        return if (helperRepository.saveHelper(location.latitude, location.longitude)) {
-            android.util.Log.d("ToggleHelperUseCase", "Helper ativado com sucesso")
-            Result.Success
-        } else {
-            android.util.Log.e("ToggleHelperUseCase", "Erro ao salvar helper")
-            Result.NetworkError
+        return try {
+            if (!locationRepository.hasLocationPermission()) {
+                return Result.LocationPermissionRequired
+            }
+            
+            val location = locationRepository.getCurrentLocation()
+                ?: return Result.LocationNotAvailable
+            
+            if (helperRepository.saveHelper(location.latitude, location.longitude)) {
+                Result.Success
+            } else {
+                Result.NetworkError
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ToggleHelperUseCase", "Error activating helper: ${e.javaClass.simpleName}")
+            Result.Error("Failed to activate helper")
         }
     }
     
     suspend fun deactivateHelper(): Result {
-        return if (helperRepository.removeHelper()) {
-            Result.Success
-        } else {
-            Result.NetworkError
+        return try {
+            if (helperRepository.removeHelper()) {
+                Result.Success
+            } else {
+                Result.NetworkError
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ToggleHelperUseCase", "Error deactivating helper: ${e.javaClass.simpleName}")
+            Result.Error("Failed to deactivate helper")
         }
     }
 }

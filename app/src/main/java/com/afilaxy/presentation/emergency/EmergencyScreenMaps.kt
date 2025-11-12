@@ -29,7 +29,7 @@ fun EmergencyScreenMaps(
     modifier: Modifier = Modifier
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val viewModel: EmergencyViewModel = viewModel { EmergencyViewModel(context) }
+    val viewModel: EmergencyViewModel = viewModel { EmergencyViewModel(context.applicationContext as android.app.Application) }
     var hasLocationPermission by remember { mutableStateOf(false) }
 
     LocationPermissionHandler(

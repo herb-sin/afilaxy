@@ -158,10 +158,12 @@ fun AppNavigation(
             )
         ) { backStackEntry ->
             val emergencyId = backStackEntry.arguments?.getString("emergencyId") ?: ""
-            val requesterName = backStackEntry.arguments?.getString("requesterName") ?: "Pessoa"
             
-            // EmergencyResponseScreen temporarily disabled
-            Text("Emergency Response: $emergencyId for $requesterName")
+            com.afilaxy.presentation.emergency.EmergencyResponseScreen(
+                navController = navController,
+                emergencyId = emergencyId,
+                modifier = modifier
+            )
         }
         
         composable(

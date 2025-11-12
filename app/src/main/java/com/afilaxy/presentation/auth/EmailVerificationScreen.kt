@@ -23,11 +23,11 @@ fun EmailVerificationScreen(
     
     val currentUser = FirebaseAuth.getInstance().currentUser
     
-    LaunchedEffect(Unit) {
-        while (true) {
+    LaunchedEffect(currentUser) {
+        repeat(20) { // Máximo 20 tentativas (1 minuto)
             kotlinx.coroutines.delay(3000)
             currentUser?.reload()?.addOnCompleteListener {
-                if (currentUser.isEmailVerified) {
+                if (currentUser?.isEmailVerified == true) {
                     onVerified()
                 }
             }

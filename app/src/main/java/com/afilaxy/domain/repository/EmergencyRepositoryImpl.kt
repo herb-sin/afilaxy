@@ -57,7 +57,8 @@ class EmergencyRepositoryImpl @Inject constructor(
 
     override suspend fun findNearbyHelpers(location: Location, radiusKm: Double): Result<List<Helper>> {
         return try {
-            if (!AuthGuard.requireAuthentication("find_helpers")) {
+            val authResult = AuthGuard.getCurrentUserId()
+            if (authResult == null) {
                 return Result.failure(SecurityException("Authentication required"))
             }
 
@@ -92,7 +93,8 @@ class EmergencyRepositoryImpl @Inject constructor(
 
     override suspend fun updateEmergencyStatus(emergencyId: String, status: String): Result<Unit> {
         return try {
-            if (!AuthGuard.requireAuthentication("update_emergency")) {
+            val authResult = AuthGuard.getCurrentUserId()
+            if (authResult == null) {
                 return Result.failure(SecurityException("Authentication required"))
             }
 

@@ -22,6 +22,24 @@ fun ComunidadeScreen(
     modifier: Modifier = Modifier,
     viewModel: ComunidadeViewModel = viewModel()
 ) {
+    @Composable
+    fun InfoCard(title: String, description: String) {
+        Card(
+            modifier = Modifier.width(200.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -61,27 +79,8 @@ fun ComunidadeScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(horizontal = 4.dp)
             ) {
-                items(viewModel.produtos) { produto ->
-                    Card(
-                        modifier = Modifier.width(200.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp)
-                        ) {
-                            Text(
-                                produto.nome,
-                                style = MaterialTheme.typography.titleSmall
-                            )
-                            Text(
-                                produto.descricao,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                items(viewModel.produtos, key = { it.nome }) { produto ->
+                    InfoCard(produto.nome, produto.descricao)
                 }
             }
             
@@ -98,34 +97,8 @@ fun ComunidadeScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(horizontal = 4.dp)
             ) {
-                items(viewModel.eventos) { evento ->
-                    Card(
-                        modifier = Modifier.width(200.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp)
-                        ) {
-                            Text(
-                                evento.titulo,
-                                style = MaterialTheme.typography.titleSmall
-                            )
-                            Text(
-                                evento.data,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            evento.descricao?.let { desc ->
-                                Text(
-                                    desc,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                        }
-                    }
+                items(viewModel.eventos, key = { it.titulo }) { evento ->
+                    InfoCard(evento.titulo, evento.descricao ?: evento.data)
                 }
             }
             
@@ -142,27 +115,8 @@ fun ComunidadeScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(horizontal = 4.dp)
             ) {
-                items(viewModel.projetos) { projeto ->
-                    Card(
-                        modifier = Modifier.width(200.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp)
-                        ) {
-                            Text(
-                                projeto.titulo,
-                                style = MaterialTheme.typography.titleSmall
-                            )
-                            Text(
-                                projeto.texto,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
+                items(viewModel.projetos, key = { it.titulo }) { projeto ->
+                    InfoCard(projeto.titulo, projeto.texto)
                 }
             }
         }

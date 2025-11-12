@@ -1,5 +1,6 @@
 package com.afilaxy
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -20,19 +21,23 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // Set content immediately to avoid ANR
-        setContent {
-            MainContent()
+        try {
+            setContent {
+                MainContent()
+            }
+            
+            AnrOptimizer.executeAsync {
+                initializeBackgroundServices()
+            }
+            
+            WorkManagerInitializer.scheduleCleanupWork(this)
+        } catch (e: Exception) {
+            android.util.Log.e("MainActivity", "Error in onCreate: ${e.javaClass.simpleName}")
+            finish()
         }
-        
-        // Initialize heavy operations in background
-        AnrOptimizer.executeAsync {
-            initializeBackgroundServices()
-        }
-        
-        // Schedule cleanup work
-        WorkManagerInitializer.scheduleCleanupWork(this)
     }
+    
+
     
     private suspend fun initializeBackgroundServices() {
         withContext(Dispatchers.IO) {
@@ -43,9 +48,22 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun MainContent() {
         AfilaxyTheme {
-            val navController = rememberNavController()
-            
             Surface(modifier = Modifier.fillMaxSize()) {
+                val navController = rememberNavController()
+                
+                // Verificar se deve abrir resposta à emergência
+                LaunchedEffect(navController) {
+                    val shouldOpenEmergencyResponse = intent?.getBooleanExtra("open_emergency_response", false) ?: false
+                    val emergencyId = intent?.getStringExtra("emergency_id")
+                    
+                    android.util.Log.d("MainActivity", "Checking emergency response: $shouldOpenEmergencyResponse, ID: $emergencyId")
+                    
+                    if (shouldOpenEmergencyResponse && !emergencyId.isNullOrEmpty()) {
+                        android.util.Log.d("MainActivity", "Navigating to emergency response")
+                        navController.navigate("emergency_response/$emergencyId/Pessoa")
+                    }
+                }
+                
                 AppNavigation(
                     navController = navController,
                     modifier = Modifier.fillMaxSize()

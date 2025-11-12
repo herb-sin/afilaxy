@@ -19,7 +19,7 @@ object LocationUtils {
             CoroutineScope(Dispatchers.IO).launch {
                 val location = locationManager.getCurrentLocation()
                 if (location != null) {
-                    Log.d("LocationUtils", "Location obtained: ${location.latitude}, ${location.longitude}")
+                    Log.d("LocationUtils", "Location obtained successfully")
                     callback(location.latitude, location.longitude)
                 } else {
                     Log.w("LocationUtils", "Failed to get location")

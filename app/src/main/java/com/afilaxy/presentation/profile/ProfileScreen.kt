@@ -32,12 +32,41 @@ fun ProfileScreen(
         factory = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return HomeViewModel(context) as T
+                return HomeViewModel(
+                    authRepository = com.afilaxy.data.repository.AuthRepositoryImpl(),
+                    preferencesRepository = com.afilaxy.data.repository.PreferencesRepositoryImpl(context),
+                    toggleHelperUseCase = com.afilaxy.domain.usecase.ToggleHelperUseCase(
+                        locationRepository = com.afilaxy.data.repository.LocationRepository(context),
+                        helperRepository = com.afilaxy.data.repository.HelperRepository()
+                    ),
+                    notificationRepository = com.afilaxy.data.NotificationRepository()
+                ) as T
             }
         }
     )
     
-    val sharedPrefs = context.getSharedPreferences("profile_prefs", Context.MODE_PRIVATE)
+    // Verify user is authenticated
+    if (!viewModel.isLoggedIn) {
+        LaunchedEffect(Unit) {
+            navController.navigate("login") {
+                popUpTo("profile") { inclusive = true }
+            }
+        }
+        return
+    }
+    
+    val sharedPrefs = try {
+        androidx.security.crypto.EncryptedSharedPreferences.create(
+            "profile_prefs",
+            androidx.security.crypto.MasterKeys.getOrCreate(androidx.security.crypto.MasterKeys.AES256_GCM_SPEC),
+            context,
+            androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    } catch (e: Exception) {
+        android.util.Log.w("ProfileScreen", "Fallback to regular SharedPreferences: ${e.javaClass.simpleName}")
+        context.getSharedPreferences("profile_prefs", Context.MODE_PRIVATE)
+    }
     
     var showNameDialog by remember { mutableStateOf(false) }
     var showPhoneDialog by remember { mutableStateOf(false) }
@@ -100,7 +129,7 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(4.dp))
                     
                     Text(
-                        text = viewModel.userEmail,
+                        text = "Membro da comunidade Afilaxy",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center
@@ -379,9 +408,13 @@ fun ProfileScreen(
                             )
                             IconButton(
                                 onClick = {
-                                    val updatedMeds = medications.filter { it != medication }
-                                    medications = updatedMeds
-                                    sharedPrefs.edit().putStringSet("medications", updatedMeds.toSet()).apply()
+                                    try {
+                                        val updatedMeds = medications.filter { it != medication }
+                                        medications = updatedMeds
+                                        sharedPrefs.edit().putStringSet("medications", updatedMeds.toSet()).apply()
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("ProfileScreen", "Erro ao remover medicamento: ${e.javaClass.simpleName}")
+                                    }
                                 }
                             ) {
                                 Icon(

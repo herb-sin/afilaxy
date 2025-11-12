@@ -50,11 +50,14 @@ fun NavigationScreen(
         Button(
             onClick = {
                 try {
-                    val uri = "google.navigation:q=$destinationLat,$destinationLng"
+                    // Validar coordenadas para prevenir XXE
+                    val safeLat = destinationLat.toString().replace("[^0-9.-]".toRegex(), "")
+                    val safeLng = destinationLng.toString().replace("[^0-9.-]".toRegex(), "")
+                    val uri = "google.navigation:q=$safeLat,$safeLng"
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(uri))
                     context.startActivity(intent)
                 } catch (e: Exception) {
-                    android.util.Log.e("NavigationScreen", "Erro: ${e.message}")
+                    android.util.Log.e("NavigationScreen", "Erro ao iniciar navegação", e)
                 }
             },
             modifier = Modifier

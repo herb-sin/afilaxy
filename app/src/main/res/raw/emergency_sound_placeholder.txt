@@ -1,0 +1,19 @@
+# Emergency Sound Placeholder
+
+Este arquivo serve como placeholder para o som de emergência.
+
+Para adicionar o som real:
+1. Adicione um arquivo de áudio (MP3, WAV, etc.) nesta pasta
+2. Nomeie como "emergency_sound.mp3" ou similar
+3. Atualize o código em EmergencyAlertActivity.kt para usar o nome correto
+
+Exemplo de sons de emergência:
+- Sirene de ambulância
+- Beep de alarme médico
+- Tom de urgência hospitalar
+
+O som deve ser:
+- Curto (2-3 segundos)
+- Claro e audível
+- Não muito alto para não assustar
+- Profissional e sério

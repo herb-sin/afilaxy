@@ -115,7 +115,32 @@ class LoginViewModel : ViewModel() {
     }
     
     fun resetPassword() {
-        // Reset password logic
+        if (_uiState.value.email.isBlank()) {
+            _uiState.value = _uiState.value.copy(errorMessage = "Digite seu e-mail para recuperar a senha")
+            return
+        }
+        
+        _uiState.value = _uiState.value.copy(isLoading = true, errorMessage = null)
+        
+        viewModelScope.launch {
+            try {
+                firebaseAuth.sendPasswordResetEmail(_uiState.value.email)
+                    .addOnCompleteListener { task ->
+                        _uiState.value = _uiState.value.copy(isLoading = false)
+                        if (task.isSuccessful) {
+                            _uiState.value = _uiState.value.copy(errorMessage = "E-mail de recuperação enviado!")
+                        } else {
+                            val errorMsg = translateFirebaseError(task.exception?.message)
+                            _uiState.value = _uiState.value.copy(errorMessage = errorMsg)
+                        }
+                    }
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = translateFirebaseError(e.message)
+                )
+            }
+        }
     }
     
     fun dismissRegistrationSuccess() {

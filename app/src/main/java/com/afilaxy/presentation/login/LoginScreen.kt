@@ -81,7 +81,9 @@ fun LoginScreen(
         
         // Debug: verificar estado do card
         LaunchedEffect(uiState.showRegistrationSuccess) {
-            android.util.Log.d("LoginScreen", "showRegistrationSuccess = ${uiState.showRegistrationSuccess.toString().replace("\n", "").replace("\r", "")}") 
+            if (uiState.showRegistrationSuccess) {
+                android.util.Log.d("LoginScreen", "Registration success card triggered")
+            }
         }
         
         if (uiState.showRegistrationSuccess) {

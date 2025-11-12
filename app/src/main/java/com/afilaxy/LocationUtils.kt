@@ -41,7 +41,8 @@ fun stopLocationUpdates(context: Context, locationCallback: LocationCallback) {
 }
 
 fun saveUserLocationWithCoords(context: Context, lat: Double, lon: Double) {
-    if (!com.afilaxy.security.AuthGuard.isUserAuthenticated()) {
+    val userId = com.afilaxy.security.AuthGuard.getCurrentUserId()
+    if (userId == null) {
         return
     }
     
@@ -55,7 +56,8 @@ fun saveUserLocationWithCoords(context: Context, lat: Double, lon: Double) {
 }
 
 fun saveUserLocation(context: Context) {
-    if (!com.afilaxy.security.AuthGuard.isUserAuthenticated()) {
+    val userId = com.afilaxy.security.AuthGuard.getCurrentUserId()
+    if (userId == null) {
         return
     }
     

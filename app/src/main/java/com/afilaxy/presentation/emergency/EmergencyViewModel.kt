@@ -1,7 +1,7 @@
 package com.afilaxy.presentation.emergency
 
-import android.content.Context
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
@@ -16,7 +16,7 @@ import com.afilaxy.domain.usecase.RequestEmergencyHelpUseCase
 import com.afilaxy.domain.model.Helper
 import kotlinx.coroutines.launch
 
-class EmergencyViewModel(context: Context) : ViewModel() {
+class EmergencyViewModel(application: Application) : AndroidViewModel(application) {
     
     var emergencyActive by mutableStateOf(false)
         private set
@@ -44,7 +44,7 @@ class EmergencyViewModel(context: Context) : ViewModel() {
         
     private var timerJob: Job? = null
     
-    private val locationRepository = LocationRepository(context)
+    private val locationRepository = LocationRepository(getApplication())
     private val helperRepository = HelperRepository()
     private val emergencyRequestRepository = EmergencyRequestRepository()
     private val notificationRepository = NotificationRepository()
@@ -63,14 +63,15 @@ class EmergencyViewModel(context: Context) : ViewModel() {
             try {
                 val location = locationRepository.getCurrentLocation()
                 
-                if (location != null) {
-                    userLocation = "${location.latitude}, ${location.longitude}"
-                    statusMessage = "📍 GPS: ${String.format("%.4f", location.latitude)}, ${String.format("%.4f", location.longitude)}"
-                } else {
+                location?.let {
+                    userLocation = "${it.latitude}, ${it.longitude}"
+                    statusMessage = "📍 GPS: ${String.format("%.4f", it.latitude)}, ${String.format("%.4f", it.longitude)}"
+                } ?: run {
                     statusMessage = "GPS indisponível. Ative a localização para usar o app."
                 }
             } catch (e: Exception) {
-                statusMessage = "Erro GPS: ${e.message}. Ative a localização para continuar."
+                android.util.Log.e("EmergencyViewModel", "GPS error: ${e.javaClass.simpleName}")
+                statusMessage = "Erro GPS. Ative a localização para continuar."
             }
         }
     }
@@ -89,6 +90,10 @@ class EmergencyViewModel(context: Context) : ViewModel() {
                     nearbyHelpers = result.helpers
                     helpersFound = result.helpers.size
                     statusMessage = "${result.helpers.size} helpers encontrados! Notificações enviadas."
+                    
+                    // Desativar helper status (não pode ser helper enquanto pede ajuda)
+                    getSecurePreferences().edit().putBoolean("is_helper", false).apply()
+                    
                     startTimer()
                 }
                 is RequestEmergencyHelpUseCase.Result.LocationInvalid -> {
@@ -104,6 +109,9 @@ class EmergencyViewModel(context: Context) : ViewModel() {
                     emergencyActive = true
                     helpersFound = 0
                     statusMessage = "Nenhum helper próximo encontrado. Tente novamente."
+                    
+                    // Desativar helper status mesmo sem helpers encontrados
+                    getSecurePreferences().edit().putBoolean("is_helper", false).apply()
                 }
                 is RequestEmergencyHelpUseCase.Result.Error -> {
                     statusMessage = "Erro: ${result.message}"
@@ -156,6 +164,18 @@ class EmergencyViewModel(context: Context) : ViewModel() {
     
     fun refreshLocation() {
         getCurrentLocation()
+    }
+    
+    private fun getSecurePreferences() = try {
+        androidx.security.crypto.EncryptedSharedPreferences.create(
+            "afilaxy_prefs",
+            androidx.security.crypto.MasterKeys.getOrCreate(androidx.security.crypto.MasterKeys.AES256_GCM_SPEC),
+            getApplication(),
+            androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    } catch (e: Exception) {
+        getApplication<Application>().getSharedPreferences("afilaxy_prefs", Application.MODE_PRIVATE)
     }
 }
 
