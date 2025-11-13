@@ -1,14 +1,17 @@
 package com.afilaxy.domain.model
 
 data class ChatMessage(
-    val id: String = "",
-    val emergencyId: String = "",
-    val senderId: String = "",
-    val senderName: String = "",
-    val message: String = "",
-    val timestamp: Long = System.currentTimeMillis(),
-    val isFromHelper: Boolean = false
+    @JvmField val id: String = "",
+    @JvmField val emergencyId: String = "",
+    @JvmField val senderId: String = "",
+    @JvmField val senderName: String = "",
+    @JvmField val message: String = "",
+    @JvmField val timestamp: Long = System.currentTimeMillis(),
+    @JvmField val isFromHelper: Boolean = false
 ) {
+    // No-argument constructor for Firestore
+    constructor() : this("", "", "", "", "", System.currentTimeMillis(), false)
+    
     companion object {
         fun create(
             emergencyId: String,

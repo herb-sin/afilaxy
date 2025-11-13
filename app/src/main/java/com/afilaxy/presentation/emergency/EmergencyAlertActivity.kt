@@ -27,6 +27,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.afilaxy.MainActivity
 import com.afilaxy.ui.theme.AfilaxyTheme
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class EmergencyAlertActivity : ComponentActivity() {
     
@@ -140,13 +144,35 @@ class EmergencyAlertActivity : ComponentActivity() {
         
         android.util.Log.d("EmergencyAlert", "Accepting emergency: $emergencyId")
         
+        // Atualizar status no Firestore
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val firestore = FirebaseFirestore.getInstance()
+                
+                // Atualizar na coleção emergency_requests
+                firestore.collection("emergency_requests")
+                    .document(emergencyId)
+                    .update(mapOf(
+                        "status" to "accepted",
+                        "acceptedAt" to System.currentTimeMillis()
+                    ))
+                
+                android.util.Log.d("EmergencyAlert", "Emergency status updated to accepted")
+            } catch (e: Exception) {
+                android.util.Log.e("EmergencyAlert", "Failed to update emergency status: ${e.javaClass.simpleName}")
+            }
+        }
+        
+        val requesterName = intent.getStringExtra(EXTRA_REQUESTER_NAME) ?: "Helper"
+        
         val intent = Intent(this, MainActivity::class.java).apply {
             putExtra("open_emergency_response", true)
             putExtra("emergency_id", emergencyId)
+            putExtra("requester_name", requesterName)
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         
-        android.util.Log.d("EmergencyAlert", "Starting MainActivity with extras")
+        android.util.Log.d("EmergencyAlert", "Starting MainActivity with extras: emergencyId=$emergencyId, requesterName=$requesterName")
         startActivity(intent)
         finish()
     }

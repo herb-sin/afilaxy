@@ -40,29 +40,23 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
 
     private fun handleEmergencyRequest(remoteMessage: RemoteMessage) {
         val emergencyId = remoteMessage.data["emergency_id"] ?: ""
-        val requesterName = remoteMessage.data["requester_name"] ?: "Alguém"
+        val requesterName = remoteMessage.data["requesterName"] ?: "Alguém"
         val distance = remoteMessage.data["distance"] ?: "próximo"
         
-        // Mostrar alerta full-screen
+        android.util.Log.d("AfilaxyFCM", "🆘 Dados: emergencyId=$emergencyId, requesterName=$requesterName, distance=$distance")
+        
+        // Apenas mostrar alerta full-screen (sem notificação duplicada)
         val fullScreenIntent = EmergencyAlertActivity.createIntent(
             context = this,
             emergencyId = emergencyId,
             requesterName = requesterName,
             distance = distance
-        )
+        ).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        
+        android.util.Log.d("AfilaxyFCM", "🚀 Iniciando EmergencyAlertActivity")
         startActivity(fullScreenIntent)
-        
-        // Também criar notificação como backup
-        val title = "🆘 Emergência de Asma"
-        val body = "$requesterName precisa de ajuda a $distance de você"
-        
-        showEmergencyNotification(
-            title = title,
-            body = body,
-            emergencyId = emergencyId,
-            requesterName = requesterName,
-            distance = distance
-        )
     }
 
     private fun handleHelperResponse(remoteMessage: RemoteMessage) {

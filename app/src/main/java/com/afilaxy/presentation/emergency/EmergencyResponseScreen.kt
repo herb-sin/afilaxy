@@ -40,7 +40,8 @@ fun EmergencyResponseScreen(
                 return EmergencyResponseViewModel(
                     emergencyId = emergencyId,
                     chatRepository = ChatRepository(),
-                    sendChatMessageUseCase = SendChatMessageUseCase(ChatRepository())
+                    sendChatMessageUseCase = SendChatMessageUseCase(ChatRepository()),
+                    application = context.applicationContext as android.app.Application
                 ) as T
             }
         }
@@ -61,9 +62,17 @@ fun EmergencyResponseScreen(
         viewModel.loadEmergencyData()
     }
     
-    val defaultLocation = LatLng(-23.5505, -46.6333) // São Paulo
+    // Usar localização real do usuário
+    val userLocation = viewModel.helperLocation ?: LatLng(-23.5505, -46.6333)
     val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(defaultLocation, 15f)
+        position = CameraPosition.fromLatLngZoom(userLocation, 15f)
+    }
+    
+    // Atualizar câmera quando localização mudar
+    LaunchedEffect(viewModel.helperLocation) {
+        viewModel.helperLocation?.let { location ->
+            cameraPositionState.position = CameraPosition.fromLatLngZoom(location, 15f)
+        }
     }
     
     Scaffold(

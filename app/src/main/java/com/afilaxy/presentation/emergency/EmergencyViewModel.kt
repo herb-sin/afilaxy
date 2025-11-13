@@ -43,6 +43,7 @@ class EmergencyViewModel(application: Application) : AndroidViewModel(applicatio
         private set
         
     private var timerJob: Job? = null
+    private var lastRequestTime = 0L
     
     private val locationRepository = LocationRepository(getApplication())
     private val helperRepository = HelperRepository()
@@ -77,6 +78,10 @@ class EmergencyViewModel(application: Application) : AndroidViewModel(applicatio
     }
     
     fun requestHelp() {
+        val currentTime = System.currentTimeMillis()
+        if (isLoading || emergencyActive || (currentTime - lastRequestTime) < 3000) return // Prevent duplicate requests within 3 seconds
+        
+        lastRequestTime = currentTime
         isLoading = true
         statusMessage = "Enviando pedido de ajuda..."
         

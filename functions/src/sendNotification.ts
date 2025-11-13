@@ -9,8 +9,14 @@ export const sendEmergencyNotification = functions.firestore
   .document('emergency_requests/{requestId}')
   .onCreate(async (snap, context) => {
     const data = snap.data();
+    const requestId = context.params.requestId;
     
-    if (!data.isActive) return;
+    console.log('🔥 Firebase Function triggered:', {
+      requestId,
+      data: JSON.stringify(data)
+    });
+    
+    if (!data.active) return;
     
     try {
       // Buscar helpers próximos
@@ -53,11 +59,17 @@ export const sendEmergencyNotification = functions.firestore
               },
               data: {
                 type: 'emergency_request',
-                emergency_id: context.params.requestId,
+                emergency_id: requestId,
                 requesterName: data.requesterName || 'Alguém',
                 distance: Math.round(distance * 1000).toString()
               }
             };
+            
+            console.log('📨 Sending FCM:', {
+              token: fcmToken.substring(0, 20) + '...',
+              emergency_id: requestId,
+              requesterName: data.requesterName
+            });
             
             notifications.push(admin.messaging().send(message));
           }

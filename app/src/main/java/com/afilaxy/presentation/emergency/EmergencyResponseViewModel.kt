@@ -15,7 +15,8 @@ import kotlinx.coroutines.launch
 class EmergencyResponseViewModel(
     private val emergencyId: String,
     private val chatRepository: IChatRepository,
-    private val sendChatMessageUseCase: SendChatMessageUseCase
+    private val sendChatMessageUseCase: SendChatMessageUseCase,
+    private val application: android.app.Application? = null
 ) : ViewModel() {
     
     var chatMessages by mutableStateOf<List<ChatMessage>>(emptyList())
@@ -46,15 +47,26 @@ class EmergencyResponseViewModel(
     fun loadEmergencyData() {
         viewModelScope.launch {
             try {
-                // TODO: Carregar dados da emergência do Firestore
-                // Por enquanto, usar dados mock
-                requesterLocation = LatLng(-23.5505, -46.6333) // Mock location
-                helperLocation = LatLng(-23.5515, -46.6343) // Mock helper location
-                requesterName = "João Silva"
+                // Obter localização real do GPS se Application estiver disponível
+                helperLocation = if (application != null) {
+                    val locationRepository = com.afilaxy.data.repository.LocationRepository(application)
+                    val currentLocation = locationRepository.getCurrentLocation()
+                    currentLocation?.let { 
+                        LatLng(it.latitude, it.longitude) 
+                    } ?: LatLng(-23.5505, -46.6333)
+                } else {
+                    LatLng(-23.5505, -46.6333) // Fallback para São Paulo
+                }
+                
+                // TODO: Buscar dados reais da emergência do Firestore
+                requesterLocation = LatLng(-23.5515, -46.6343) // Será substituído por dados reais
+                requesterName = "Pessoa em emergência"
                 canMarkAsResolved = true
                 isLoading = false
             } catch (e: Exception) {
                 android.util.Log.e("EmergencyResponseVM", "Error loading emergency data: ${e.javaClass.simpleName}")
+                // Fallback para localização padrão
+                helperLocation = LatLng(-23.5505, -46.6333)
                 isLoading = false
             }
         }

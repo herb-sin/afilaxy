@@ -24,16 +24,22 @@ class ChatRepository : IChatRepository {
                 return Result.failure(Exception("Authentication required"))
             }
             
-            // Sanitizar mensagem
-            val sanitizedMessage = message.copy(
-                message = InputSanitizer.sanitizeText(message.message)
+            // Sanitizar mensagem e criar mapa explícito
+            val messageData = hashMapOf(
+                "id" to message.id,
+                "emergencyId" to message.emergencyId,
+                "senderId" to message.senderId,
+                "senderName" to message.senderName,
+                "message" to InputSanitizer.sanitizeText(message.message),
+                "timestamp" to message.timestamp,
+                "isFromHelper" to message.isFromHelper
             )
             
             chatCollection
                 .document(message.emergencyId)
                 .collection("messages")
                 .document(message.id)
-                .set(sanitizedMessage)
+                .set(messageData)
                 .await()
                 
             Result.success(Unit)
@@ -56,7 +62,16 @@ class ChatRepository : IChatRepository {
                 
                 val messages = snapshot?.documents?.mapNotNull { doc ->
                     try {
-                        doc.toObject(ChatMessage::class.java)
+                        val data = doc.data ?: return@mapNotNull null
+                        ChatMessage(
+                            id = data["id"] as? String ?: "",
+                            emergencyId = data["emergencyId"] as? String ?: "",
+                            senderId = data["senderId"] as? String ?: "",
+                            senderName = data["senderName"] as? String ?: "",
+                            message = data["message"] as? String ?: "",
+                            timestamp = data["timestamp"] as? Long ?: 0L,
+                            isFromHelper = data["isFromHelper"] as? Boolean ?: false
+                        )
                     } catch (e: Exception) {
                         android.util.Log.w("ChatRepository", "Error parsing message: ${e.javaClass.simpleName}")
                         null

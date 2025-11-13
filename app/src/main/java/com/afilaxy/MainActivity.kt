@@ -18,10 +18,14 @@ import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     
+    private var emergencyNavigationState = mutableStateOf<String?>(null)
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
         try {
+            android.util.Log.d("MainActivity", "onCreate - Intent extras: ${intent?.extras?.keySet()}")
+            
             setContent {
                 MainContent()
             }
@@ -53,14 +57,23 @@ class MainActivity : ComponentActivity() {
                 
                 // Verificar se deve abrir resposta à emergência
                 LaunchedEffect(navController) {
-                    val shouldOpenEmergencyResponse = intent?.getBooleanExtra("open_emergency_response", false) ?: false
-                    val emergencyId = intent?.getStringExtra("emergency_id")
+                    android.util.Log.d("MainActivity", "LaunchedEffect iniciado")
+                }
+                
+                // Reagir a mudanças no estado de navegação
+                LaunchedEffect(emergencyNavigationState.value) {
+                    val route = emergencyNavigationState.value
+                    android.util.Log.d("MainActivity", "LaunchedEffect - Route: $route")
                     
-                    android.util.Log.d("MainActivity", "Checking emergency response: $shouldOpenEmergencyResponse, ID: $emergencyId")
-                    
-                    if (shouldOpenEmergencyResponse && !emergencyId.isNullOrEmpty()) {
-                        android.util.Log.d("MainActivity", "Navigating to emergency response")
-                        navController.navigate("emergency_response/$emergencyId/Pessoa")
+                    if (!route.isNullOrEmpty()) {
+                        android.util.Log.d("MainActivity", "LaunchedEffect - Navegando para: $route")
+                        try {
+                            navController.navigate(route)
+                            android.util.Log.d("MainActivity", "LaunchedEffect - Navegação executada com sucesso")
+                            emergencyNavigationState.value = null // Reset
+                        } catch (e: Exception) {
+                            android.util.Log.e("MainActivity", "LaunchedEffect - Erro na navegação: ${e.message}")
+                        }
                     }
                 }
                 
@@ -69,6 +82,37 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize()
                 )
             }
+        }
+    }
+    
+    private fun checkEmergencyIntent(navController: androidx.navigation.NavHostController) {
+        android.util.Log.d("MainActivity", "Intent extras: ${intent?.extras?.keySet()}")
+        val shouldOpenEmergencyResponse = intent?.getBooleanExtra("open_emergency_response", false) ?: false
+        val emergencyId = intent?.getStringExtra("emergency_id")
+        
+        android.util.Log.d("MainActivity", "Checking emergency response: $shouldOpenEmergencyResponse, ID: $emergencyId")
+        
+        if (shouldOpenEmergencyResponse && !emergencyId.isNullOrEmpty()) {
+            android.util.Log.d("MainActivity", "Navigating to emergency response with ID: $emergencyId")
+            navController.navigate("emergency_response/$emergencyId/Helper")
+        }
+    }
+    
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        android.util.Log.d("MainActivity", "onNewIntent - Intent extras: ${intent.extras?.keySet()}")
+        setIntent(intent)
+        
+        // Verificar imediatamente se é uma emergência
+        val shouldOpenEmergencyResponse = intent.getBooleanExtra("open_emergency_response", false)
+        val emergencyId = intent.getStringExtra("emergency_id")
+        
+        android.util.Log.d("MainActivity", "onNewIntent - Emergency check: $shouldOpenEmergencyResponse, ID: $emergencyId")
+        
+        if (shouldOpenEmergencyResponse && !emergencyId.isNullOrEmpty()) {
+            val requesterName = intent.getStringExtra("requester_name") ?: "Helper"
+            android.util.Log.d("MainActivity", "onNewIntent - Triggering navigation to: emergency_response/$emergencyId/$requesterName")
+            emergencyNavigationState.value = "emergency_response/$emergencyId/$requesterName"
         }
     }
     
