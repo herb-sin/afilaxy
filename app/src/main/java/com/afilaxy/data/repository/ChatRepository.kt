@@ -1,9 +1,7 @@
 package com.afilaxy.data.repository
 
-import com.afilaxy.domain.model.ChatMessage
 import com.afilaxy.domain.repository.IChatRepository
-import com.afilaxy.security.InputSanitizer
-import com.afilaxy.security.AuthGuard
+import com.afilaxy.domain.model.ChatMessage
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
@@ -14,66 +12,91 @@ import kotlinx.coroutines.tasks.await
 class ChatRepository : IChatRepository {
     
     private val firestore = FirebaseFirestore.getInstance()
-    private val chatCollection = firestore.collection("emergency_chats")
     
     override suspend fun sendMessage(message: ChatMessage): Result<Unit> {
         return try {
-            // Validar autenticação
-            val authResult = AuthGuard.requireAuthentication("send_chat_message")
-            if (authResult !is com.afilaxy.security.AuthResult.Authenticated) {
-                return Result.failure(Exception("Authentication required"))
-            }
-            
-            // Sanitizar mensagem e criar mapa explícito
             val messageData = hashMapOf(
-                "id" to message.id,
-                "emergencyId" to message.emergencyId,
                 "senderId" to message.senderId,
-                "senderName" to message.senderName,
-                "message" to InputSanitizer.sanitizeText(message.message),
-                "timestamp" to message.timestamp,
-                "isFromHelper" to message.isFromHelper
+                "message" to message.message,
+                "timestamp" to message.timestamp
             )
             
-            chatCollection
+            firestore.collection("emergency_chats")
                 .document(message.emergencyId)
                 .collection("messages")
-                .document(message.id)
-                .set(messageData)
+                .add(messageData)
                 .await()
-                
+            
             Result.success(Unit)
         } catch (e: Exception) {
-            android.util.Log.e("ChatRepository", "Error sending message: ${e.javaClass.simpleName}")
+            android.util.Log.e("ChatRepository", "Erro ao enviar mensagem", e)
             Result.failure(e)
         }
     }
     
+    suspend fun sendMessage(emergencyId: String, senderId: String, message: String): Boolean {
+        val chatMessage = ChatMessage(
+            emergencyId = emergencyId,
+            senderId = senderId,
+            message = message,
+            timestamp = System.currentTimeMillis()
+        )
+        return sendMessage(chatMessage).isSuccess
+    }
+    
     override fun getMessages(emergencyId: String): Flow<List<ChatMessage>> = callbackFlow {
-        val listener = chatCollection
+        val listener = firestore.collection("emergency_chats")
             .document(emergencyId)
             .collection("messages")
             .orderBy("timestamp", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    android.util.Log.e("ChatRepository", "Error listening to messages: ${error.javaClass.simpleName}")
+                    android.util.Log.e("ChatRepository", "Erro ao escutar mensagens", error)
                     return@addSnapshotListener
                 }
                 
                 val messages = snapshot?.documents?.mapNotNull { doc ->
                     try {
-                        val data = doc.data ?: return@mapNotNull null
                         ChatMessage(
-                            id = data["id"] as? String ?: "",
-                            emergencyId = data["emergencyId"] as? String ?: "",
-                            senderId = data["senderId"] as? String ?: "",
-                            senderName = data["senderName"] as? String ?: "",
-                            message = data["message"] as? String ?: "",
-                            timestamp = data["timestamp"] as? Long ?: 0L,
-                            isFromHelper = data["isFromHelper"] as? Boolean ?: false
+                            id = doc.id,
+                            emergencyId = emergencyId,
+                            senderId = doc.getString("senderId") ?: "",
+                            message = doc.getString("message") ?: "",
+                            timestamp = doc.getLong("timestamp") ?: 0L
                         )
                     } catch (e: Exception) {
-                        android.util.Log.w("ChatRepository", "Error parsing message: ${e.javaClass.simpleName}")
+                        android.util.Log.e("ChatRepository", "Erro ao mapear mensagem", e)
+                        null
+                    }
+                } ?: emptyList()
+                
+                trySend(messages)
+            }
+        
+        awaitClose { listener.remove() }
+    }
+    
+    fun getChatMessages(emergencyId: String): Flow<List<ChatMessageEntity>> = callbackFlow {
+        val listener = firestore.collection("emergency_chats")
+            .document(emergencyId)
+            .collection("messages")
+            .orderBy("timestamp", Query.Direction.ASCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    android.util.Log.e("ChatRepository", "Erro ao escutar mensagens", error)
+                    return@addSnapshotListener
+                }
+                
+                val messages = snapshot?.documents?.mapNotNull { doc ->
+                    try {
+                        ChatMessageEntity(
+                            id = doc.id,
+                            senderId = doc.getString("senderId") ?: "",
+                            message = doc.getString("message") ?: "",
+                            timestamp = doc.getLong("timestamp") ?: 0L
+                        )
+                    } catch (e: Exception) {
+                        android.util.Log.e("ChatRepository", "Erro ao mapear mensagem", e)
                         null
                     }
                 } ?: emptyList()
@@ -86,24 +109,23 @@ class ChatRepository : IChatRepository {
     
     override suspend fun clearChat(emergencyId: String): Result<Unit> {
         return try {
-            val authResult = AuthGuard.requireAuthentication("clear_chat")
-            if (authResult !is com.afilaxy.security.AuthResult.Authenticated) {
-                return Result.failure(Exception("Authentication required"))
-            }
-            
-            val messagesRef = chatCollection
+            val messages = firestore.collection("emergency_chats")
                 .document(emergencyId)
                 .collection("messages")
+                .get()
+                .await()
             
-            val messages = messagesRef.get().await()
-            messages.documents.forEach { doc ->
-                doc.reference.delete()
-            }
-            
+            messages.documents.forEach { it.reference.delete() }
             Result.success(Unit)
         } catch (e: Exception) {
-            android.util.Log.e("ChatRepository", "Error clearing chat: ${e.javaClass.simpleName}")
             Result.failure(e)
         }
     }
 }
+
+data class ChatMessageEntity(
+    val id: String = "",
+    val senderId: String = "",
+    val message: String = "",
+    val timestamp: Long = 0L
+)

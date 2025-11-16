@@ -12,7 +12,7 @@ import androidx.navigation.compose.rememberNavController
 import com.afilaxy.presentation.common.navigation.AppNavigation
 import com.afilaxy.ui.theme.AfilaxyTheme
 import com.afilaxy.performance.AnrOptimizer
-import com.afilaxy.data.worker.WorkManagerInitializer
+// import com.afilaxy.data.worker.WorkManagerInitializer
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
                 initializeBackgroundServices()
             }
             
-            WorkManagerInitializer.scheduleCleanupWork(this)
+            // WorkManagerInitializer.scheduleCleanupWork(this)
         } catch (e: Exception) {
             android.util.Log.e("MainActivity", "Error in onCreate: ${e.javaClass.simpleName}")
             finish()

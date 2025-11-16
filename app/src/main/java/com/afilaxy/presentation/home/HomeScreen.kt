@@ -38,19 +38,11 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val viewModel: HomeViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
+    val viewModel: SimpleHomeViewModel = viewModel(
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return HomeViewModel(
-                    authRepository = com.afilaxy.data.repository.AuthRepositoryImpl(),
-                    preferencesRepository = com.afilaxy.data.repository.PreferencesRepositoryImpl(context),
-                    toggleHelperUseCase = com.afilaxy.domain.usecase.ToggleHelperUseCase(
-                        locationRepository = com.afilaxy.data.repository.LocationRepository(context),
-                        helperRepository = com.afilaxy.data.repository.HelperRepository()
-                    ),
-                    notificationRepository = com.afilaxy.data.NotificationRepository()
-                ) as T
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                return SimpleHomeViewModel(context.applicationContext as android.app.Application) as T
             }
         }
     )

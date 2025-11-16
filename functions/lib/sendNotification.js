@@ -24,7 +24,8 @@ exports.sendEmergencyNotification = functions.firestore
             .collection('helpers')
             .where('isActive', '==', true)
             .get();
-        const notifications = [];
+        const nearbyHelpers = [];
+        // Buscar helpers próximos e ordenar por distância
         for (const helperDoc of helpersSnapshot.docs) {
             const helper = helperDoc.data();
             const helperId = helper.id;
@@ -33,8 +34,8 @@ exports.sendEmergencyNotification = functions.firestore
                 continue;
             // Calcular distância
             const distance = calculateDistance(data.latitude, data.longitude, helper.location.latitude, helper.location.longitude);
-            // Só notificar se estiver próximo (260m)
-            if (distance <= 0.26) {
+            // Só considerar se estiver próximo (360m)
+            if (distance <= 0.36) {
                 // Buscar token FCM do helper
                 const userDoc = await admin.firestore()
                     .collection('users')
@@ -42,30 +43,39 @@ exports.sendEmergencyNotification = functions.firestore
                     .get();
                 const fcmToken = (_a = userDoc.data()) === null || _a === void 0 ? void 0 : _a.fcmToken;
                 if (fcmToken) {
-                    const message = {
-                        token: fcmToken,
-                        notification: {
-                            title: '🆘 Emergência de Asma',
-                            body: `Alguém precisa de ajuda a ${Math.round(distance * 1000)}m de você`
-                        },
-                        data: {
-                            type: 'emergency_request',
-                            emergency_id: requestId,
-                            requesterName: data.requesterName || 'Alguém',
-                            distance: Math.round(distance * 1000).toString()
-                        }
-                    };
-                    console.log('📨 Sending FCM:', {
-                        token: fcmToken.substring(0, 20) + '...',
-                        emergency_id: requestId,
-                        requesterName: data.requesterName
-                    });
-                    notifications.push(admin.messaging().send(message));
+                    nearbyHelpers.push({ helper, helperId, distance, fcmToken });
                 }
             }
         }
+        // Ordenar por distância e pegar apenas os 3 mais próximos
+        const closestHelpers = nearbyHelpers
+            .sort((a, b) => a.distance - b.distance)
+            .slice(0, 3);
+        const notifications = [];
+        // Enviar notificações apenas para os 3 mais próximos
+        for (const { distance, fcmToken } of closestHelpers) {
+            const message = {
+                token: fcmToken,
+                notification: {
+                    title: '🆘 Emergência de Asma',
+                    body: `Alguém precisa de ajuda a ${Math.round(distance * 1000)}m de você`
+                },
+                data: {
+                    type: 'emergency_request',
+                    emergency_id: requestId,
+                    requesterName: data.requesterName || 'Alguém',
+                    distance: Math.round(distance * 1000).toString()
+                }
+            };
+            console.log('📨 Sending FCM to closest helper:', {
+                token: fcmToken.substring(0, 20) + '...',
+                emergency_id: requestId,
+                distance: Math.round(distance * 1000) + 'm'
+            });
+            notifications.push(admin.messaging().send(message));
+        }
         await Promise.all(notifications);
-        console.log(`Enviadas ${notifications.length} notificações de emergência`);
+        console.log(`Enviadas ${notifications.length} notificações para os helpers mais próximos (máx 3, raio 360m)`);
     }
     catch (error) {
         console.error('Erro ao enviar notificações:', error);

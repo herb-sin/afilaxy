@@ -19,7 +19,7 @@ import androidx.navigation.NavType
 import com.afilaxy.LocationPermissionDialog
 import com.afilaxy.presentation.autocuidado.AutocuidadoScreen
 import com.afilaxy.presentation.comunidade.ComunidadeScreen
-import com.afilaxy.presentation.emergency.EmergencyScreenMaps
+// import com.afilaxy.presentation.emergency.EmergencyScreenMaps
 import com.afilaxy.presentation.helper.HelperResponseScreen
 import com.afilaxy.presentation.home.HomeScreen
 import com.afilaxy.presentation.login.LoginScreen
@@ -130,7 +130,7 @@ fun AppNavigation(
         }
         
         composable(AppRoutes.TELA_EMERGENCIA) {
-            EmergencyScreenMaps(
+            com.afilaxy.presentation.emergency.EmergencyBaseScreen(
                 navController = navController,
                 modifier = modifier
             )
@@ -159,7 +159,7 @@ fun AppNavigation(
         ) { backStackEntry ->
             val emergencyId = backStackEntry.arguments?.getString("emergencyId") ?: ""
             
-            com.afilaxy.presentation.emergency.EmergencyResponseScreen(
+            com.afilaxy.presentation.emergency.EmergencyBaseScreen(
                 navController = navController,
                 emergencyId = emergencyId,
                 modifier = modifier
