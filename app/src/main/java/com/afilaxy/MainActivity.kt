@@ -95,6 +95,8 @@ class MainActivity : ComponentActivity() {
         if (shouldOpenEmergencyResponse && !emergencyId.isNullOrEmpty()) {
             android.util.Log.d("MainActivity", "Navigating to emergency response with ID: $emergencyId")
             navController.navigate("emergency_response/$emergencyId/Helper")
+        } else {
+            android.util.Log.d("MainActivity", "No emergency navigation needed, staying on home")
         }
     }
     
@@ -103,7 +105,7 @@ class MainActivity : ComponentActivity() {
         android.util.Log.d("MainActivity", "onNewIntent - Intent extras: ${intent.extras?.keySet()}")
         setIntent(intent)
         
-        // Verificar imediatamente se é uma emergência
+        // Verificar se é uma emergência (tanto response quanto request)
         val shouldOpenEmergencyResponse = intent.getBooleanExtra("open_emergency_response", false)
         val emergencyId = intent.getStringExtra("emergency_id")
         
@@ -113,6 +115,9 @@ class MainActivity : ComponentActivity() {
             val requesterName = intent.getStringExtra("requester_name") ?: "Helper"
             android.util.Log.d("MainActivity", "onNewIntent - Triggering navigation to: emergency_response/$emergencyId/$requesterName")
             emergencyNavigationState.value = "emergency_response/$emergencyId/$requesterName"
+        } else if (!emergencyId.isNullOrEmpty()) {
+            // Se tem emergencyId mas não é response, pode ser uma notificação normal
+            android.util.Log.d("MainActivity", "onNewIntent - Emergency ID found but not response, staying on home")
         }
     }
     

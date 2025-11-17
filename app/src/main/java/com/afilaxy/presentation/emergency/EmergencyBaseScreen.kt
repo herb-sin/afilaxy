@@ -9,7 +9,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 // import androidx.hilt.navigation.compose.hiltViewModel
@@ -40,11 +42,31 @@ fun EmergencyBaseScreen(
     
     // Obter localização real para o mapa
     var userLocation by remember { mutableStateOf<Pair<Double, Double>?>(null) }
+    val cameraPositionState = rememberCameraPositionState()
     
     LaunchedEffect(Unit) {
+        android.util.Log.d("EmergencyBaseScreen", "Obtendo localização para mapa...")
         val location = com.afilaxy.data.LocationManager.getCurrentLocation(context)
-        userLocation = location
-        android.util.Log.d("EmergencyBaseScreen", "Localização para mapa: $location")
+        android.util.Log.d("EmergencyBaseScreen", "Localização obtida: $location")
+        
+        if (location != null) {
+            userLocation = location
+            // Centralizar mapa na localização real
+            cameraPositionState.position = CameraPosition.fromLatLngZoom(
+                LatLng(location.first, location.second),
+                15f
+            )
+            android.util.Log.d("EmergencyBaseScreen", "Mapa centralizado em: ${location.first}, ${location.second}")
+        } else {
+            android.util.Log.e("EmergencyBaseScreen", "Localização é null, usando fallback")
+            // Fallback para São Paulo
+            val fallback = Pair(-23.5505, -46.6333)
+            userLocation = fallback
+            cameraPositionState.position = CameraPosition.fromLatLngZoom(
+                LatLng(fallback.first, fallback.second),
+                15f
+            )
+        }
     }
     
     LaunchedEffect(emergencyId) {
@@ -53,43 +75,58 @@ fun EmergencyBaseScreen(
         }
     }
     
+    // Estado do teclado/foco no chat
+    var isChatFocused by remember { mutableStateOf(false) }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    
     Column(modifier = modifier.fillMaxSize()) {
-        // Mapa (70%)
+        // Mapa - se adapta ao estado do chat
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.7f)
+                .weight(if (isChatFocused && (uiState.state == EmergencyState.MATCHED || uiState.state == EmergencyState.HELPING)) 0.3f else 0.7f)
         ) {
-            GoogleMap(
-                modifier = Modifier.fillMaxSize(),
-                cameraPositionState = rememberCameraPositionState {
-                    val location = userLocation ?: (-23.5505 to -46.6333)
-                    position = CameraPosition.fromLatLngZoom(
-                        LatLng(location.first, location.second),
-                        15f
-                    )
+            // Só mostrar mapa quando tiver localização
+            if (userLocation != null) {
+                GoogleMap(
+                    modifier = Modifier.fillMaxSize(),
+                    cameraPositionState = cameraPositionState
+                ) {
+                    // Marcador do usuário
+                    userLocation?.let { location ->
+                        Marker(
+                            state = MarkerState(
+                                position = LatLng(location.first, location.second)
+                            ),
+                            title = "Sua localização"
+                        )
+                    }
+                    
+                    // Marcadores dos helpers (simplificado)
+                    // Mostrar helpers próximos quando necessário
                 }
-            ) {
-                // Marcador do usuário
-                userLocation?.let { location ->
-                    Marker(
-                        state = MarkerState(
-                            position = LatLng(location.first, location.second)
-                        ),
-                        title = "Sua localização"
-                    )
+            } else {
+                // Loading enquanto obtém localização
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Obtendo localização...")
+                    }
                 }
-                
-                // Marcadores dos helpers (simplificado)
-                // Mostrar helpers próximos quando necessário
             }
         }
         
-        // Bottom Sheet Adaptativo (30%)
+        // Bottom Sheet Adaptativo - expande quando chat está focado
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(0.3f),
+                .weight(if (isChatFocused && (uiState.state == EmergencyState.MATCHED || uiState.state == EmergencyState.HELPING)) 0.7f else 0.3f),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             when (uiState.state) {
@@ -101,12 +138,14 @@ fun EmergencyBaseScreen(
                 )
                 EmergencyState.MATCHED -> ChatContent(
                     messages = uiState.chatMessages,
-                    onSendMessage = { message -> viewModel.sendMessage(message) }
+                    onSendMessage = { message -> viewModel.sendMessage(message) },
+                    onFocusChanged = { focused -> isChatFocused = focused }
                 )
                 EmergencyState.HELPING -> HelpingContent(
                     requesterName = uiState.requesterName,
                     messages = uiState.chatMessages,
-                    onSendMessage = { message -> viewModel.sendMessage(message) }
+                    onSendMessage = { message -> viewModel.sendMessage(message) },
+                    onFocusChanged = { focused -> isChatFocused = focused }
                 )
             }
         }
@@ -160,7 +199,8 @@ private fun WaitingContent(onCancel: () -> Unit) {
 @Composable
 private fun ChatContent(
     messages: List<ChatMessage>,
-    onSendMessage: (String) -> Unit
+    onSendMessage: (String) -> Unit,
+    onFocusChanged: (Boolean) -> Unit = {}
 ) {
     var messageText by remember { mutableStateOf("") }
     
@@ -173,7 +213,7 @@ private fun ChatContent(
         
         LazyColumn(
             modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(horizontal = 16.dp)
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
         ) {
             items(messages) { message ->
                 MessageBubble(message = message)
@@ -189,7 +229,11 @@ private fun ChatContent(
             OutlinedTextField(
                 value = messageText,
                 onValueChange = { messageText = it },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .onFocusChanged { focusState ->
+                        onFocusChanged(focusState.isFocused)
+                    },
                 placeholder = { Text("Digite sua mensagem...") }
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -211,7 +255,8 @@ private fun ChatContent(
 private fun HelpingContent(
     requesterName: String,
     messages: List<ChatMessage>,
-    onSendMessage: (String) -> Unit
+    onSendMessage: (String) -> Unit,
+    onFocusChanged: (Boolean) -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
@@ -221,7 +266,11 @@ private fun HelpingContent(
             color = Color.Red
         )
         
-        ChatContent(messages = messages, onSendMessage = onSendMessage)
+        ChatContent(
+            messages = messages, 
+            onSendMessage = onSendMessage,
+            onFocusChanged = onFocusChanged
+        )
     }
 }
 

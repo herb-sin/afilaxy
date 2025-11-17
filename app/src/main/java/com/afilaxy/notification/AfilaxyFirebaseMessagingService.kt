@@ -9,7 +9,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.afilaxy.MainActivity
 import com.afilaxy.R
-import com.afilaxy.presentation.emergency.EmergencyAlertActivity
+import com.afilaxy.presentation.emergency.EmergencyOverlayActivity
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 
@@ -45,18 +45,14 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
         
         android.util.Log.d("AfilaxyFCM", "🆘 Dados: emergencyId=$emergencyId, requesterName=$requesterName, distance=$distance")
         
-        // Apenas mostrar alerta full-screen (sem notificação duplicada)
-        val fullScreenIntent = EmergencyAlertActivity.createIntent(
-            context = this,
+        // Abrir diretamente a tela vermelha (sem notificação do sistema)
+        showEmergencyNotification(
+            title = "🆘 Emergência de Asma",
+            body = "$requesterName precisa de ajuda a ${distance}m de você",
             emergencyId = emergencyId,
             requesterName = requesterName,
             distance = distance
-        ).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-        }
-        
-        android.util.Log.d("AfilaxyFCM", "🚀 Iniciando EmergencyAlertActivity")
-        startActivity(fullScreenIntent)
+        )
     }
 
     private fun handleHelperResponse(remoteMessage: RemoteMessage) {
@@ -92,35 +88,18 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
     ) {
         createNotificationChannel(EMERGENCY_CHANNEL_ID)
         
-        val fullScreenIntent = EmergencyAlertActivity.createIntent(
-            context = this,
-            emergencyId = emergencyId,
-            requesterName = requesterName,
-            distance = distance
-        )
+        // Abrir diretamente a EmergencyOverlayActivity
+        val overlayIntent = Intent(this, EmergencyOverlayActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra("emergency_id", emergencyId)
+            putExtra("requesterName", requesterName)
+            putExtra("distance", distance)
+        }
         
-        val fullScreenPendingIntent = PendingIntent.getActivity(
-            this, 0, fullScreenIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val notification = NotificationCompat.Builder(this, EMERGENCY_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(title)
-            .setContentText(body)
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setContentIntent(fullScreenPendingIntent)
-            .setFullScreenIntent(fullScreenPendingIntent, true)
-            .setAutoCancel(true)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setVibrate(longArrayOf(0, 1000, 500, 1000, 500, 1000))
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setOngoing(false)
-            .build()
-
-        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(emergencyId.hashCode(), notification)
+        android.util.Log.d("AfilaxyFCM", "🔴 INICIANDO OVERLAY! emergencyId=$emergencyId, requesterName=$requesterName")
+        
+        // Iniciar a Activity imediatamente (sem notificação do sistema)
+        startActivity(overlayIntent)
     }
     
     private fun showNotification(
@@ -133,6 +112,7 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
         
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra("open_emergency_response", false)
         }
         
         val pendingIntent = PendingIntent.getActivity(

@@ -68,15 +68,12 @@ export const sendEmergencyNotification = functions.firestore
       for (const { distance, fcmToken } of closestHelpers) {
         const message = {
           token: fcmToken,
-          notification: {
-            title: '🆘 Emergência de Asma',
-            body: `Alguém precisa de ajuda a ${Math.round(distance * 1000)}m de você`
-          },
           data: {
             type: 'emergency_request',
             emergency_id: requestId,
             requesterName: data.requesterName || 'Alguém',
-            distance: Math.round(distance * 1000).toString()
+            distance: Math.round(distance * 1000).toString(),
+            isEmergencyResponse: 'true'
           }
         };
         

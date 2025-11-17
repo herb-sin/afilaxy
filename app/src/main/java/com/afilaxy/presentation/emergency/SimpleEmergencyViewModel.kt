@@ -7,8 +7,11 @@ import com.afilaxy.data.ChatManager
 import com.afilaxy.data.EmergencyManager
 import com.afilaxy.data.LocationManager
 import com.afilaxy.data.SimpleMessage
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.callbackFlow
 
 /**
  * ViewModel simplificado que conecta diretamente com os Managers
@@ -25,6 +28,11 @@ class SimpleEmergencyViewModel(private val application: Application) : AndroidVi
             _uiState.value = _uiState.value.copy(state = EmergencyState.WAITING)
             
             android.util.Log.d("SimpleEmergencyViewModel", "=== INICIANDO PEDIDO DE EMERGÊNCIA ===")
+            
+            // Desativar helper automaticamente (quem pede ajuda não tem bombinha)
+            android.util.Log.d("SimpleEmergencyViewModel", "Desativando helper - usuário precisa de ajuda")
+            EmergencyManager.deactivateHelper()
+            
             val location = LocationManager.getCurrentLocation(application)
             android.util.Log.d("SimpleEmergencyViewModel", "Localização obtida: $location")
             
@@ -42,17 +50,10 @@ class SimpleEmergencyViewModel(private val application: Application) : AndroidVi
             if (emergencyId != null) {
                 currentEmergencyId = emergencyId
                 android.util.Log.d("SimpleEmergencyViewModel", "Emergência criada com ID: $emergencyId")
-                android.util.Log.d("SimpleEmergencyViewModel", "Aguardando resposta de helpers...")
+                android.util.Log.d("SimpleEmergencyViewModel", "Aguardando resposta real de helpers...")
                 
-                // Aguardar resposta real por 30 segundos
-                kotlinx.coroutines.delay(30000)
-                
-                // Se ainda está esperando, simular match
-                if (_uiState.value.state == EmergencyState.WAITING) {
-                    android.util.Log.d("SimpleEmergencyViewModel", "Timeout - simulando match")
-                    _uiState.value = _uiState.value.copy(state = EmergencyState.MATCHED)
-                    startListeningToChat(emergencyId)
-                }
+                // Escutar mudanças de status da emergência
+                listenToEmergencyStatus(emergencyId)
             } else {
                 android.util.Log.e("SimpleEmergencyViewModel", "ERRO: Falha ao criar emergência")
                 _uiState.value = _uiState.value.copy(state = EmergencyState.IDLE)
@@ -75,6 +76,12 @@ class SimpleEmergencyViewModel(private val application: Application) : AndroidVi
         )
         startListeningToChat(emergencyId)
     }
+    
+    fun acceptEmergency() {
+        // Quando helper aceita, muda para estado MATCHED
+        _uiState.value = _uiState.value.copy(state = EmergencyState.MATCHED)
+        currentEmergencyId?.let { startListeningToChat(it) }
+    }
 
     fun sendMessage(message: String) {
         viewModelScope.launch {
@@ -84,9 +91,56 @@ class SimpleEmergencyViewModel(private val application: Application) : AndroidVi
         }
     }
 
+    private fun listenToEmergencyStatus(emergencyId: String) {
+        viewModelScope.launch {
+            val firestore = FirebaseFirestore.getInstance()
+            
+            callbackFlow {
+                val listener = firestore.collection("emergency_requests")
+                    .document(emergencyId)
+                    .addSnapshotListener { snapshot, error ->
+                        if (error != null) return@addSnapshotListener
+                        
+                        val status = snapshot?.getString("status")
+                        val helperName = snapshot?.getString("helperName")
+                        
+                        android.util.Log.d("SimpleEmergencyViewModel", "Status atualizado: $status, Helper: $helperName")
+                        android.util.Log.d("SimpleEmergencyViewModel", "Documento completo: ${snapshot?.data}")
+                        
+                        when (status) {
+                            "matched" -> {
+                                android.util.Log.d("SimpleEmergencyViewModel", "EMERGÊNCIA ACEITA! Iniciando chat...")
+                                trySend(EmergencyState.MATCHED to (helperName ?: "Helper"))
+                            }
+                            "cancelled" -> {
+                                android.util.Log.d("SimpleEmergencyViewModel", "Emergência cancelada")
+                                trySend(EmergencyState.IDLE to "")
+                            }
+                            else -> {
+                                android.util.Log.d("SimpleEmergencyViewModel", "Status não reconhecido ou ainda waiting: $status")
+                            }
+                        }
+                    }
+                
+                awaitClose { listener.remove() }
+            }.collect { (newState, helperName) ->
+                _uiState.value = _uiState.value.copy(
+                    state = newState,
+                    requesterName = helperName
+                )
+                
+                if (newState == EmergencyState.MATCHED) {
+                    startListeningToChat(emergencyId)
+                }
+            }
+        }
+    }
+    
     private fun startListeningToChat(emergencyId: String) {
+        android.util.Log.d("SimpleEmergencyViewModel", "INICIANDO ESCUTA DO CHAT para emergencyId: $emergencyId")
         viewModelScope.launch {
             ChatManager.listenToMessages(emergencyId).collect { messages ->
+                android.util.Log.d("SimpleEmergencyViewModel", "Mensagens recebidas: ${messages.size}")
                 val chatMessages = messages.map { msg ->
                     ChatMessage(
                         id = msg.id,

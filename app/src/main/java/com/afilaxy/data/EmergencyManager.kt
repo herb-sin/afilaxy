@@ -98,6 +98,92 @@ object EmergencyManager {
     }
     
     /**
+     * Aceita emergência como helper
+     */
+    suspend fun acceptEmergency(emergencyId: String): Boolean {
+        return try {
+            val userId = auth.currentUser?.uid ?: return false
+            val userDoc = firestore.collection("users").document(userId).get().await()
+            val helperName = userDoc.getString("name") ?: auth.currentUser?.displayName ?: "Helper"
+            
+            android.util.Log.d("EmergencyManager", "Helper $helperName aceitando emergência $emergencyId")
+            
+            // Verificar se emergência ainda existe e está ativa
+            val emergencyDoc = firestore.collection("emergency_requests").document(emergencyId).get().await()
+            if (!emergencyDoc.exists()) {
+                android.util.Log.e("EmergencyManager", "Emergência $emergencyId não existe")
+                return false
+            }
+            
+            val isActive = emergencyDoc.getBoolean("active") ?: false
+            if (!isActive) {
+                android.util.Log.e("EmergencyManager", "Emergência $emergencyId não está ativa")
+                return false
+            }
+            
+            // Atualizar status da emergência
+            firestore.collection("emergency_requests")
+                .document(emergencyId)
+                .update(
+                    "status", "matched",
+                    "helperId", userId,
+                    "helperName", helperName,
+                    "matchedAt", System.currentTimeMillis()
+                )
+                .await()
+            
+            android.util.Log.d("EmergencyManager", "Emergência aceita com sucesso - Status: matched")
+            true
+        } catch (e: Exception) {
+            android.util.Log.e("EmergencyManager", "Erro ao aceitar emergência", e)
+            false
+        }
+    }
+    
+    /**
+     * Verifica se usuário tem emergência ativa
+     */
+    suspend fun getActiveEmergency(): String? {
+        return try {
+            val userId = auth.currentUser?.uid ?: return null
+            val currentTime = System.currentTimeMillis()
+            
+            // Buscar emergências do usuário como requester
+            val requesterQuery = firestore.collection("emergency_requests")
+                .whereEqualTo("requesterId", userId)
+                .whereEqualTo("active", true)
+                .get()
+                .await()
+            
+            for (doc in requesterQuery.documents) {
+                val expiresAt = doc.getLong("expiresAt") ?: 0
+                if (expiresAt > currentTime) {
+                    return doc.id
+                }
+            }
+            
+            // Buscar emergências do usuário como helper
+            val helperQuery = firestore.collection("emergency_requests")
+                .whereEqualTo("helperId", userId)
+                .whereEqualTo("active", true)
+                .get()
+                .await()
+            
+            for (doc in helperQuery.documents) {
+                val expiresAt = doc.getLong("expiresAt") ?: 0
+                if (expiresAt > currentTime) {
+                    return doc.id
+                }
+            }
+            
+            null
+        } catch (e: Exception) {
+            android.util.Log.e("EmergencyManager", "Erro ao verificar emergência ativa", e)
+            null
+        }
+    }
+    
+    /**
      * Desativa helper
      */
     suspend fun deactivateHelper(): Boolean {

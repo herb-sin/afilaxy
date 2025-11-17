@@ -212,12 +212,8 @@ Row(
                     }
                     Switch(
                         checked = viewModel.isHelper,
-                        onCheckedChange = { newValue ->
-                            if (newValue && !locationPermissions.allPermissionsGranted) {
-                                locationPermissions.launchMultiplePermissionRequest()
-                            } else {
-                                viewModel.toggleHelper()
-                            }
+                        onCheckedChange = { _ ->
+                            viewModel.toggleHelper()
                         }
                     )
                 }
@@ -235,7 +231,19 @@ Row(
         Spacer(modifier = Modifier.height(24.dp))
         
         Button(
-            onClick = { navController.navigate(AppRoutes.TELA_EMERGENCIA) },
+            onClick = { 
+                // Verificar se há emergência ativa antes de navegar
+                scope.launch {
+                    val activeEmergencyId = com.afilaxy.data.EmergencyManager.getActiveEmergency()
+                    if (activeEmergencyId != null) {
+                        // Retomar emergência ativa
+                        navController.navigate("emergency_response/$activeEmergencyId/Retomando")
+                    } else {
+                        // Nova emergência
+                        navController.navigate(AppRoutes.TELA_EMERGENCIA)
+                    }
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(
                 containerColor = MaterialTheme.colorScheme.error
@@ -290,6 +298,39 @@ Row(
             dismissButton = {
                 TextButton(
                     onClick = { viewModel.dismissLocationDialog() }
+                ) {
+                    Text("Cancelar")
+                }
+            }
+        )
+    }
+    
+    // Diálogo de permissões necessárias
+    if (viewModel.showPermissionDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissPermissionDialog() },
+            title = { Text("Permissões Necessárias") },
+            text = {
+                Text(
+                    viewModel.permissionMessage + "\n\n" +
+                    "Vá em Configurações > Apps > Afilaxy > Permissões e ative:",
+                    textAlign = TextAlign.Start
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.dismissPermissionDialog()
+                        // Tentar solicitar permissões novamente
+                        locationPermissions.launchMultiplePermissionRequest()
+                    }
+                ) {
+                    Text("Tentar Novamente")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { viewModel.dismissPermissionDialog() }
                 ) {
                     Text("Cancelar")
                 }
