@@ -98,10 +98,6 @@ object AsthmaFAQ {
                 • Limpe o bocal regularmente
                 • Verifique validade
                 
-                TIPOS DE MEDICAÇÃO:
-                • BRONCODILATADOR (bombinha azul): Para crises
-                • CORTICOIDE (bombinha marrom/roxa): Preventivo diário
-                
                 ⚠️ NUNCA pare medicação preventiva sem orientação médica!
                 
                 IMPORTANTE: Pratique a técnica com seu médico

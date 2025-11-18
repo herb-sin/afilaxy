@@ -7,5 +7,6 @@ data class Evento(
     val descricao: String? = null,
     val local: String? = null,
     val organizador: String? = null,
+    val horario: String? = null,
     val participantesMax: Int? = null
 )

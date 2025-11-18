@@ -19,11 +19,15 @@ import com.afilaxy.domain.model.Evento
 import com.afilaxy.ui.theme.AfilaxyTheme
 
 @Composable
-fun EventoCard(evento: Evento) {
+fun EventoCard(
+    evento: Evento,
+    onClick: () -> Unit = {}
+) {
     Card(
+        onClick = onClick,
         modifier = Modifier
-            .width(180.dp)
-            .heightIn(min = 100.dp)
+            .width(200.dp)
+            .heightIn(min = 140.dp)
             .padding(horizontal = 4.dp, vertical = 8.dp),
         shape = MaterialTheme.shapes.medium,
         elevation = CardDefaults.cardElevation(6.dp)
@@ -34,11 +38,39 @@ fun EventoCard(evento: Evento) {
                 style = MaterialTheme.typography.titleMedium, 
                 fontWeight = FontWeight.Bold
             )
+            
             Spacer(modifier = Modifier.height(4.dp))
+            
             Text(
-                text = evento.data, 
-                style = MaterialTheme.typography.bodySmall
+                text = "📅 ${evento.data}", 
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary
             )
+            
+            evento.horario?.let {
+                Text(
+                    text = "🕰️ $it",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(6.dp))
+            
+            evento.organizador?.let {
+                Text(
+                    text = "🏢 $it",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
+            
+            evento.local?.let {
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "📍 $it",
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
         }
     }
 }

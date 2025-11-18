@@ -19,6 +19,12 @@ import androidx.navigation.NavType
 import com.afilaxy.LocationPermissionDialog
 import com.afilaxy.presentation.autocuidado.AutocuidadoScreen
 import com.afilaxy.presentation.comunidade.ComunidadeScreen
+import com.afilaxy.presentation.comunidade.ProdutoDetailScreen
+import com.afilaxy.presentation.comunidade.EventoDetailScreen
+import com.afilaxy.domain.model.Produto
+import com.afilaxy.domain.model.Evento
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.afilaxy.presentation.comunidade.ComunidadeViewModel
 // import com.afilaxy.presentation.emergency.EmergencyScreenMaps
 import com.afilaxy.presentation.helper.HelperResponseScreen
 import com.afilaxy.presentation.home.HomeScreen
@@ -148,6 +154,42 @@ fun AppNavigation(
                 navController = navController,
                 modifier = modifier
             )
+        }
+        
+        composable(
+            route = "produto_detail/{produtoId}",
+            arguments = listOf(navArgument("produtoId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val produtoId = backStackEntry.arguments?.getString("produtoId") ?: ""
+            val viewModel: ComunidadeViewModel = viewModel()
+            val produto = viewModel.produtos.find { it.id == produtoId }
+            
+            produto?.let {
+                ProdutoDetailScreen(
+                    produto = it,
+                    navController = navController
+                )
+            } ?: run {
+                Text("Produto não encontrado")
+            }
+        }
+        
+        composable(
+            route = "evento_detail/{eventoId}",
+            arguments = listOf(navArgument("eventoId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val eventoId = backStackEntry.arguments?.getString("eventoId") ?: ""
+            val viewModel: ComunidadeViewModel = viewModel()
+            val evento = viewModel.eventos.find { it.id == eventoId }
+            
+            evento?.let {
+                EventoDetailScreen(
+                    evento = it,
+                    navController = navController
+                )
+            } ?: run {
+                Text("Evento não encontrado")
+            }
         }
         
         composable(

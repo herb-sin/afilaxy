@@ -19,19 +19,69 @@ import com.afilaxy.domain.model.Produto
 import com.afilaxy.ui.theme.AfilaxyTheme
 
 @Composable
-fun ProdutoCard(produto: Produto) {
+fun ProdutoCard(
+    produto: Produto,
+    onClick: () -> Unit = {}
+) {
     Card(
+        onClick = onClick,
         modifier = Modifier
-            .width(180.dp)
-            .heightIn(min = 120.dp)
+            .width(200.dp)
+            .heightIn(min = 160.dp)
             .padding(horizontal = 4.dp, vertical = 8.dp),
         shape = MaterialTheme.shapes.medium,
         elevation = CardDefaults.cardElevation(6.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
-            Text(produto.nome, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            // Nome do produto
+            Text(
+                text = produto.nome, 
+                style = MaterialTheme.typography.titleMedium, 
+                fontWeight = FontWeight.Bold
+            )
+            
             Spacer(modifier = Modifier.height(4.dp))
-            Text(produto.descricao, style = MaterialTheme.typography.bodySmall)
+            
+            // Farmácia
+            produto.farmacia?.let {
+                Text(
+                    text = "📍 $it",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(6.dp))
+            
+            // Preços e desconto
+            produto.desconto?.let {
+                Text(
+                    text = "🏷️ $it",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            
+            // Preço atual e original
+            if (produto.preco != null) {
+                Text(
+                    text = "R$ ${produto.preco}",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            
+            // Cupom
+            produto.cupom?.let {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "🎫 Cupom: $it",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+            }
         }
     }
 }

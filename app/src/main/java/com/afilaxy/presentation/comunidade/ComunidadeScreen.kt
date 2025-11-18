@@ -14,6 +14,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.afilaxy.presentation.comunidade.components.ProdutoCard
+import com.afilaxy.presentation.comunidade.components.EventoCard
+import com.afilaxy.presentation.comunidade.components.ProjetoCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,8 +82,13 @@ fun ComunidadeScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(horizontal = 4.dp)
             ) {
-                items(viewModel.produtos, key = { it.nome }) { produto ->
-                    InfoCard(produto.nome, produto.descricao)
+                items(viewModel.produtos, key = { it.id }) { produto ->
+                    ProdutoCard(
+                        produto = produto,
+                        onClick = {
+                            navController.navigate("produto_detail/${produto.id}")
+                        }
+                    )
                 }
             }
             
@@ -97,8 +105,13 @@ fun ComunidadeScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(horizontal = 4.dp)
             ) {
-                items(viewModel.eventos, key = { it.titulo }) { evento ->
-                    InfoCard(evento.titulo, evento.descricao ?: evento.data)
+                items(viewModel.eventos, key = { it.id }) { evento ->
+                    EventoCard(
+                        evento = evento,
+                        onClick = {
+                            navController.navigate("evento_detail/${evento.id}")
+                        }
+                    )
                 }
             }
             
@@ -115,8 +128,8 @@ fun ComunidadeScreen(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 contentPadding = PaddingValues(horizontal = 4.dp)
             ) {
-                items(viewModel.projetos, key = { it.titulo }) { projeto ->
-                    InfoCard(projeto.titulo, projeto.texto)
+                items(viewModel.projetos, key = { it.id }) { projeto ->
+                    ProjetoCard(info = projeto)
                 }
             }
         }
