@@ -28,6 +28,10 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
                 LogOptimizer.d("AfilaxyFCM", "🆘 EMERGÊNCIA RECEBIDA!")
                 handleEmergencyRequest(remoteMessage)
             }
+            "emergency_cancelled" -> {
+                LogOptimizer.d("AfilaxyFCM", "❌ EMERGÊNCIA CANCELADA!")
+                handleEmergencyCancelled(remoteMessage)
+            }
             "helper_response" -> {
                 LogOptimizer.d("AfilaxyFCM", "✅ RESPOSTA DE HELPER RECEBIDA!")
                 handleHelperResponse(remoteMessage)
@@ -56,6 +60,26 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
         )
     }
 
+    private fun handleEmergencyCancelled(remoteMessage: RemoteMessage) {
+        val emergencyId = remoteMessage.data["emergency_id"] ?: ""
+        val reason = remoteMessage.data["reason"] ?: "unknown"
+        
+        LogOptimizer.d("AfilaxyFCM", "❌ Cancelando emergência: $emergencyId, motivo: $reason")
+        
+        // Cancelar notificação existente
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(emergencyId.hashCode())
+        
+        // Fechar tela de emergência se estiver aberta
+        val cancelIntent = Intent("com.afilaxy.CANCEL_EMERGENCY").apply {
+            putExtra("emergency_id", emergencyId)
+            putExtra("reason", reason)
+        }
+        sendBroadcast(cancelIntent)
+        
+        LogOptimizer.d("AfilaxyFCM", "✅ Emergência cancelada com sucesso")
+    }
+    
     private fun handleHelperResponse(remoteMessage: RemoteMessage) {
         val title = "✅ Helper Encontrado!"
         val body = remoteMessage.data["message"] ?: "Alguém está vindo te ajudar"

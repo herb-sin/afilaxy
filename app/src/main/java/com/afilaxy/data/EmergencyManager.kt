@@ -37,7 +37,7 @@ object EmergencyManager {
                 "status" to "waiting",
                 "active" to true,
                 "timestamp" to System.currentTimeMillis(),
-                "expiresAt" to (System.currentTimeMillis() + 300000) // 5 min
+                "expiresAt" to (System.currentTimeMillis() + 600000) // 10 min
             )
             
             val docRef = firestore.collection("emergency_requests")

@@ -41,8 +41,8 @@ export const sendEmergencyNotification = functions.firestore
           helper.location.latitude, helper.location.longitude
         );
         
-        // Só considerar se estiver próximo (360m)
-        if (distance <= 0.36) {
+        // Só considerar se estiver próximo (250m)
+        if (distance <= 0.25) {
           // Buscar token FCM do helper
           const userDoc = await admin.firestore()
             .collection('users')
@@ -65,7 +65,7 @@ export const sendEmergencyNotification = functions.firestore
       const notifications: Promise<any>[] = [];
       
       // Enviar notificações apenas para os 3 mais próximos
-      for (const { distance, fcmToken } of closestHelpers) {
+      for (const { distance, fcmToken, helperId } of closestHelpers) {
         const message = {
           token: fcmToken,
           data: {
@@ -73,21 +73,35 @@ export const sendEmergencyNotification = functions.firestore
             emergency_id: requestId,
             requesterName: data.requesterName || 'Alguém',
             distance: Math.round(distance * 1000).toString(),
-            isEmergencyResponse: 'true'
+            isEmergencyResponse: 'true',
+            helper_id: helperId
           }
         };
         
         console.log('📨 Sending FCM to closest helper:', {
           token: fcmToken.substring(0, 20) + '...',
           emergency_id: requestId,
-          distance: Math.round(distance * 1000) + 'm'
+          distance: Math.round(distance * 1000) + 'm',
+          helper_id: helperId
         });
         
         notifications.push(admin.messaging().send(message));
       }
       
+      // Armazenar helpers notificados para cancelamento posterior
+      await admin.firestore()
+        .collection('emergency_requests')
+        .doc(requestId)
+        .update({
+          notifiedHelpers: closestHelpers.map(h => ({
+            helperId: h.helperId,
+            fcmToken: h.fcmToken,
+            distance: h.distance
+          }))
+        });
+      
       await Promise.all(notifications);
-      console.log(`Enviadas ${notifications.length} notificações para os helpers mais próximos (máx 3, raio 360m)`);
+      console.log(`Enviadas ${notifications.length} notificações para os helpers mais próximos (máx 3, raio 250m)`);
       
     } catch (error) {
       console.error('Erro ao enviar notificações:', error);

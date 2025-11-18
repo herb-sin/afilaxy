@@ -1,6 +1,9 @@
 package com.afilaxy.presentation.emergency
 
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -26,6 +29,18 @@ import androidx.lifecycle.lifecycleScope
 
 class EmergencyOverlayActivity : ComponentActivity() {
     
+    private val cancelReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val cancelledEmergencyId = intent?.getStringExtra("emergency_id")
+            val currentEmergencyId = getIntent().getStringExtra("emergency_id")
+            
+            if (cancelledEmergencyId == currentEmergencyId) {
+                LogOptimizer.d("EmergencyOverlay", "Emergência cancelada, fechando overlay")
+                finish()
+            }
+        }
+    }
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -46,6 +61,10 @@ class EmergencyOverlayActivity : ComponentActivity() {
         val distance = intent.getStringExtra("distance") ?: "0"
         
         LogOptimizer.d("EmergencyOverlay", "🔴 OVERLAY CRIADA! emergencyId=$emergencyId, requesterName=$requesterName, distance=$distance")
+        
+        // Registrar receiver para cancelamento
+        val filter = IntentFilter("com.afilaxy.CANCEL_EMERGENCY")
+        registerReceiver(cancelReceiver, filter)
         
         setContent {
             AfilaxyTheme {
@@ -81,6 +100,15 @@ class EmergencyOverlayActivity : ComponentActivity() {
         }
         LogOptimizer.d("EmergencyOverlay", "Intent extras: emergency_id=$emergencyId, open_emergency_response=$isResponse, requester_name=$requesterName")
         startActivity(mainIntent)
+    }
+    
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(cancelReceiver)
+        } catch (e: Exception) {
+            // Receiver já foi removido
+        }
     }
 }
 

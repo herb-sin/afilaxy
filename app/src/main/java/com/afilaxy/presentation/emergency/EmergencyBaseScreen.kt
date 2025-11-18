@@ -45,6 +45,9 @@ fun EmergencyBaseScreen(
     
     // Obter localização real para o mapa
     var userLocation by remember { mutableStateOf<Pair<Double, Double>?>(null) }
+    var otherUserLocation by remember { mutableStateOf<Pair<Double, Double>?>(null) }
+    var userAddress by remember { mutableStateOf<String?>(null) }
+    var otherUserAddress by remember { mutableStateOf<String?>(null) }
     val cameraPositionState = rememberCameraPositionState()
     
     LaunchedEffect(Unit) {
@@ -60,6 +63,13 @@ fun EmergencyBaseScreen(
                 15f
             )
             LogOptimizer.d("EmergencyBaseScreen", "Mapa centralizado em: ${location.first}, ${location.second}")
+            
+            // Buscar endereço do usuário
+            try {
+                userAddress = viewModel.getAddressFromLocation(location.first, location.second)
+            } catch (e: Exception) {
+                LogOptimizer.e("EmergencyBaseScreen", "Erro ao buscar endereço do usuário", e)
+            }
         } else {
             LogOptimizer.w("EmergencyBaseScreen", "Sem permissão de localização - mapa não será exibido")
             // Não definir userLocation - deixar null para mostrar mensagem de permissão
@@ -69,6 +79,30 @@ fun EmergencyBaseScreen(
     LaunchedEffect(emergencyId) {
         if (emergencyId != null) {
             viewModel.loadEmergency(emergencyId)
+        }
+    }
+    
+    // Buscar localização do outro usuário quando há match
+    LaunchedEffect(uiState.state, uiState.helperId, uiState.requesterId) {
+        if (uiState.state == EmergencyState.MATCHED || uiState.state == EmergencyState.HELPING) {
+            val otherUserId = if (uiState.state == EmergencyState.MATCHED) uiState.helperId else uiState.requesterId
+            otherUserId?.let { userId ->
+                try {
+                    val location = viewModel.getOtherUserLocation(userId)
+                    otherUserLocation = location
+                    LogOptimizer.d("EmergencyBaseScreen", "Localização do outro usuário: $location")
+                    
+                    // Buscar endereço do outro usuário
+                    location?.let {
+                        otherUserAddress = viewModel.getAddressFromLocation(it.first, it.second)
+                    }
+                } catch (e: Exception) {
+                    LogOptimizer.e("EmergencyBaseScreen", "Erro ao buscar localização do outro usuário", e)
+                }
+            }
+        } else {
+            otherUserLocation = null
+            otherUserAddress = null
         }
     }
     
@@ -95,16 +129,26 @@ fun EmergencyBaseScreen(
                 ) {
                     // Marcador do usuário
                     userLocation?.let { location ->
+                        val title = if (userAddress != null) "Você - $userAddress" else "Você"
                         Marker(
                             state = MarkerState(
                                 position = LatLng(location.first, location.second)
                             ),
-                            title = "Sua localização"
+                            title = title
                         )
                     }
                     
-                    // Marcadores dos helpers (simplificado)
-                    // Mostrar helpers próximos quando necessário
+                    // Marcador do outro usuário (helper ou requester)
+                    otherUserLocation?.let { location ->
+                        val baseTitle = if (uiState.state == EmergencyState.MATCHED) "Helper" else "Pessoa em emergência"
+                        val title = if (otherUserAddress != null) "$baseTitle - $otherUserAddress" else baseTitle
+                        Marker(
+                            state = MarkerState(
+                                position = LatLng(location.first, location.second)
+                            ),
+                            title = title
+                        )
+                    }
                 }
             } else {
                 // Mensagem quando não tem localização
