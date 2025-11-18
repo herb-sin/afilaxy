@@ -28,3 +28,19 @@
     public static int d(...);
     public static int e(...);
 }
+
+# Suppress hidden API warnings
+-dontwarn sun.misc.Unsafe
+-dontwarn java.lang.invoke.**
+-dontwarn javax.annotation.**
+
+# Google Maps optimizations
+-keep class com.google.android.gms.maps.** { *; }
+-keep class com.google.maps.** { *; }
+-dontwarn com.google.android.gms.maps.**
+
+# Firebase optimizations
+-keepattributes Signature
+-keepattributes *Annotation*
+-keepattributes EnclosingMethod
+-keepattributes InnerClasses

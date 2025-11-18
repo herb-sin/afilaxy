@@ -7,6 +7,7 @@ import com.afilaxy.data.ChatManager
 import com.afilaxy.data.EmergencyManager
 import com.afilaxy.data.LocationManager
 import com.afilaxy.data.SimpleMessage
+import com.afilaxy.performance.LogOptimizer
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -27,35 +28,35 @@ class SimpleEmergencyViewModel(private val application: Application) : AndroidVi
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(state = EmergencyState.WAITING)
             
-            android.util.Log.d("SimpleEmergencyViewModel", "=== INICIANDO PEDIDO DE EMERGÊNCIA ===")
+            LogOptimizer.d("SimpleEmergencyViewModel", "=== INICIANDO PEDIDO DE EMERGÊNCIA ===")
             
             // Desativar helper automaticamente (quem pede ajuda não tem bombinha)
-            android.util.Log.d("SimpleEmergencyViewModel", "Desativando helper - usuário precisa de ajuda")
+            LogOptimizer.d("SimpleEmergencyViewModel", "Desativando helper - usuário precisa de ajuda")
             EmergencyManager.deactivateHelper()
             
             val location = LocationManager.getCurrentLocation(application)
-            android.util.Log.d("SimpleEmergencyViewModel", "Localização obtida: $location")
+            LogOptimizer.d("SimpleEmergencyViewModel", "Localização obtida: $location")
             
             val emergencyId = if (location != null) {
-                android.util.Log.d("SimpleEmergencyViewModel", "Criando emergência em: ${location.first}, ${location.second}")
+                LogOptimizer.d("SimpleEmergencyViewModel", "Criando emergência em: ${location.first}, ${location.second}")
                 EmergencyManager.createEmergency(
                     latitude = location.first,
                     longitude = location.second
                 )
             } else {
-                android.util.Log.e("SimpleEmergencyViewModel", "ERRO: Localização é null")
+                LogOptimizer.e("SimpleEmergencyViewModel", "ERRO: Localização é null")
                 null
             }
             
             if (emergencyId != null) {
                 currentEmergencyId = emergencyId
-                android.util.Log.d("SimpleEmergencyViewModel", "Emergência criada com ID: $emergencyId")
-                android.util.Log.d("SimpleEmergencyViewModel", "Aguardando resposta real de helpers...")
+                LogOptimizer.d("SimpleEmergencyViewModel", "Emergência criada com ID: $emergencyId")
+                LogOptimizer.d("SimpleEmergencyViewModel", "Aguardando resposta real de helpers...")
                 
                 // Escutar mudanças de status da emergência
                 listenToEmergencyStatus(emergencyId)
             } else {
-                android.util.Log.e("SimpleEmergencyViewModel", "ERRO: Falha ao criar emergência")
+                LogOptimizer.e("SimpleEmergencyViewModel", "ERRO: Falha ao criar emergência")
                 _uiState.value = _uiState.value.copy(state = EmergencyState.IDLE)
             }
         }
@@ -104,20 +105,20 @@ class SimpleEmergencyViewModel(private val application: Application) : AndroidVi
                         val status = snapshot?.getString("status")
                         val helperName = snapshot?.getString("helperName")
                         
-                        android.util.Log.d("SimpleEmergencyViewModel", "Status atualizado: $status, Helper: $helperName")
-                        android.util.Log.d("SimpleEmergencyViewModel", "Documento completo: ${snapshot?.data}")
+                        LogOptimizer.d("SimpleEmergencyViewModel", "Status atualizado: $status, Helper: $helperName")
+                        LogOptimizer.d("SimpleEmergencyViewModel", "Documento completo: ${snapshot?.data}")
                         
                         when (status) {
                             "matched" -> {
-                                android.util.Log.d("SimpleEmergencyViewModel", "EMERGÊNCIA ACEITA! Iniciando chat...")
+                                LogOptimizer.d("SimpleEmergencyViewModel", "EMERGÊNCIA ACEITA! Iniciando chat...")
                                 trySend(EmergencyState.MATCHED to (helperName ?: "Helper"))
                             }
                             "cancelled" -> {
-                                android.util.Log.d("SimpleEmergencyViewModel", "Emergência cancelada")
+                                LogOptimizer.d("SimpleEmergencyViewModel", "Emergência cancelada")
                                 trySend(EmergencyState.IDLE to "")
                             }
                             else -> {
-                                android.util.Log.d("SimpleEmergencyViewModel", "Status não reconhecido ou ainda waiting: $status")
+                                LogOptimizer.d("SimpleEmergencyViewModel", "Status não reconhecido ou ainda waiting: $status")
                             }
                         }
                     }
@@ -137,10 +138,10 @@ class SimpleEmergencyViewModel(private val application: Application) : AndroidVi
     }
     
     private fun startListeningToChat(emergencyId: String) {
-        android.util.Log.d("SimpleEmergencyViewModel", "INICIANDO ESCUTA DO CHAT para emergencyId: $emergencyId")
+        LogOptimizer.d("SimpleEmergencyViewModel", "INICIANDO ESCUTA DO CHAT para emergencyId: $emergencyId")
         viewModelScope.launch {
             ChatManager.listenToMessages(emergencyId).collect { messages ->
-                android.util.Log.d("SimpleEmergencyViewModel", "Mensagens recebidas: ${messages.size}")
+                LogOptimizer.d("SimpleEmergencyViewModel", "Mensagens recebidas: ${messages.size}")
                 val chatMessages = messages.map { msg ->
                     ChatMessage(
                         id = msg.id,

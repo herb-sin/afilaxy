@@ -1,5 +1,6 @@
 package com.afilaxy.data
 
+import com.afilaxy.performance.LogOptimizer
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.GeoPoint
@@ -25,7 +26,7 @@ object EmergencyManager {
             val userDoc = firestore.collection("users").document(userId).get().await()
             val userName = userDoc.getString("name") ?: auth.currentUser?.displayName ?: "Usuário"
             
-            android.util.Log.d("EmergencyManager", "Criando emergência para $userName em $latitude, $longitude")
+            LogOptimizer.d("EmergencyManager", "Criando emergência para $userName em $latitude, $longitude")
             
             val emergencyData = mapOf(
                 "requesterId" to userId,
@@ -43,10 +44,10 @@ object EmergencyManager {
                 .add(emergencyData)
                 .await()
             
-            android.util.Log.d("EmergencyManager", "Emergência criada com ID: ${docRef.id}")
+            LogOptimizer.d("EmergencyManager", "Emergência criada com ID: ${docRef.id}")
             docRef.id
         } catch (e: Exception) {
-            android.util.Log.e("EmergencyManager", "Erro ao criar emergência", e)
+            LogOptimizer.e("EmergencyManager", "Erro ao criar emergência", e)
             null
         }
     }
@@ -74,7 +75,7 @@ object EmergencyManager {
             val userId = auth.currentUser?.uid ?: return false
             val userEmail = auth.currentUser?.email ?: ""
             
-            android.util.Log.d("EmergencyManager", "Ativando helper $userId em $latitude, $longitude")
+            LogOptimizer.d("EmergencyManager", "Ativando helper $userId em $latitude, $longitude")
             
             val helperData = mapOf(
                 "id" to userId,
@@ -89,10 +90,10 @@ object EmergencyManager {
                 .set(helperData)
                 .await()
             
-            android.util.Log.d("EmergencyManager", "Helper ativado com sucesso")
+            LogOptimizer.d("EmergencyManager", "Helper ativado com sucesso")
             true
         } catch (e: Exception) {
-            android.util.Log.e("EmergencyManager", "Erro ao ativar helper", e)
+            LogOptimizer.e("EmergencyManager", "Erro ao ativar helper", e)
             false
         }
     }
@@ -106,18 +107,18 @@ object EmergencyManager {
             val userDoc = firestore.collection("users").document(userId).get().await()
             val helperName = userDoc.getString("name") ?: auth.currentUser?.displayName ?: "Helper"
             
-            android.util.Log.d("EmergencyManager", "Helper $helperName aceitando emergência $emergencyId")
+            LogOptimizer.d("EmergencyManager", "Helper $helperName aceitando emergência $emergencyId")
             
             // Verificar se emergência ainda existe e está ativa
             val emergencyDoc = firestore.collection("emergency_requests").document(emergencyId).get().await()
             if (!emergencyDoc.exists()) {
-                android.util.Log.e("EmergencyManager", "Emergência $emergencyId não existe")
+                LogOptimizer.e("EmergencyManager", "Emergência $emergencyId não existe")
                 return false
             }
             
             val isActive = emergencyDoc.getBoolean("active") ?: false
             if (!isActive) {
-                android.util.Log.e("EmergencyManager", "Emergência $emergencyId não está ativa")
+                LogOptimizer.e("EmergencyManager", "Emergência $emergencyId não está ativa")
                 return false
             }
             
@@ -132,10 +133,10 @@ object EmergencyManager {
                 )
                 .await()
             
-            android.util.Log.d("EmergencyManager", "Emergência aceita com sucesso - Status: matched")
+            LogOptimizer.d("EmergencyManager", "Emergência aceita com sucesso - Status: matched")
             true
         } catch (e: Exception) {
-            android.util.Log.e("EmergencyManager", "Erro ao aceitar emergência", e)
+            LogOptimizer.e("EmergencyManager", "Erro ao aceitar emergência", e)
             false
         }
     }
@@ -178,7 +179,7 @@ object EmergencyManager {
             
             null
         } catch (e: Exception) {
-            android.util.Log.e("EmergencyManager", "Erro ao verificar emergência ativa", e)
+            LogOptimizer.e("EmergencyManager", "Erro ao verificar emergência ativa", e)
             null
         }
     }
@@ -189,15 +190,15 @@ object EmergencyManager {
     suspend fun deactivateHelper(): Boolean {
         return try {
             val userId = auth.currentUser?.uid ?: return false
-            android.util.Log.d("EmergencyManager", "Desativando helper $userId")
+            LogOptimizer.d("EmergencyManager", "Desativando helper $userId")
             firestore.collection("helpers")
                 .document(userId)
                 .delete()
                 .await()
-            android.util.Log.d("EmergencyManager", "Helper desativado com sucesso")
+            LogOptimizer.d("EmergencyManager", "Helper desativado com sucesso")
             true
         } catch (e: Exception) {
-            android.util.Log.e("EmergencyManager", "Erro ao desativar helper", e)
+            LogOptimizer.e("EmergencyManager", "Erro ao desativar helper", e)
             false
         }
     }

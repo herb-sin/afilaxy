@@ -9,6 +9,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.afilaxy.MainActivity
 import com.afilaxy.R
+import com.afilaxy.performance.LogOptimizer
 import com.afilaxy.presentation.emergency.EmergencyOverlayActivity
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
@@ -18,21 +19,21 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
         
-        android.util.Log.d("AfilaxyFCM", "🔥 FCM RECEBIDO! Data: ${remoteMessage.data}")
-        android.util.Log.d("AfilaxyFCM", "🔥 FCM RECEBIDO! Notification: ${remoteMessage.notification}")
+        LogOptimizer.d("AfilaxyFCM", "🔥 FCM RECEBIDO! Data: ${remoteMessage.data}")
+        LogOptimizer.d("AfilaxyFCM", "🔥 FCM RECEBIDO! Notification: ${remoteMessage.notification}")
         
         // Handle emergency notifications
         when (remoteMessage.data["type"]) {
             "emergency_request" -> {
-                android.util.Log.d("AfilaxyFCM", "🆘 EMERGÊNCIA RECEBIDA!")
+                LogOptimizer.d("AfilaxyFCM", "🆘 EMERGÊNCIA RECEBIDA!")
                 handleEmergencyRequest(remoteMessage)
             }
             "helper_response" -> {
-                android.util.Log.d("AfilaxyFCM", "✅ RESPOSTA DE HELPER RECEBIDA!")
+                LogOptimizer.d("AfilaxyFCM", "✅ RESPOSTA DE HELPER RECEBIDA!")
                 handleHelperResponse(remoteMessage)
             }
             else -> {
-                android.util.Log.d("AfilaxyFCM", "📱 NOTIFICAÇÃO GERAL RECEBIDA!")
+                LogOptimizer.d("AfilaxyFCM", "📱 NOTIFICAÇÃO GERAL RECEBIDA!")
                 handleGeneralNotification(remoteMessage)
             }
         }
@@ -43,7 +44,7 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
         val requesterName = remoteMessage.data["requesterName"] ?: "Alguém"
         val distance = remoteMessage.data["distance"] ?: "próximo"
         
-        android.util.Log.d("AfilaxyFCM", "🆘 Dados: emergencyId=$emergencyId, requesterName=$requesterName, distance=$distance")
+        LogOptimizer.d("AfilaxyFCM", "🆘 Dados: emergencyId=$emergencyId, requesterName=$requesterName, distance=$distance")
         
         // Abrir diretamente a tela vermelha (sem notificação do sistema)
         showEmergencyNotification(
@@ -88,7 +89,7 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
     ) {
         createNotificationChannel(EMERGENCY_CHANNEL_ID)
         
-        // Abrir diretamente a EmergencyOverlayActivity
+        // Criar notificação com ação direta
         val overlayIntent = Intent(this, EmergencyOverlayActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             putExtra("emergency_id", emergencyId)
@@ -96,10 +97,30 @@ class AfilaxyFirebaseMessagingService : FirebaseMessagingService() {
             putExtra("distance", distance)
         }
         
-        android.util.Log.d("AfilaxyFCM", "🔴 INICIANDO OVERLAY! emergencyId=$emergencyId, requesterName=$requesterName")
+        val pendingIntent = PendingIntent.getActivity(
+            this, 
+            System.currentTimeMillis().toInt(),
+            overlayIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
         
-        // Iniciar a Activity imediatamente (sem notificação do sistema)
-        startActivity(overlayIntent)
+        LogOptimizer.d("AfilaxyFCM", "🔴 CRIANDO NOTIFICAÇÃO DE EMERGÊNCIA! emergencyId=$emergencyId")
+        
+        val notification = NotificationCompat.Builder(this, EMERGENCY_CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(body)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setFullScreenIntent(pendingIntent, true)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .setOngoing(false)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .build()
+        
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.notify(emergencyId.hashCode(), notification)
     }
     
     private fun showNotification(

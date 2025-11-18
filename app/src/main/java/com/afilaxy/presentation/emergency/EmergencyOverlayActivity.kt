@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 
 import com.afilaxy.ui.theme.AfilaxyTheme
 import com.afilaxy.data.EmergencyManager
+import com.afilaxy.performance.LogOptimizer
 import kotlinx.coroutines.launch
 import androidx.lifecycle.lifecycleScope
 
@@ -44,7 +45,7 @@ class EmergencyOverlayActivity : ComponentActivity() {
         val requesterName = intent.getStringExtra("requesterName") ?: "Alguém"
         val distance = intent.getStringExtra("distance") ?: "0"
         
-        android.util.Log.d("EmergencyOverlay", "🔴 OVERLAY CRIADA! emergencyId=$emergencyId, requesterName=$requesterName, distance=$distance")
+        LogOptimizer.d("EmergencyOverlay", "🔴 OVERLAY CRIADA! emergencyId=$emergencyId, requesterName=$requesterName, distance=$distance")
         
         setContent {
             AfilaxyTheme {
@@ -53,7 +54,7 @@ class EmergencyOverlayActivity : ComponentActivity() {
                     requesterName = requesterName,
                     distance = distance,
                     onAccept = { 
-                        android.util.Log.d("EmergencyOverlay", "Usuário aceitou emergência: $emergencyId")
+                        LogOptimizer.d("EmergencyOverlay", "Usuário aceitou emergência: $emergencyId")
                         lifecycleScope.launch {
                             EmergencyManager.acceptEmergency(emergencyId)
                         }
@@ -61,7 +62,7 @@ class EmergencyOverlayActivity : ComponentActivity() {
                         startMainActivity(emergencyId, true)
                     },
                     onDecline = { 
-                        android.util.Log.d("EmergencyOverlay", "Usuário recusou emergência: $emergencyId")
+                        LogOptimizer.d("EmergencyOverlay", "Usuário recusou emergência: $emergencyId")
                         finish() 
                     }
                 )
@@ -71,14 +72,14 @@ class EmergencyOverlayActivity : ComponentActivity() {
     
     private fun startMainActivity(emergencyId: String, isResponse: Boolean) {
         val requesterName = intent.getStringExtra("requesterName") ?: "Helper"
-        android.util.Log.d("EmergencyOverlay", "Navegando para emergência: $emergencyId, response: $isResponse, requester: $requesterName")
+        LogOptimizer.d("EmergencyOverlay", "Navegando para emergência: $emergencyId, response: $isResponse, requester: $requesterName")
         val mainIntent = Intent(this, com.afilaxy.MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra("emergency_id", emergencyId)
             putExtra("open_emergency_response", isResponse)
             putExtra("requester_name", requesterName)
         }
-        android.util.Log.d("EmergencyOverlay", "Intent extras: emergency_id=$emergencyId, open_emergency_response=$isResponse, requester_name=$requesterName")
+        LogOptimizer.d("EmergencyOverlay", "Intent extras: emergency_id=$emergencyId, open_emergency_response=$isResponse, requester_name=$requesterName")
         startActivity(mainIntent)
     }
 }

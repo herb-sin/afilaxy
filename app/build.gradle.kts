@@ -63,6 +63,8 @@ android {
             isMinifyEnabled = false
             // Otimizações para debug
             renderscriptOptimLevel = 3
+            // Reduz warnings de métodos ocultos
+            buildConfigField("boolean", "SUPPRESS_HIDDEN_API_WARNINGS", "true")
         }
         release {
             isMinifyEnabled = true
@@ -72,6 +74,8 @@ android {
                     getDefaultProguardFile("proguard-android-optimize.txt"),
                     "proguard-rules.pro"
             )
+            // Suprime warnings em produção
+            buildConfigField("boolean", "SUPPRESS_HIDDEN_API_WARNINGS", "true")
         }
     }
     compileOptions {

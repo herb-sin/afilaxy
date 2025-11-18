@@ -10,6 +10,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.afilaxy.data.EmergencyManager
 import com.afilaxy.data.LocationManager
+import com.afilaxy.performance.LogOptimizer
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
@@ -38,7 +39,7 @@ class SimpleHomeViewModel(private val application: Application) : AndroidViewMod
         viewModelScope.launch {
             if (isHelper) {
                 // Desativar helper
-                android.util.Log.d("SimpleHomeViewModel", "Desativando helper manualmente")
+                LogOptimizer.d("SimpleHomeViewModel", "Desativando helper manualmente")
                 val success = EmergencyManager.deactivateHelper()
                 if (success) {
                     isHelper = false
@@ -51,22 +52,22 @@ class SimpleHomeViewModel(private val application: Application) : AndroidViewMod
                 }
                 
                 // Ativar helper com localização real
-                android.util.Log.d("SimpleHomeViewModel", "Tentando ativar helper com localização real")
+                LogOptimizer.d("SimpleHomeViewModel", "Tentando ativar helper com localização real")
                 val success = try {
                     val location = LocationManager.getCurrentLocation(application.applicationContext)
-                    android.util.Log.d("SimpleHomeViewModel", "Localização obtida: $location")
+                    LogOptimizer.d("SimpleHomeViewModel", "Localização obtida: $location")
                     if (location != null) {
-                        android.util.Log.d("SimpleHomeViewModel", "Ativando helper em: ${location.first}, ${location.second}")
+                        LogOptimizer.d("SimpleHomeViewModel", "Ativando helper em: ${location.first}, ${location.second}")
                         EmergencyManager.activateHelper(
                             latitude = location.first,
                             longitude = location.second
                         )
                     } else {
-                        android.util.Log.e("SimpleHomeViewModel", "Localização é null")
+                        LogOptimizer.e("SimpleHomeViewModel", "Localização é null")
                         false
                     }
                 } catch (e: Exception) {
-                    android.util.Log.e("SimpleHomeViewModel", "Erro ao obter localização: ${e.message}")
+                    LogOptimizer.e("SimpleHomeViewModel", "Erro ao obter localização: ${e.message}")
                     false
                 }
                 if (success) {
@@ -94,7 +95,7 @@ class SimpleHomeViewModel(private val application: Application) : AndroidViewMod
             true
         }
         
-        android.util.Log.d("SimpleHomeViewModel", "Permissões - Localização: $locationPermission, Notificação: $notificationPermission")
+        LogOptimizer.d("SimpleHomeViewModel", "Permissões - Localização: $locationPermission, Notificação: $notificationPermission")
         
         if (!locationPermission) {
             permissionMessage = "Permissão de localização necessária para ser um helper."
@@ -153,12 +154,20 @@ class SimpleHomeViewModel(private val application: Application) : AndroidViewMod
             
             val isActiveInFirestore = helperDoc.exists() && helperDoc.getBoolean("isActive") == true
             
-            if (isHelper != isActiveInFirestore) {
-                android.util.Log.d("SimpleHomeViewModel", "Sincronizando estado: local=$isHelper, firestore=$isActiveInFirestore")
-                isHelper = isActiveInFirestore
+            // CORREÇÃO: Não ativar automaticamente após login
+            // Apenas sincronizar se o usuário já estava ativo localmente
+            if (isActiveInFirestore && !hasRequiredPermissions()) {
+                // Se está ativo no Firestore mas não tem permissões, desativar
+                LogOptimizer.d("SimpleHomeViewModel", "Desativando helper - sem permissões")
+                EmergencyManager.deactivateHelper()
+                isHelper = false
+            } else if (isHelper != isActiveInFirestore) {
+                LogOptimizer.d("SimpleHomeViewModel", "Sincronizando estado: local=$isHelper, firestore=$isActiveInFirestore")
+                // Só ativar se o usuário tem permissões
+                isHelper = isActiveInFirestore && hasRequiredPermissions()
             }
         } catch (e: Exception) {
-            android.util.Log.e("SimpleHomeViewModel", "Erro ao verificar status no Firestore: ${e.message}")
+            LogOptimizer.e("SimpleHomeViewModel", "Erro ao verificar status no Firestore: ${e.message}")
         }
     }
     

@@ -13,12 +13,15 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 // import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
+import com.afilaxy.performance.LogOptimizer
+import com.afilaxy.performance.MapsPerformanceOptimizer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,9 +48,9 @@ fun EmergencyBaseScreen(
     val cameraPositionState = rememberCameraPositionState()
     
     LaunchedEffect(Unit) {
-        android.util.Log.d("EmergencyBaseScreen", "Obtendo localização para mapa...")
+        LogOptimizer.d("EmergencyBaseScreen", "Obtendo localização para mapa...")
         val location = com.afilaxy.data.LocationManager.getCurrentLocation(context)
-        android.util.Log.d("EmergencyBaseScreen", "Localização obtida: $location")
+        LogOptimizer.d("EmergencyBaseScreen", "Localização obtida: $location")
         
         if (location != null) {
             userLocation = location
@@ -56,16 +59,10 @@ fun EmergencyBaseScreen(
                 LatLng(location.first, location.second),
                 15f
             )
-            android.util.Log.d("EmergencyBaseScreen", "Mapa centralizado em: ${location.first}, ${location.second}")
+            LogOptimizer.d("EmergencyBaseScreen", "Mapa centralizado em: ${location.first}, ${location.second}")
         } else {
-            android.util.Log.e("EmergencyBaseScreen", "Localização é null, usando fallback")
-            // Fallback para São Paulo
-            val fallback = Pair(-23.5505, -46.6333)
-            userLocation = fallback
-            cameraPositionState.position = CameraPosition.fromLatLngZoom(
-                LatLng(fallback.first, fallback.second),
-                15f
-            )
+            LogOptimizer.w("EmergencyBaseScreen", "Sem permissão de localização - mapa não será exibido")
+            // Não definir userLocation - deixar null para mostrar mensagem de permissão
         }
     }
     
@@ -90,7 +87,11 @@ fun EmergencyBaseScreen(
             if (userLocation != null) {
                 GoogleMap(
                     modifier = Modifier.fillMaxSize(),
-                    cameraPositionState = cameraPositionState
+                    cameraPositionState = cameraPositionState,
+                    onMapLoaded = {
+                        // Otimizar mapa após carregamento
+                        // MapsPerformanceOptimizer.optimizeMap será chamado internamente
+                    }
                 ) {
                     // Marcador do usuário
                     userLocation?.let { location ->
@@ -106,17 +107,26 @@ fun EmergencyBaseScreen(
                     // Mostrar helpers próximos quando necessário
                 }
             } else {
-                // Loading enquanto obtém localização
+                // Mensagem quando não tem localização
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.padding(16.dp)
                     ) {
-                        CircularProgressIndicator()
+                        Text(
+                            text = "📍 Localização Necessária",
+                            style = MaterialTheme.typography.headlineSmall,
+                            textAlign = TextAlign.Center
+                        )
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Obtendo localização...")
+                        Text(
+                            text = "Permita o acesso à localização para usar o mapa e funcionalidades de emergência.",
+                            textAlign = TextAlign.Center,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
             }

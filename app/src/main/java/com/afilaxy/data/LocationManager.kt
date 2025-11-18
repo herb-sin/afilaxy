@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
+import com.afilaxy.performance.LogOptimizer
 import com.google.android.gms.location.*
 import kotlinx.coroutines.tasks.await
 
@@ -11,11 +12,11 @@ object LocationManager {
     
     suspend fun getCurrentLocation(context: Context): Pair<Double, Double>? {
         return try {
-            android.util.Log.d("LocationManager", "Tentando obter localização...")
+            LogOptimizer.d("LocationManager", "Tentando obter localização...")
             
             if (!hasLocationPermission(context)) {
-                android.util.Log.w("LocationManager", "Sem permissão de localização, usando fallback")
-                return Pair(-23.5505, -46.6333) // Fallback São Paulo
+                LogOptimizer.w("LocationManager", "Sem permissão de localização")
+                return null // Retornar null quando não tem permissão
             }
             
             val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
@@ -23,11 +24,11 @@ object LocationManager {
             // Tentar última localização conhecida primeiro
             val lastLocation = fusedLocationClient.lastLocation.await()
             if (lastLocation != null && isValidLocation(lastLocation.latitude, lastLocation.longitude)) {
-                android.util.Log.d("LocationManager", "Localização obtida do cache: ${lastLocation.latitude}, ${lastLocation.longitude}")
+                LogOptimizer.d("LocationManager", "Localização obtida do cache: ${lastLocation.latitude}, ${lastLocation.longitude}")
                 return Pair(lastLocation.latitude, lastLocation.longitude)
             }
             
-            android.util.Log.d("LocationManager", "Solicitando localização atual com timeout estendido...")
+            LogOptimizer.d("LocationManager", "Solicitando localização atual com timeout estendido...")
             
             // Solicitar localização atual com timeout maior para dispositivos físicos
             val currentLocation = try {
@@ -36,20 +37,20 @@ object LocationManager {
                     null
                 ).await()
             } catch (e: Exception) {
-                android.util.Log.w("LocationManager", "Timeout ou erro ao obter GPS: ${e.message}")
+                LogOptimizer.w("LocationManager", "Timeout ou erro ao obter GPS: ${e.message}")
                 null
             }
             
             if (currentLocation != null && isValidLocation(currentLocation.latitude, currentLocation.longitude)) {
-                android.util.Log.d("LocationManager", "Localização atual obtida: ${currentLocation.latitude}, ${currentLocation.longitude}")
+                LogOptimizer.d("LocationManager", "Localização atual obtida: ${currentLocation.latitude}, ${currentLocation.longitude}")
                 Pair(currentLocation.latitude, currentLocation.longitude)
             } else {
-                android.util.Log.w("LocationManager", "Não foi possível obter localização válida, usando fallback")
+                LogOptimizer.w("LocationManager", "Não foi possível obter localização válida, usando fallback")
                 Pair(-23.5505, -46.6333) // Fallback
             }
             
         } catch (e: Exception) {
-            android.util.Log.e("LocationManager", "Erro ao obter localização", e)
+            LogOptimizer.e("LocationManager", "Erro ao obter localização", e)
             Pair(-23.5505, -46.6333) // Fallback
         }
     }
