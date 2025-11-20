@@ -58,6 +58,9 @@ class MainActivity : ComponentActivity() {
                 // Verificar se deve abrir resposta à emergência
                 LaunchedEffect(navController) {
                     android.util.Log.d("MainActivity", "LaunchedEffect iniciado")
+                    // Aguardar NavController estar pronto
+                    kotlinx.coroutines.delay(100)
+                    checkEmergencyIntent(navController)
                 }
                 
                 // Reagir a mudanças no estado de navegação
@@ -84,6 +87,8 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    
+
     
     private fun checkEmergencyIntent(navController: androidx.navigation.NavHostController) {
         android.util.Log.d("MainActivity", "Intent extras: ${intent?.extras?.keySet()}")

@@ -202,4 +202,53 @@ object EmergencyManager {
             false
         }
     }
+    
+    /**
+     * Limpa todas as emergências ativas do usuário (para logout)
+     */
+    suspend fun clearUserEmergencies(): Boolean {
+        return try {
+            val userId = auth.currentUser?.uid ?: return false
+            LogOptimizer.d("EmergencyManager", "Limpando emergências do usuário $userId")
+            
+            // Cancelar emergências como requester
+            val requesterQuery = firestore.collection("emergency_requests")
+                .whereEqualTo("requesterId", userId)
+                .whereEqualTo("active", true)
+                .get()
+                .await()
+            
+            for (doc in requesterQuery.documents) {
+                doc.reference.update(
+                    "active", false,
+                    "status", "cancelled",
+                    "cancelledAt", System.currentTimeMillis()
+                ).await()
+            }
+            
+            // Cancelar emergências como helper
+            val helperQuery = firestore.collection("emergency_requests")
+                .whereEqualTo("helperId", userId)
+                .whereEqualTo("active", true)
+                .get()
+                .await()
+            
+            for (doc in helperQuery.documents) {
+                doc.reference.update(
+                    "active", false,
+                    "status", "cancelled",
+                    "cancelledAt", System.currentTimeMillis()
+                ).await()
+            }
+            
+            // Desativar helper
+            deactivateHelper()
+            
+            LogOptimizer.d("EmergencyManager", "Emergências limpas com sucesso")
+            true
+        } catch (e: Exception) {
+            LogOptimizer.e("EmergencyManager", "Erro ao limpar emergências", e)
+            false
+        }
+    }
 }

@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.io.FileInputStream
 
 plugins {
     id("com.android.application")
@@ -40,8 +41,16 @@ android {
         buildConfigField("String", "FIREBASE_API_KEY", "\"${System.getenv("FIREBASE_API_KEY") ?: ""}\"")
         buildConfigField("String", "FIREBASE_STORAGE_BUCKET", "\"${System.getenv("FIREBASE_STORAGE_BUCKET") ?: ""}\"")
         
-        // Maps API Key from environment variable
-        manifestPlaceholders["MAPS_API_KEY"] = System.getenv("MAPS_API_KEY") ?: "YOUR_MAPS_API_KEY_HERE"
+        // Maps API Key from .env file or environment variable
+        val envFile = rootProject.file(".env")
+        val mapsApiKey = if (envFile.exists()) {
+            val props = Properties()
+            props.load(FileInputStream(envFile))
+            props.getProperty("MAPS_API_KEY") ?: System.getenv("MAPS_API_KEY") ?: "YOUR_MAPS_API_KEY_HERE"
+        } else {
+            System.getenv("MAPS_API_KEY") ?: "YOUR_MAPS_API_KEY_HERE"
+        }
+        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
 
     signingConfigs {
