@@ -13,9 +13,11 @@ import com.afilaxy.presentation.common.navigation.AppNavigation
 import com.afilaxy.ui.theme.AfilaxyTheme
 import com.afilaxy.performance.AnrOptimizer
 // import com.afilaxy.data.worker.WorkManagerInitializer
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     
     private var emergencyNavigationState = mutableStateOf<String?>(null)

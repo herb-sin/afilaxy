@@ -8,17 +8,20 @@ import androidx.compose.runtime.*
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.afilaxy.data.EmergencyManager
 import com.afilaxy.data.LocationManager
+import com.afilaxy.domain.repository.EmergencyRepository
 import com.afilaxy.performance.LogOptimizer
 import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
 
-class SimpleHomeViewModel(private val application: Application) : AndroidViewModel(application) {
-    
-    private val auth = FirebaseAuth.getInstance()
+@HiltViewModel
+class SimpleHomeViewModel @Inject constructor(
+    private val application: Application,
+    private val emergencyRepository: EmergencyRepository,
+    private val auth: FirebaseAuth
+) : AndroidViewModel(application) {
     
     var isHelper by mutableStateOf(false)
         private set
@@ -40,8 +43,8 @@ class SimpleHomeViewModel(private val application: Application) : AndroidViewMod
             if (isHelper) {
                 // Desativar helper
                 LogOptimizer.d("SimpleHomeViewModel", "Desativando helper manualmente")
-                val success = EmergencyManager.deactivateHelper()
-                if (success) {
+                val result = emergencyRepository.deactivateHelper()
+                if (result.isSuccess) {
                     isHelper = false
                 }
             } else {
@@ -58,10 +61,11 @@ class SimpleHomeViewModel(private val application: Application) : AndroidViewMod
                     LogOptimizer.d("SimpleHomeViewModel", "Localização obtida: $location")
                     if (location != null) {
                         LogOptimizer.d("SimpleHomeViewModel", "Ativando helper em: ${location.first}, ${location.second}")
-                        EmergencyManager.activateHelper(
+                        val result = emergencyRepository.activateHelper(
                             latitude = location.first,
                             longitude = location.second
                         )
+                        result.isSuccess
                     } else {
                         LogOptimizer.e("SimpleHomeViewModel", "Localização é null")
                         false
@@ -129,8 +133,9 @@ class SimpleHomeViewModel(private val application: Application) : AndroidViewMod
     fun logout() {
         viewModelScope.launch {
             if (isHelper) {
-                EmergencyManager.deactivateHelper()
+                emergencyRepository.deactivateHelper()
             }
+            // Ideally auth logout should also be in a repository, but for now we use the injected FirebaseAuth
             auth.signOut()
         }
     }
@@ -144,22 +149,17 @@ class SimpleHomeViewModel(private val application: Application) : AndroidViewMod
     
     private suspend fun checkHelperStatusInFirestore() {
         try {
-            val userId = auth.currentUser?.uid ?: return
-            val firestore = FirebaseFirestore.getInstance()
-            
-            val helperDoc = firestore.collection("helpers")
-                .document(userId)
-                .get()
-                .await()
-            
-            val isActiveInFirestore = helperDoc.exists() && helperDoc.getBoolean("isActive") == true
+            if (auth.currentUser == null) return
+
+            val result = emergencyRepository.isHelperActive()
+            val isActiveInFirestore = result.getOrDefault(false)
             
             // CORREÇÃO: Não ativar automaticamente após login
             // Apenas sincronizar se o usuário já estava ativo localmente
             if (isActiveInFirestore && !hasRequiredPermissions()) {
                 // Se está ativo no Firestore mas não tem permissões, desativar
                 LogOptimizer.d("SimpleHomeViewModel", "Desativando helper - sem permissões")
-                EmergencyManager.deactivateHelper()
+                emergencyRepository.deactivateHelper()
                 isHelper = false
             } else if (isHelper != isActiveInFirestore) {
                 LogOptimizer.d("SimpleHomeViewModel", "Sincronizando estado: local=$isHelper, firestore=$isActiveInFirestore")
@@ -170,6 +170,14 @@ class SimpleHomeViewModel(private val application: Application) : AndroidViewMod
             LogOptimizer.e("SimpleHomeViewModel", "Erro ao verificar status no Firestore: ${e.message}")
         }
     }
-    
 
+    suspend fun checkForActiveEmergency(): String? {
+        return try {
+            val result = emergencyRepository.getActiveEmergency()
+            result.getOrNull()
+        } catch (e: Exception) {
+            LogOptimizer.e("SimpleHomeViewModel", "Erro ao verificar emergência ativa", e)
+            null
+        }
+    }
 }

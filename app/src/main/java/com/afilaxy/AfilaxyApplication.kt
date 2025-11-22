@@ -5,9 +5,11 @@ import com.afilaxy.performance.AnrOptimizer
 import com.afilaxy.performance.LogOptimizer
 import com.afilaxy.performance.MapsPerformanceOptimizer
 import com.google.firebase.FirebaseApp
+import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
+@HiltAndroidApp
 class AfilaxyApplication : Application() {
     
     override fun onCreate() {

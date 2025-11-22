@@ -20,14 +20,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-
-import com.afilaxy.ui.theme.AfilaxyTheme
-import com.afilaxy.data.EmergencyManager
-import com.afilaxy.performance.LogOptimizer
-import kotlinx.coroutines.launch
 import androidx.lifecycle.lifecycleScope
+import com.afilaxy.domain.repository.EmergencyRepository
+import com.afilaxy.performance.LogOptimizer
+import com.afilaxy.ui.theme.AfilaxyTheme
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class EmergencyOverlayActivity : ComponentActivity() {
+    
+    @Inject
+    lateinit var emergencyRepository: EmergencyRepository
     
     private val cancelReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -75,7 +80,7 @@ class EmergencyOverlayActivity : ComponentActivity() {
                     onAccept = { 
                         LogOptimizer.d("EmergencyOverlay", "Usuário aceitou emergência: $emergencyId")
                         lifecycleScope.launch {
-                            EmergencyManager.acceptEmergency(emergencyId)
+                            emergencyRepository.acceptEmergency(emergencyId)
                         }
                         finish()
                         startMainActivity(emergencyId, true)

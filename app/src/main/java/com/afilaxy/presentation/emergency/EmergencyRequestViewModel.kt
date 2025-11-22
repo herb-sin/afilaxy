@@ -3,10 +3,12 @@ package com.afilaxy.presentation.emergency
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.firestore.FirebaseFirestore
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 data class EmergencyRequestState(
     val status: String = "pending",
@@ -15,9 +17,10 @@ data class EmergencyRequestState(
     val error: String? = null
 )
 
-class EmergencyRequestViewModel : ViewModel() {
-    
-    private val firestore = FirebaseFirestore.getInstance()
+@HiltViewModel
+class EmergencyRequestViewModel @Inject constructor(
+    private val firestore: FirebaseFirestore
+) : ViewModel() {
     
     private val _state = MutableStateFlow(EmergencyRequestState())
     val state: StateFlow<EmergencyRequestState> = _state.asStateFlow()

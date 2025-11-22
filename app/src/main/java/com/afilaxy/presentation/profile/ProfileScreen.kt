@@ -20,16 +20,7 @@ fun ProfileScreen(
     modifier: Modifier = Modifier
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val viewModel: ProfileViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return ProfileViewModel(
-                    context.applicationContext as android.app.Application
-                ) as T
-            }
-        }
-    )
+    val viewModel: ProfileViewModel = androidx.hilt.navigation.compose.hiltViewModel()
     
     val uiState by viewModel.uiState.collectAsState()
     

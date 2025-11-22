@@ -31,16 +31,7 @@ fun EmergencyBaseScreen(
     modifier: Modifier = Modifier
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val viewModel: SimpleEmergencyViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return SimpleEmergencyViewModel(
-                    context.applicationContext as android.app.Application
-                ) as T
-            }
-        }
-    )
+    val viewModel: SimpleEmergencyViewModel = androidx.hilt.navigation.compose.hiltViewModel()
     val uiState by viewModel.uiState.collectAsState()
     
     // Obter localização real para o mapa
@@ -73,6 +64,13 @@ fun EmergencyBaseScreen(
         } else {
             LogOptimizer.w("EmergencyBaseScreen", "Sem permissão de localização - mapa não será exibido")
             // Não definir userLocation - deixar null para mostrar mensagem de permissão
+        }
+    }
+    
+    // Recarregar emergência ativa quando a tela é retomada (sem emergencyId nos parâmetros)
+    LaunchedEffect(Unit) {
+        if (emergencyId == null) {
+            viewModel.checkAndReloadEmergency()
         }
     }
     
@@ -193,7 +191,8 @@ fun EmergencyBaseScreen(
                 EmergencyState.MATCHED -> ChatContent(
                     messages = uiState.chatMessages,
                     onSendMessage = { message -> viewModel.sendMessage(message) },
-                    onFocusChanged = { focused -> isChatFocused = focused }
+                    onFocusChanged = { focused -> isChatFocused = focused },
+                    onFinishEmergency = { viewModel.finishEmergency() }
                 )
                 EmergencyState.HELPING -> HelpingContent(
                     requesterName = uiState.requesterName,
@@ -254,16 +253,61 @@ private fun WaitingContent(onCancel: () -> Unit) {
 private fun ChatContent(
     messages: List<ChatMessage>,
     onSendMessage: (String) -> Unit,
-    onFocusChanged: (Boolean) -> Unit = {}
+    onFocusChanged: (Boolean) -> Unit = {},
+    onFinishEmergency: () -> Unit = {}
 ) {
     var messageText by remember { mutableStateOf("") }
+    var showFinishDialog by remember { mutableStateOf(false) }
     
     Column(modifier = Modifier.fillMaxSize()) {
-        Text(
-            text = "💬 Chat de Emergência",
-            modifier = Modifier.padding(16.dp),
-            fontWeight = FontWeight.Bold
-        )
+        // Header com título e botão finalizar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "💬 Chat de Emergência",
+                fontWeight = FontWeight.Bold
+            )
+            OutlinedButton(
+                onClick = { showFinishDialog = true },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error
+                )
+            ) {
+                Text("✓ Finalizar")
+            }
+        }
+        
+        // Dialog de confirmação
+        if (showFinishDialog) {
+            AlertDialog(
+                onDismissRequest = { showFinishDialog = false },
+                title = { Text("Finalizar Atendimento?") },
+                text = { Text("Tem certeza que deseja finalizar esta emergência? Esta ação não pode ser desfeita.") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showFinishDialog = false
+                            onFinishEmergency()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text("Finalizar")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showFinishDialog = false }) {
+                        Text("Cancelar")
+                    }
+                }
+            )
+        }
         
         LazyColumn(
             modifier = Modifier.weight(1f),

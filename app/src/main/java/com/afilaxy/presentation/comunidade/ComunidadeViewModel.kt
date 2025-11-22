@@ -10,9 +10,12 @@ import kotlinx.coroutines.launch
 import com.afilaxy.domain.model.Produto
 import com.afilaxy.domain.model.Evento
 import com.afilaxy.domain.model.ProjetoInfo
+import dagger.hilt.android.lifecycle.HiltViewModel
 import java.math.BigDecimal
+import javax.inject.Inject
 
-class ComunidadeViewModel : ViewModel() {
+@HiltViewModel
+class ComunidadeViewModel @Inject constructor() : ViewModel() {
     
     val produtos = listOf(
         Produto(

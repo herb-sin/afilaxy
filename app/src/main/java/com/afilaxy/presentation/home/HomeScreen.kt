@@ -38,14 +38,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val viewModel: SimpleHomeViewModel = viewModel(
-        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
-                return SimpleHomeViewModel(context.applicationContext as android.app.Application) as T
-            }
-        }
-    )
+    val viewModel: SimpleHomeViewModel = androidx.hilt.navigation.compose.hiltViewModel()
     val locationPermissions = rememberMultiplePermissionsState(
         permissions = listOf(
             android.Manifest.permission.ACCESS_FINE_LOCATION,
@@ -234,7 +227,7 @@ Row(
             onClick = { 
                 // Verificar se há emergência ativa antes de navegar
                 scope.launch {
-                    val activeEmergencyId = com.afilaxy.data.EmergencyManager.getActiveEmergency()
+                    val activeEmergencyId = viewModel.checkForActiveEmergency()
                     if (activeEmergencyId != null) {
                         // Retomar emergência ativa
                         navController.navigate("emergency_response/$activeEmergencyId/Retomando")

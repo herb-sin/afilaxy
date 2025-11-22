@@ -9,6 +9,9 @@ import kotlinx.coroutines.launch
 import com.google.firebase.auth.FirebaseAuth
 import com.afilaxy.data.NotificationRepository
 
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+
 data class LoginUiState(
     val email: String = "",
     val password: String = "",
@@ -19,13 +22,14 @@ data class LoginUiState(
     val showRegistrationSuccess: Boolean = false
 )
 
-class LoginViewModel : ViewModel() {
+@HiltViewModel
+class LoginViewModel @Inject constructor(
+    private val firebaseAuth: FirebaseAuth,
+    private val notificationRepository: NotificationRepository
+) : ViewModel() {
     
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
-    
-    private val firebaseAuth = FirebaseAuth.getInstance()
-    private val notificationRepository = NotificationRepository()
     
     fun updateEmail(email: String) {
         _uiState.value = _uiState.value.copy(email = email)

@@ -1,26 +1,30 @@
 package com.afilaxy.presentation.emergency
 
 import android.app.Application
+import android.location.Geocoder
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.afilaxy.data.ChatManager
-import com.afilaxy.data.EmergencyManager
 import com.afilaxy.data.LocationManager
-import com.afilaxy.data.SimpleMessage
+import com.afilaxy.domain.repository.EmergencyRepository
 import com.afilaxy.performance.LogOptimizer
 import com.google.firebase.firestore.FirebaseFirestore
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.channels.awaitClose
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
-import android.location.Geocoder
 import java.util.Locale
+import javax.inject.Inject
 
 /**
  * ViewModel simplificado que conecta diretamente com os Managers
  */
-class SimpleEmergencyViewModel(private val application: Application) : AndroidViewModel(application) {
+@HiltViewModel
+class SimpleEmergencyViewModel @Inject constructor(
+    private val application: Application,
+    private val emergencyRepository: EmergencyRepository
+) : AndroidViewModel(application) {
 
     private val _uiState = MutableStateFlow(SimpleEmergencyUiState())
     val uiState: StateFlow<SimpleEmergencyUiState> = _uiState.asStateFlow()
@@ -35,17 +39,18 @@ class SimpleEmergencyViewModel(private val application: Application) : AndroidVi
             
             // Desativar helper automaticamente (quem pede ajuda não tem bombinha)
             LogOptimizer.d("SimpleEmergencyViewModel", "Desativando helper - usuário precisa de ajuda")
-            EmergencyManager.deactivateHelper()
+            emergencyRepository.deactivateHelper()
             
             val location = LocationManager.getCurrentLocation(application)
             LogOptimizer.d("SimpleEmergencyViewModel", "Localização obtida: $location")
             
             val emergencyId = if (location != null) {
                 LogOptimizer.d("SimpleEmergencyViewModel", "Criando emergência em: ${location.first}, ${location.second}")
-                EmergencyManager.createEmergency(
+                val result = emergencyRepository.createEmergency(
                     latitude = location.first,
                     longitude = location.second
                 )
+                result.getOrNull()
             } else {
                 LogOptimizer.e("SimpleEmergencyViewModel", "ERRO: Localização é null")
                 null
@@ -67,7 +72,7 @@ class SimpleEmergencyViewModel(private val application: Application) : AndroidVi
 
     fun cancelEmergency() {
         viewModelScope.launch {
-            currentEmergencyId?.let { EmergencyManager.cancelEmergency(it) }
+            currentEmergencyId?.let { emergencyRepository.cancelEmergency(it) }
             _uiState.value = _uiState.value.copy(state = EmergencyState.IDLE)
         }
     }
@@ -81,23 +86,47 @@ class SimpleEmergencyViewModel(private val application: Application) : AndroidVi
                 
                 val requesterId = emergencyDoc.getString("requesterId")
                 val requesterName = emergencyDoc.getString("requesterName") ?: "Pessoa em emergência"
+                val helperId = emergencyDoc.getString("helperId")
+                val helperName = emergencyDoc.getString("helperName") ?: "Helper"
+                val status = emergencyDoc.getString("status")
                 
-                _uiState.value = _uiState.value.copy(
-                    state = EmergencyState.HELPING,
-                    requesterName = requesterName,
-                    requesterId = requesterId
-                )
+                val currentUserId = com.afilaxy.security.AuthGuard.getCurrentUserId()
                 
-                LogOptimizer.d("SimpleEmergencyViewModel", "Emergency carregada: requesterId=$requesterId, requesterName=$requesterName")
+                if (currentUserId == requesterId) {
+                    // Sou o REQUISITANTE
+                    val newState = if (status == "matched") EmergencyState.MATCHED else EmergencyState.WAITING
+                    
+                    _uiState.value = _uiState.value.copy(
+                        state = newState,
+                        requesterName = helperName, // Na visão do requester, mostramos o nome do helper
+                        requesterId = requesterId,
+                        helperId = helperId
+                    )
+                    LogOptimizer.d("SimpleEmergencyViewModel", "Emergency carregada (Requester): id=$emergencyId, state=$newState, helperId=$helperId")
+                    
+                    if (newState == EmergencyState.MATCHED) {
+                        startListeningToChat(emergencyId)
+                    }
+                } else {
+                    // Sou o HELPER
+                    _uiState.value = _uiState.value.copy(
+                        state = EmergencyState.HELPING,
+                        requesterName = requesterName,
+                        requesterId = requesterId,
+                        helperId = helperId // Carregar helperId também para garantir consistência
+                    )
+                    LogOptimizer.d("SimpleEmergencyViewModel", "Emergency carregada (Helper): requesterId=$requesterId, requesterName=$requesterName")
+                    
+                    startListeningToChat(emergencyId)
+                }
             } catch (e: Exception) {
                 LogOptimizer.e("SimpleEmergencyViewModel", "Erro ao carregar emergência", e)
                 _uiState.value = _uiState.value.copy(
                     state = EmergencyState.HELPING,
-                    requesterName = "Pessoa em emergência"
+                    requesterName = "Erro ao carregar"
                 )
             }
         }
-        startListeningToChat(emergencyId)
     }
     
     fun acceptEmergency() {
@@ -110,6 +139,24 @@ class SimpleEmergencyViewModel(private val application: Application) : AndroidVi
         viewModelScope.launch {
             currentEmergencyId?.let { emergencyId ->
                 ChatManager.sendMessage(emergencyId, message)
+            }
+        }
+    }
+
+    fun finishEmergency() {
+        viewModelScope.launch {
+            currentEmergencyId?.let { emergencyId ->
+                LogOptimizer.d("SimpleEmergencyViewModel", "Finalizando emergência: $emergencyId")
+                
+                val result = emergencyRepository.finishEmergency(emergencyId)
+                if (result.isSuccess) {
+                    // Atualizar estado local
+                    _uiState.value = SimpleEmergencyUiState(state = EmergencyState.IDLE)
+                    currentEmergencyId = null
+                    LogOptimizer.d("SimpleEmergencyViewModel", "Emergência finalizada com sucesso")
+                } else {
+                    LogOptimizer.e("SimpleEmergencyViewModel", "Erro ao finalizar emergência", result.exceptionOrNull())
+                }
             }
         }
     }
@@ -176,35 +223,90 @@ class SimpleEmergencyViewModel(private val application: Application) : AndroidVi
     
     suspend fun getOtherUserLocation(userId: String): Pair<Double, Double>? {
         return try {
+            LogOptimizer.d("SimpleEmergencyViewModel", "getOtherUserLocation chamado para userId: $userId, emergencyId: $currentEmergencyId")
+            
             val firestore = FirebaseFirestore.getInstance()
             
             // Se for requester, buscar localização da emergência
             if (currentEmergencyId != null) {
                 val emergencyDoc = firestore.collection("emergency_requests").document(currentEmergencyId!!).get().await()
                 val requesterId = emergencyDoc.getString("requesterId")
+                LogOptimizer.d("SimpleEmergencyViewModel", "RequesterId da emergência: $requesterId, buscando userId: $userId")
                 
                 if (userId == requesterId) {
                     // É o requester, buscar localização da emergência
                     val location = emergencyDoc.getGeoPoint("location")
+                    LogOptimizer.d("SimpleEmergencyViewModel", "Localização do requester: $location")
                     return location?.let { Pair(it.latitude, it.longitude) }
                 }
             }
             
             // Se for helper, buscar na coleção helpers
+            LogOptimizer.d("SimpleEmergencyViewModel", "Buscando na coleção helpers para userId: $userId")
             val helperDoc = firestore.collection("helpers").document(userId).get().await()
             
             if (helperDoc.exists()) {
                 val location = helperDoc.getGeoPoint("location")
+                LogOptimizer.d("SimpleEmergencyViewModel", "Helper encontrado com localização: $location")
                 location?.let { Pair(it.latitude, it.longitude) }
             } else {
                 // Se não está em helpers, buscar última localização conhecida
+                LogOptimizer.d("SimpleEmergencyViewModel", "Helper não encontrado, buscando lastLocation em users")
                 val userDoc = firestore.collection("users").document(userId).get().await()
                 val location = userDoc.getGeoPoint("lastLocation")
+                LogOptimizer.d("SimpleEmergencyViewModel", "LastLocation do usuário: $location")
                 location?.let { Pair(it.latitude, it.longitude) }
             }
         } catch (e: Exception) {
             LogOptimizer.e("SimpleEmergencyViewModel", "Erro ao buscar localização do usuário $userId", e)
             null
+        }
+    }
+    
+    /**
+     * Verifica e recarrega o estado da emergência ativa.
+     * Usado quando o usuário retorna à tela de emergência.
+     */
+    fun checkAndReloadEmergency() {
+        viewModelScope.launch {
+            try {
+                val firestore = FirebaseFirestore.getInstance()
+                val userId = com.afilaxy.security.AuthGuard.getCurrentUserId() ?: return@launch
+                
+                // Buscar emergência ativa do usuário
+            val emergencyQuery = firestore.collection("emergency_requests")
+                .whereEqualTo("requesterId", userId)
+                .whereEqualTo("status", "matched")
+                .whereEqualTo("active", true)
+                .get()
+                .await()
+            
+            if (!emergencyQuery.isEmpty) {
+                LogOptimizer.d("SimpleEmergencyViewModel", "Encontradas ${emergencyQuery.size()} emergências ativas")
+                val emergencyDoc = emergencyQuery.documents.first()
+                    val emergencyId = emergencyDoc.id
+                    val helperId = emergencyDoc.getString("helperId")
+                    val helperName = emergencyDoc.getString("helperName") ?: "Helper"
+                    val requesterId = emergencyDoc.getString("requesterId")
+                    
+                    currentEmergencyId = emergencyId
+                    _uiState.value = _uiState.value.copy(
+                        state = EmergencyState.MATCHED,
+                        requesterName = helperName,
+                        helperId = helperId,
+                        requesterId = requesterId
+                    )
+                    
+                    LogOptimizer.d("SimpleEmergencyViewModel", "Emergência ativa recarregada: id=$emergencyId, helperId=$helperId")
+                    
+                    // Reiniciar listener do chat se necessário
+                    if (_uiState.value.chatMessages.isEmpty()) {
+                        startListeningToChat(emergencyId)
+                    }
+                }
+            } catch (e: Exception) {
+                LogOptimizer.e("SimpleEmergencyViewModel", "Erro ao recarregar emergência ativa", e)
+            }
         }
     }
     

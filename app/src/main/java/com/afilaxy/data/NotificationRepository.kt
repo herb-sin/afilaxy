@@ -4,9 +4,12 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.tasks.await
 
-class NotificationRepository {
-    private val firestore = FirebaseFirestore.getInstance()
-    private val messaging = FirebaseMessaging.getInstance()
+import javax.inject.Inject
+
+class NotificationRepository @Inject constructor(
+    private val firestore: FirebaseFirestore,
+    private val messaging: FirebaseMessaging
+) {
 
     suspend fun saveUserToken(userId: String) {
         if (userId.isBlank()) {

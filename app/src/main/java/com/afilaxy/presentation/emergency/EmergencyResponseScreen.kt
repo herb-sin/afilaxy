@@ -33,19 +33,7 @@ fun EmergencyResponseScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val viewModel: EmergencyResponseViewModel = viewModel(
-        factory = object : ViewModelProvider.Factory {
-            @Suppress("UNCHECKED_CAST")
-            override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return EmergencyResponseViewModel(
-                    emergencyId = emergencyId,
-                    chatRepository = ChatRepository(),
-                    sendChatMessageUseCase = SendChatMessageUseCase(ChatRepository()),
-                    application = context.applicationContext as android.app.Application
-                ) as T
-            }
-        }
-    )
+    val viewModel: EmergencyResponseViewModel = androidx.hilt.navigation.compose.hiltViewModel()
     
     val locationPermissions = rememberMultiplePermissionsState(
         permissions = listOf(
@@ -54,8 +42,9 @@ fun EmergencyResponseScreen(
         )
     )
     
-    // Solicitar permissões automaticamente
+    // Solicitar permissões automaticamente e inicializar ViewModel
     LaunchedEffect(Unit) {
+        viewModel.initialize(emergencyId, context.applicationContext as android.app.Application)
         if (!locationPermissions.allPermissionsGranted) {
             locationPermissions.launchMultiplePermissionRequest()
         }

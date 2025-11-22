@@ -3,8 +3,9 @@ package com.afilaxy.domain.usecase
 import com.afilaxy.domain.model.ChatMessage
 import com.afilaxy.domain.repository.IChatRepository
 import com.afilaxy.security.AuthGuard
+import javax.inject.Inject
 
-class SendChatMessageUseCase(
+class SendChatMessageUseCase @Inject constructor(
     private val chatRepository: IChatRepository
 ) {
     

@@ -10,14 +10,25 @@ import com.afilaxy.domain.repository.IChatRepository
 import com.afilaxy.domain.usecase.SendChatMessageUseCase
 import com.afilaxy.security.AuthGuard
 import com.google.android.gms.maps.model.LatLng
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class EmergencyResponseViewModel(
-    private val emergencyId: String,
+@HiltViewModel
+class EmergencyResponseViewModel @Inject constructor(
     private val chatRepository: IChatRepository,
-    private val sendChatMessageUseCase: SendChatMessageUseCase,
-    private val application: android.app.Application? = null
+    private val sendChatMessageUseCase: SendChatMessageUseCase
 ) : ViewModel() {
+    
+    private var emergencyId: String = ""
+    private var application: android.app.Application? = null
+    
+    fun initialize(emergencyId: String, application: android.app.Application?) {
+        this.emergencyId = emergencyId
+        this.application = application
+        observeChatMessages()
+        loadEmergencyData()
+    }
     
     var chatMessages by mutableStateOf<List<ChatMessage>>(emptyList())
         private set
@@ -40,16 +51,13 @@ class EmergencyResponseViewModel(
     var canMarkAsResolved by mutableStateOf(false)
         private set
     
-    init {
-        observeChatMessages()
-    }
-    
     fun loadEmergencyData() {
         viewModelScope.launch {
             try {
                 // Obter localização real do GPS se Application estiver disponível
-                helperLocation = if (application != null) {
-                    val locationRepository = com.afilaxy.data.repository.LocationRepository(application)
+                val app = application
+                helperLocation = if (app != null) {
+                    val locationRepository = com.afilaxy.data.repository.LocationRepository(app)
                     val currentLocation = locationRepository.getCurrentLocation()
                     currentLocation?.let { 
                         LatLng(it.latitude, it.longitude) 

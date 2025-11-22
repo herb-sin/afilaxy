@@ -8,10 +8,11 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
 
-class ChatRepository : IChatRepository {
-    
-    private val firestore = FirebaseFirestore.getInstance()
+class ChatRepository @Inject constructor(
+    private val firestore: FirebaseFirestore
+) : IChatRepository {
     
     override suspend fun sendMessage(message: ChatMessage): Result<Unit> {
         return try {

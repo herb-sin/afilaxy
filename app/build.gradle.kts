@@ -4,8 +4,8 @@ import java.io.FileInputStream
 plugins {
     id("com.android.application")
     id("com.google.gms.google-services")
-    // id("dagger.hilt.android.plugin")
-    // id("kotlin-kapt")
+    id("dagger.hilt.android.plugin")
+    id("kotlin-kapt")
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.android.libraries.mapsplatform.secrets.gradle.plugin)
@@ -102,14 +102,14 @@ android {
         )
     }
     
-    // kapt {
-    //     correctErrorTypes = true
-    //     useBuildCache = false
-    //     generateStubs = true
-    //     arguments {
-    //         arg("dagger.hilt.shareTestComponents", "true")
-    //     }
-    // }
+    kapt {
+        correctErrorTypes = true
+        useBuildCache = false
+        generateStubs = true
+        arguments {
+            arg("dagger.hilt.shareTestComponents", "true")
+        }
+    }
     
     // Otimizações de performance
     packaging {
@@ -173,11 +173,11 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     
     // Hilt Dependency Injection - Temporarily disabled
-    // implementation("com.google.dagger:hilt-android:2.48")
-    // kapt("com.google.dagger:hilt-compiler:2.48")
-    // implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
-    // implementation("androidx.hilt:hilt-work:1.1.0")
-    // kapt("androidx.hilt:hilt-compiler:1.1.0")
+    implementation("com.google.dagger:hilt-android:2.48")
+    kapt("com.google.dagger:hilt-compiler:2.48")
+    implementation("androidx.hilt:hilt-navigation-compose:1.1.0")
+    implementation("androidx.hilt:hilt-work:1.1.0")
+    kapt("androidx.hilt:hilt-compiler:1.1.0")
     
     // Room Database - Temporarily disabled
     // implementation("androidx.room:room-runtime:2.6.1")
@@ -211,8 +211,8 @@ dependencies {
     testImplementation("org.mockito.kotlin:mockito-kotlin:4.1.0")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     testImplementation("androidx.arch.core:core-testing:2.2.0")
-    // testImplementation("com.google.dagger:hilt-android-testing:2.48")
-    // kaptTest("com.google.dagger:hilt-compiler:2.48")
+    testImplementation("com.google.dagger:hilt-android-testing:2.48")
+    kaptTest("com.google.dagger:hilt-compiler:2.48")
 
     // Remover Crashlytics temporariamente para Alpha
     // implementation("com.google.firebase:firebase-crashlytics-ktx")
