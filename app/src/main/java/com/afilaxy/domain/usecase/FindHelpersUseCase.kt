@@ -3,20 +3,22 @@ package com.afilaxy.domain.usecase
 import com.afilaxy.domain.model.Helper
 import com.afilaxy.domain.model.Location
 import com.afilaxy.domain.repository.EmergencyRepository
-import com.afilaxy.security.AuthGuard
+import com.afilaxy.security.AuthProvider
+import com.afilaxy.security.InputValidator
 import javax.inject.Inject
 
 class FindHelpersUseCase @Inject constructor(
-    private val repository: EmergencyRepository
+    private val repository: EmergencyRepository,
+    private val authProvider: AuthProvider,
+    private val inputValidator: InputValidator
 ) {
     
     suspend fun execute(location: Location): List<Helper> {
-        if (!AuthGuard.isUserAuthenticated()) {
+        if (!authProvider.isUserAuthenticated()) {
             throw SecurityException("Authentication required")
         }
         
-        if (location.latitude < -90 || location.latitude > 90 || 
-            location.longitude < -180 || location.longitude > 180) {
+        if (!inputValidator.isValidCoordinate(location.latitude, location.longitude)) {
             throw IllegalArgumentException("Invalid coordinates")
         }
         

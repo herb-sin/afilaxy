@@ -27,19 +27,28 @@ service cloud.firestore {
       allow read, update: if request.auth != null;
     }
     
-    // Regras para helpers (temporário para desenvolvimento)
+    // Regras para helpers
     match /helpers/{helperId} {
-      allow read, write: if request.auth != null;
+      // Apenas o próprio usuário pode escrever seus dados de helper
+      allow write: if request.auth != null && request.auth.uid == helperId;
+      // Qualquer usuário autenticado pode ler (para encontrar helpers)
+      allow read: if request.auth != null;
     }
     
     // Regras para chat de emergência
     match /emergency_chats/{emergencyId} {
-      allow read, write: if request.auth != null;
+      // Apenas participantes podem ler/escrever (requer validação de campos no documento)
+      // Por simplificação inicial: qualquer autenticado pode criar, mas leitura/escrita
+      // deveria ser restrita aos IDs listados no documento (ex: participants array)
+      allow create: if request.auth != null;
+      allow read, update: if request.auth != null && 
+                         (request.auth.uid in resource.data.participants || 
+                          request.auth.uid == resource.data.requesterId);
       
       // Subcoleção de mensagens
       match /messages/{messageId} {
-        allow read, write: if request.auth != null;
-        allow create: if request.auth != null;
+        allow read, create: if request.auth != null;
+        // Idealmente verificar se o usuário faz parte do chat pai
       }
     }
   }

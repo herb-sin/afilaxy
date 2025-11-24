@@ -30,4 +30,16 @@ object AppModule {
     fun provideFirebaseMessaging(): FirebaseMessaging {
         return FirebaseMessaging.getInstance()
     }
+
+    @Provides
+    @Singleton
+    fun provideAuthProvider(): com.afilaxy.security.AuthProvider {
+        return com.afilaxy.security.FirebaseAuthProvider()
+    }
+
+    @Provides
+    @Singleton
+    fun provideInputValidator(): com.afilaxy.security.InputValidator {
+        return com.afilaxy.security.SecurityInputValidator()
+    }
 }
