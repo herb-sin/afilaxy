@@ -127,3 +127,6 @@ Thumbs.db
 # Test results
 test-results/
 test-output/
+
+# Local configuration
+keystore.properties
