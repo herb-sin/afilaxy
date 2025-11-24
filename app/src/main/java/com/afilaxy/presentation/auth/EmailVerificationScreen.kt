@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.ActionCodeSettings
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -133,20 +134,48 @@ fun EmailVerificationScreen(
             
             Spacer(modifier = Modifier.height(16.dp))
             
+            var isResending by remember { mutableStateOf(false) }
+            var cooldownTime by remember { mutableStateOf(0) }
+
+            LaunchedEffect(cooldownTime) {
+                if (cooldownTime > 0) {
+                    kotlinx.coroutines.delay(1000L)
+                    cooldownTime--
+                }
+            }
+
             OutlinedButton(
                 onClick = {
-                    currentUser?.sendEmailVerification()?.addOnCompleteListener {
-                        showResendSuccess = true
+                    isResending = true
+                    
+                    currentUser?.sendEmailVerification()?.addOnCompleteListener { task ->
+                        isResending = false
+                        if (task.isSuccessful) {
+                            showResendSuccess = true
+                            cooldownTime = 60 // Start 60s cooldown
+                        }
                     }
                 },
+                enabled = !isResending && cooldownTime == 0,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Reenviar Email")
+                if (isResending) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Enviando...")
+                } else if (cooldownTime > 0) {
+                    Text("Aguarde ${cooldownTime}s")
+                } else {
+                    Text("Reenviar Email")
+                }
             }
             
             if (showResendSuccess) {
                 LaunchedEffect(Unit) {
-                    kotlinx.coroutines.delay(3000)
+                    kotlinx.coroutines.delay(5000) // Show for 5 seconds
                     showResendSuccess = false
                 }
                 
@@ -157,11 +186,19 @@ fun EmailVerificationScreen(
                         containerColor = MaterialTheme.colorScheme.primaryContainer
                     )
                 ) {
-                    Text(
-                        text = "Email reenviado!",
-                        modifier = Modifier.padding(16.dp),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Email reenviado!",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "Atenção: Links anteriores foram invalidados. Use apenas o link do email mais recente.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 }
             }
         }

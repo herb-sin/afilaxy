@@ -21,7 +21,7 @@ class NotificationRepository @Inject constructor(
             val token = messaging.token.await()
             firestore.collection("users")
                 .document(userId)
-                .update("fcmToken", token)
+                .set(mapOf("fcmToken" to token), com.google.firebase.firestore.SetOptions.merge())
                 .await()
         } catch (e: Exception) {
             android.util.Log.e("NotificationRepository", "Erro ao salvar token: ${e.javaClass.simpleName}", null)

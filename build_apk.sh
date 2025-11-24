@@ -68,7 +68,7 @@ if [ "$BUILD_TYPE" = "debug" ]; then
     OUTPUT_NAME="afilaxy-debug.apk"
 else
     # Para release, verificar se existe keystore
-    if [ ! -f "app/keystore.jks" ] && [ ! -f "app/release-key.jks" ]; then
+    if [ ! -f "app/keystore.jks" ] && [ ! -f "app/release-key.jks" ] && [ ! -f "app/afilaxy-release.keystore" ] && [ ! -f "keystore.properties" ]; then
         warning "Keystore não encontrado. Gerando APK release não assinado..."
         ./gradlew assembleRelease
         APK_PATH="app/build/outputs/apk/release/app-release-unsigned.apk"
