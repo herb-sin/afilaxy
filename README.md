@@ -98,7 +98,7 @@ app/
    - Ative **Cloud Messaging** (opcional)
    - **SEGURANÇA**: Execute o script de configuração segura:
      ```bash
-     ./setup_secure_config.sh
+     ./setup_secure_firebase.sh
      ```
    - Siga as instruções para inserir suas credenciais Firebase
    - **NUNCA** commite o arquivo `google-services.json` real
@@ -122,7 +122,7 @@ app/
 1. Execute o script de configuração automática:
 
    ```bash
-   ./setup_secure_config.sh
+   ./setup_secure_firebase.sh
    ```
 
 2. Insira suas credenciais quando solicitado:
@@ -153,6 +153,17 @@ Execute o script de validação antes de fazer deploy:
 - ✅ **Credenciais protegidas** - Template system para Firebase config
 - ✅ **Input sanitization** - `InputSanitizer` com padrões seguros
 - ✅ **Tratamento seguro de erros** - Logs sem exposição de dados sensíveis
+
+### ⚡ Performance e Estabilidade (ANR Fixes)
+
+O projeto passou por uma otimização abrangente para eliminar ANRs (Application Not Responding) e melhorar a fluidez:
+
+- **Inicialização Assíncrona**: Firebase e serviços pesados movidos para background.
+- **Mapas Otimizados**: Configurações leves e operações de câmera seguras.
+- **Prevenção de Travamentos**: Timeouts em operações de rede e localização.
+- **Monitoramento**: Ferramentas `AnrOptimizer` e `MapsOptimizer` integradas.
+
+Para detalhes técnicos completos, consulte [ANR_FIXES_COMPREHENSIVE.md](ANR_FIXES_COMPREHENSIVE.md).
 
 ## 🛠️ Tecnologias Utilizadas
 
@@ -236,7 +247,7 @@ O Afilaxy possui uma pipeline completa de CI/CD para garantir qualidade e deploy
 - [x] Sistema de notificações push
 - [x] Pipeline CI/CD completa
 - [ ] Integração com mapas
-- [ ] Testes automatizados expandidos
+- [x] Testes automatizados expandidos
 - [ ] Publicação na Play Store
 
 ## 🎯 Impacto Social
