@@ -28,7 +28,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.afilaxy"
+        applicationId = "com.afilaxy.app"
         minSdk = 23
         targetSdk = 34
         versionCode = 5
