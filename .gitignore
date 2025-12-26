@@ -130,3 +130,15 @@ test-output/
 
 # Local configuration
 keystore.properties
+
+# Local JDK and SDK for build
+jdk-17.0.2/
+jdk17.tar.gz
+android_sdk_build/
+android_sdk/
+keystore_info.txt
+*.old
+file_sizes.txt
+projects*.json
+projects*.txt
+temp_artes/
