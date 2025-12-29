@@ -25,14 +25,14 @@ repositories {
 
 android {
     namespace = "com.afilaxy"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.afilaxy.app"
         minSdk = 23
-        targetSdk = 34
-        versionCode = 5
-        versionName = "0.2.0-beta"
+        targetSdk = 35
+        versionCode = 11
+        versionName = "2.0.1"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
         // Firebase configuration from environment variables

@@ -145,7 +145,7 @@ Row(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Image(
-                                painter = painterResource(id = R.drawable.afilaxy_icon_48),
+                                painter = painterResource(id = R.drawable.afilaxy_icon),
                                 contentDescription = "Logo Afilaxy",
                                 modifier = Modifier.size(24.dp)
                             )
@@ -251,7 +251,7 @@ Row(
             onClick = { navController.navigate(AppRoutes.TELA_AUTOCUIDADO) },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("💚 Autocuidado")
+            Text("ℹ️ Informações")
         }
         
         Spacer(modifier = Modifier.height(16.dp))

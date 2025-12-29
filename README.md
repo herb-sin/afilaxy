@@ -248,7 +248,7 @@ O Afilaxy possui uma pipeline completa de CI/CD para garantir qualidade e deploy
 - [x] Pipeline CI/CD completa
 - [ ] Integração com mapas
 - [x] Testes automatizados expandidos
-- [ ] Publicação na Play Store
+- [x] Publicação na Play Store
 
 ## 🎯 Impacto Social
 

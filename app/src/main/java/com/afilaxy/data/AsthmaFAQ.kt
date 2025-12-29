@@ -112,8 +112,8 @@ object AsthmaFAQ {
                 🚨 CRISE DE ASMA - AÇÃO IMEDIATA
                 
                 PRIMEIROS PASSOS:
-                1. Use o broncodilatador (bombinha azul) AGORA
-                2. Sente-se ereto, respire devagar
+                1. Use a bombinha (spray) com broncodilatador IMEDIATAMENTE
+                2. Sente-se de forma ereta, respire devagar
                 3. Mantenha a calma
                 4. Afrouxe roupas apertadas
                 

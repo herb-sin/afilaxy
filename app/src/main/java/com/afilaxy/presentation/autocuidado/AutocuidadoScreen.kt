@@ -32,7 +32,7 @@ fun AutocuidadoScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("💚 Autocuidado") },
+                title = { Text("ℹ️ Informações") },
                 navigationIcon = {
                     IconButton(
                         onClick = { navController.popBackStack() }
@@ -50,6 +50,37 @@ fun AutocuidadoScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
+
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "Como usar o Afilaxy",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Caso entre em crise de Asma sem estar com a 'bombinha':\n" +
+                            "• Mostre essa mensagem para uma pessoa próxima;\n" +
+                            "• Peça para essa pessoa ligar para 192 SAMU e explicar a situação;\n" +
+                            "• Volte a tela anterior e acesse o pedido de socorro no botão EMERGÊNCIA;\n" +
+                            "• Pressione o botão 'SOLICITAR AJUDA';\n" +
+                            "• Aguarde o app encontrar alguém. Uma tela com mapa da sua localização e da pessoa será aberto, clique no chat para conversar diretamente com quem aceitou ajudar;\n" +
+                            "• Aguarde o SAMU e a pessoa com a 'bombinha'.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
 
         Text(
             text = "Perguntas frequentes sobre asma com orientações médicas baseadas em evidências científicas.",
