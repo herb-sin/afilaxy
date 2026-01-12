@@ -4,6 +4,7 @@ import com.afilaxy.domain.repository.IAuthRepository
 import com.afilaxy.security.AuthGuard
 import com.afilaxy.security.AuthResult
 import com.google.firebase.auth.FirebaseAuth
+import com.afilaxy.security.SecureLogger
 
 class AuthRepositoryImpl : IAuthRepository {
     private val auth = FirebaseAuth.getInstance()
@@ -17,7 +18,7 @@ class AuthRepositoryImpl : IAuthRepository {
             auth.signOut()
             true
         } catch (e: Exception) {
-            android.util.Log.e("AuthRepository", "Sign out failed: ${e.javaClass.simpleName}")
+            SecureLogger.e("AuthRepository", "Sign out failed: ${e.javaClass.simpleName}")
             false
         }
     }

@@ -1,6 +1,7 @@
 package com.afilaxy.utils
 
 import com.afilaxy.security.InputSanitizer
+import com.afilaxy.security.SecureLogger
 import com.google.firebase.FirebaseException
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -90,7 +91,7 @@ object ErrorHandler {
             block()
         } catch (e: Exception) {
             val errorResult = handleError(e, operation)
-            android.util.Log.e("ErrorHandler", errorResult.logMessage)
+            SecureLogger.e("ErrorHandler", errorResult.logMessage)
             onError(errorResult)
             null
         }
@@ -105,7 +106,7 @@ object ErrorHandler {
             block()
         } catch (e: Exception) {
             val errorResult = handleError(e, operation)
-            android.util.Log.e("ErrorHandler", errorResult.logMessage)
+            SecureLogger.e("ErrorHandler", errorResult.logMessage)
             onError(errorResult)
             null
         }
@@ -115,7 +116,7 @@ object ErrorHandler {
         return try {
             block()
         } catch (e: Exception) {
-            android.util.Log.e("ErrorHandler", "Safe operation failed: ${e.message}")
+            SecureLogger.e("ErrorHandler", "Safe operation failed: ${e.message}")
             null
         }
     }
@@ -129,7 +130,7 @@ object ErrorHandler {
             block()
         } catch (e: Exception) {
             val errorResult = handleError(e, operation)
-            android.util.Log.e("ErrorHandler", "Critical operation failed: ${errorResult.logMessage}")
+            SecureLogger.e("ErrorHandler", "Critical operation failed: ${errorResult.logMessage}")
             fallback()
         }
     }

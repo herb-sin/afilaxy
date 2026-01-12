@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import com.afilaxy.security.SecureLogger
 
 @Composable
 fun RequestNotificationPermission() {
@@ -20,9 +21,9 @@ fun RequestNotificationPermission() {
             contract = ActivityResultContracts.RequestPermission(),
             onResult = { isGranted ->
                 if (isGranted) {
-                    android.util.Log.d("NotificationPermission", "Permissão de notificação concedida")
+                    SecureLogger.d("NotificationPermission", "Permissão de notificação concedida")
                 } else {
-                    android.util.Log.w("NotificationPermission", "Permissão de notificação negada - funcionalidades de emergência podem ser limitadas")
+                    SecureLogger.w("NotificationPermission", "Permissão de notificação negada - funcionalidades de emergência podem ser limitadas")
                 }
             }
         )

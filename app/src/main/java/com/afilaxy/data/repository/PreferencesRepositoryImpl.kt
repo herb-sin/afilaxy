@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKeys
 import com.afilaxy.domain.repository.IPreferencesRepository
+import com.afilaxy.security.SecureLogger
 
 class PreferencesRepositoryImpl(context: Context) : IPreferencesRepository {
     
@@ -17,7 +18,7 @@ class PreferencesRepositoryImpl(context: Context) : IPreferencesRepository {
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )
     } catch (e: Exception) {
-        android.util.Log.w("PreferencesRepository", "Fallback to regular SharedPreferences: ${e.javaClass.simpleName}")
+        SecureLogger.w("PreferencesRepository", "Fallback to regular SharedPreferences: ${e.javaClass.simpleName}")
         context.getSharedPreferences("afilaxy_prefs", Context.MODE_PRIVATE)
     }
     

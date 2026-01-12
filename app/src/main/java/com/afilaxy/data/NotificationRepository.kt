@@ -5,6 +5,7 @@ import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.tasks.await
 
 import javax.inject.Inject
+import com.afilaxy.security.SecureLogger
 
 class NotificationRepository @Inject constructor(
     private val firestore: FirebaseFirestore,
@@ -13,7 +14,7 @@ class NotificationRepository @Inject constructor(
 
     suspend fun saveUserToken(userId: String) {
         if (userId.isBlank()) {
-            android.util.Log.w("NotificationRepository", "ID de usuário inválido")
+            SecureLogger.w("NotificationRepository", "ID de usuário inválido")
             return
         }
         
@@ -24,23 +25,23 @@ class NotificationRepository @Inject constructor(
                 .set(mapOf("fcmToken" to token), com.google.firebase.firestore.SetOptions.merge())
                 .await()
         } catch (e: Exception) {
-            android.util.Log.e("NotificationRepository", "Erro ao salvar token: ${e.javaClass.simpleName}", null)
+            SecureLogger.e("NotificationRepository", "Erro ao salvar token: ${e.javaClass.simpleName}", null)
         }
     }
 
     suspend fun sendEmergencyNotification(helperTokens: List<String>, requesterName: String, distance: String) {
         if (helperTokens.isEmpty()) {
-            android.util.Log.w("NotificationRepo", "Nenhum token de helper fornecido")
+            SecureLogger.w("NotificationRepo", "Nenhum token de helper fornecido")
             return
         }
         
         try {
-            android.util.Log.d("NotificationRepo", "Enviando FCM para ${helperTokens.size} helpers")
+            SecureLogger.d("NotificationRepo", "Enviando FCM para ${helperTokens.size} helpers")
             
             for (token in helperTokens) {
                 if (token.isBlank()) continue
                 
-                android.util.Log.d("NotificationRepo", "Preparando notificação para Firebase Function")
+                SecureLogger.d("NotificationRepo", "Preparando notificação para Firebase Function")
                 
                 // Salvar no Firestore - Firebase Function vai processar
                 val data = mapOf(
@@ -58,10 +59,10 @@ class NotificationRepository @Inject constructor(
                     .add(data)
                     .await()
                     
-                android.util.Log.d("NotificationRepo", "✅ FCM enviado para token")
+                SecureLogger.d("NotificationRepo", "✅ FCM enviado para token")
             }
         } catch (e: Exception) {
-            android.util.Log.e("NotificationRepo", "Erro ao enviar FCM: ${e.javaClass.simpleName}", null)
+            SecureLogger.e("NotificationRepo", "Erro ao enviar FCM: ${e.javaClass.simpleName}", null)
         }
     }
 }

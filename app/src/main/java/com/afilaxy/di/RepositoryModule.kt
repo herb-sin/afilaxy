@@ -2,8 +2,10 @@ package com.afilaxy.di
 
 import com.afilaxy.data.repository.ChatRepository
 import com.afilaxy.data.repository.EmergencyRepositoryImpl
+import com.afilaxy.data.repository.LocationRepository
 import com.afilaxy.domain.repository.EmergencyRepository
 import com.afilaxy.domain.repository.IChatRepository
+import com.afilaxy.domain.repository.ILocationRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -25,4 +27,10 @@ abstract class RepositoryModule {
     abstract fun bindChatRepository(
         chatRepository: ChatRepository
     ): IChatRepository
+    
+    @Binds
+    @Singleton
+    abstract fun bindLocationRepository(
+        locationRepository: LocationRepository
+    ): ILocationRepository
 }

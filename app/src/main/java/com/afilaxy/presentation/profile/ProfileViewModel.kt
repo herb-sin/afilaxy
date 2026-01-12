@@ -114,7 +114,8 @@ class ProfileViewModel @Inject constructor(
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             message = "✅ Perfil salvo com sucesso!",
-                            isError = false
+                            isError = false,
+                            profileSaved = true
                         )
                     }
                     .addOnFailureListener { e ->
@@ -143,5 +144,6 @@ data class ProfileUiState(
     val medications: List<String> = emptyList(),
     val isLoading: Boolean = false,
     val message: String? = null,
-    val isError: Boolean = false
+    val isError: Boolean = false,
+    val profileSaved: Boolean = false
 )

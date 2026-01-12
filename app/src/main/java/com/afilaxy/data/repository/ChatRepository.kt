@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+import com.afilaxy.security.SecureLogger
 
 class ChatRepository @Inject constructor(
     private val firestore: FirebaseFirestore
@@ -30,7 +31,7 @@ class ChatRepository @Inject constructor(
             
             Result.success(Unit)
         } catch (e: Exception) {
-            android.util.Log.e("ChatRepository", "Erro ao enviar mensagem", e)
+            SecureLogger.e("ChatRepository", "Erro ao enviar mensagem", e)
             Result.failure(e)
         }
     }
@@ -52,7 +53,7 @@ class ChatRepository @Inject constructor(
             .orderBy("timestamp", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    android.util.Log.e("ChatRepository", "Erro ao escutar mensagens", error)
+                    SecureLogger.e("ChatRepository", "Erro ao escutar mensagens", error)
                     return@addSnapshotListener
                 }
                 
@@ -66,7 +67,7 @@ class ChatRepository @Inject constructor(
                             timestamp = doc.getLong("timestamp") ?: 0L
                         )
                     } catch (e: Exception) {
-                        android.util.Log.e("ChatRepository", "Erro ao mapear mensagem", e)
+                        SecureLogger.e("ChatRepository", "Erro ao mapear mensagem", e)
                         null
                     }
                 } ?: emptyList()
@@ -84,7 +85,7 @@ class ChatRepository @Inject constructor(
             .orderBy("timestamp", Query.Direction.ASCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
-                    android.util.Log.e("ChatRepository", "Erro ao escutar mensagens", error)
+                    SecureLogger.e("ChatRepository", "Erro ao escutar mensagens", error)
                     return@addSnapshotListener
                 }
                 
@@ -97,7 +98,7 @@ class ChatRepository @Inject constructor(
                             timestamp = doc.getLong("timestamp") ?: 0L
                         )
                     } catch (e: Exception) {
-                        android.util.Log.e("ChatRepository", "Erro ao mapear mensagem", e)
+                        SecureLogger.e("ChatRepository", "Erro ao mapear mensagem", e)
                         null
                     }
                 } ?: emptyList()

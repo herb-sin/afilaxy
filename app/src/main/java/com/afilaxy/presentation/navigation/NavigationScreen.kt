@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
+import com.afilaxy.security.SecureLogger
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,7 +58,7 @@ fun NavigationScreen(
                     val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(uri))
                     context.startActivity(intent)
                 } catch (e: Exception) {
-                    android.util.Log.e("NavigationScreen", "Erro ao iniciar navegação", e)
+                    SecureLogger.e("NavigationScreen", "Erro ao iniciar navegação", e)
                 }
             },
             modifier = Modifier

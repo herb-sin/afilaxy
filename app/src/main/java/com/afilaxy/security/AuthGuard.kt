@@ -30,7 +30,7 @@ object AuthGuard {
             
             AuthResult.Authenticated(user.uid, tokenResult.token ?: "")
         } catch (e: Exception) {
-            android.util.Log.e("AuthGuard", "Authentication validation failed: ${e.javaClass.simpleName}")
+            SecureLogger.security("AuthGuard", "Authentication validation failed: ${e.javaClass.simpleName}")
             AuthResult.Error("Authentication failed")
         }
     }
@@ -38,7 +38,7 @@ object AuthGuard {
     suspend fun requireAuthentication(operation: String): AuthResult {
         val result = validateAuthentication()
         if (result !is AuthResult.Authenticated) {
-            android.util.Log.w("AuthGuard", "Unauthorized access attempt: $operation")
+            SecureLogger.security("AuthGuard", "Unauthorized access attempt: $operation")
         }
         return result
     }
@@ -50,7 +50,7 @@ object AuthGuard {
                 user.uid
             } else null
         } catch (e: Exception) {
-            android.util.Log.e("AuthGuard", "Failed to get user ID: ${e.javaClass.simpleName}")
+            SecureLogger.security("AuthGuard", "Failed to get user ID: ${e.javaClass.simpleName}")
             null
         }
     }

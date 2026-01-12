@@ -212,9 +212,11 @@ class SimpleEmergencyViewModel @Inject constructor(
     
     suspend fun getAddressFromLocation(latitude: Double, longitude: Double): String? {
         return try {
-            val geocoder = Geocoder(application, Locale.getDefault())
-            val addresses = geocoder.getFromLocation(latitude, longitude, 1)
-            addresses?.firstOrNull()?.getAddressLine(0)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                val geocoder = Geocoder(application, Locale.getDefault())
+                val addresses = geocoder.getFromLocation(latitude, longitude, 1)
+                addresses?.firstOrNull()?.getAddressLine(0)
+            }
         } catch (e: Exception) {
             LogOptimizer.e("SimpleEmergencyViewModel", "Erro ao buscar endereço", e)
             null

@@ -5,6 +5,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
 import android.content.Context
+import com.afilaxy.security.SecureLogger
 
 fun saveFcmTokenToFirestore(context: Context) {
     // Executar em background thread para evitar ANR
@@ -14,12 +15,12 @@ fun saveFcmTokenToFirestore(context: Context) {
             
             // Verificação crítica de autenticação
             if (user == null) {
-                android.util.Log.e("FirebaseUtils", "Tentativa de salvar token FCM sem autenticação")
+                SecureLogger.security("FirebaseUtils", "Tentativa de salvar token FCM sem autenticação")
                 return@Thread
             }
             
             if (!user.isEmailVerified) {
-                android.util.Log.w("FirebaseUtils", "Salvando token FCM com email não verificado")
+                SecureLogger.w("FirebaseUtils", "Salvando token FCM com email não verificado")
                 // Continua mesmo sem verificação para funcionalidade de emergência
             }
             
@@ -35,15 +36,15 @@ fun saveFcmTokenToFirestore(context: Context) {
                     db.collection("users").document(user.uid)
                         .set(userData)
                         .addOnSuccessListener {
-                            android.util.Log.d("FirebaseUtils", "Token FCM salvo com sucesso")
+                            SecureLogger.d("FirebaseUtils", "Token FCM salvo com sucesso")
                         }
                         .addOnFailureListener { e ->
-                            android.util.Log.e("FirebaseUtils", "Erro ao salvar token FCM: ${e.message}")
+                            SecureLogger.e("FirebaseUtils", "Erro ao salvar token FCM: ${e.message}")
                         }
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("FirebaseUtils", "Erro ao processar token FCM: ${e.message}")
+            SecureLogger.e("FirebaseUtils", "Erro ao processar token FCM: ${e.message}")
         }
     }.start()
 }

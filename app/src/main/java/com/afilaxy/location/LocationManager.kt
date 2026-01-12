@@ -7,6 +7,7 @@ import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.model.LatLng
 import kotlinx.coroutines.tasks.await
+import com.afilaxy.security.SecureLogger
 
 class LocationManager(private val context: Context) {
     
@@ -17,21 +18,21 @@ class LocationManager(private val context: Context) {
      */
     suspend fun getCurrentLocation(): LatLng? {
         if (!hasLocationPermission()) {
-            android.util.Log.w("LocationManager", "Sem permissão de localização")
+            SecureLogger.w("LocationManager", "Sem permissão de localização")
             return null
         }
         
         return try {
-            android.util.Log.d("LocationManager", "Tentando obter localização...")
+            SecureLogger.d("LocationManager", "Tentando obter localização...")
             
             // Primeiro tenta a última localização conhecida
             val lastLocation = fusedLocationClient.lastLocation.await()
             if (lastLocation != null) {
-                android.util.Log.d("LocationManager", "Localização obtida do cache: ${lastLocation.latitude}, ${lastLocation.longitude}")
+                SecureLogger.d("LocationManager", "Localização obtida do cache: ${lastLocation.latitude}, ${lastLocation.longitude}")
                 return LatLng(lastLocation.latitude, lastLocation.longitude)
             }
             
-            android.util.Log.d("LocationManager", "Cache vazio, solicitando localização atual...")
+            SecureLogger.d("LocationManager", "Cache vazio, solicitando localização atual...")
             
             // Se não há localização prévia, solicita uma nova com timeout
             val currentLocation = fusedLocationClient.getCurrentLocation(
@@ -40,14 +41,14 @@ class LocationManager(private val context: Context) {
             ).await()
             
             if (currentLocation != null) {
-                android.util.Log.d("LocationManager", "Localização atual obtida: ${currentLocation.latitude}, ${currentLocation.longitude}")
+                SecureLogger.d("LocationManager", "Localização atual obtida: ${currentLocation.latitude}, ${currentLocation.longitude}")
                 LatLng(currentLocation.latitude, currentLocation.longitude)
             } else {
-                android.util.Log.w("LocationManager", "Não foi possível obter localização")
+                SecureLogger.w("LocationManager", "Não foi possível obter localização")
                 null
             }
         } catch (e: Exception) {
-            android.util.Log.e("LocationManager", "Erro ao obter localização: ${e.message}")
+            SecureLogger.e("LocationManager", "Erro ao obter localização: ${e.message}")
             null
         }
     }

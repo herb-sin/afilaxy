@@ -69,7 +69,7 @@ fun SobreProjetoScreen(
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Facilitar o acesso a medicamentos de emergência para asma e promover o engajamento de pacientes ao tratamento disponibilizado pelo SUS.",
+                    text = "Salvar vidas em momentos críticos através da conexão imediata entre pacientes, promovendo a educação em saúde e o acesso ao tratamento gratuito pelo SUS.",
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
@@ -87,14 +87,39 @@ fun SobreProjetoScreen(
                 modifier = Modifier.padding(16.dp)
             ) {
                 Text(
-                    text = "🌟 Impacto Social",
+                    text = "🔭 Visão",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "• Acesso rápido ao medicamento em emergências\n• Educação em saúde através da comunidade\n• Engajamento no tratamento contínuo\n• Solidariedade entre pacientes",
+                    text = "Reduzir a zero as fatalidades por crises de asma fora do ambiente hospitalar no Brasil, tornando-se a maior rede de apoio colaborativo em saúde respiratória do mundo.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "💎 Valores",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "• Solidariedade: Colaboração e ajuda mútua entre pacientes\n• Acessibilidade: Incentivo ao uso do sistema público (SUS)\n• Educação em Saúde: Boas práticas e conscientização\n• Agilidade: Resposta rápida em momentos de emergência",
                     style = MaterialTheme.typography.bodyMedium
                 )
             }

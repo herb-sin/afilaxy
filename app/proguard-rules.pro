@@ -12,6 +12,15 @@
 
 # Keep Compose classes
 -keep class androidx.compose.** { *; }
+-dontwarn androidx.compose.runtime.snapshots.**
+-keep class androidx.compose.runtime.snapshots.** { *; }
+
+# Fix lock verification issues
+-keepclassmembers class androidx.compose.runtime.snapshots.SnapshotStateList {
+    boolean conditionalUpdate(boolean, kotlin.jvm.functions.Function1);
+    java.lang.Object mutate(kotlin.jvm.functions.Function1);
+    void update(boolean, kotlin.jvm.functions.Function1);
+}
 
 # Optimize for performance
 -optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*

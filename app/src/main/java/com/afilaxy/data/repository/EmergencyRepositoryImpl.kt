@@ -125,40 +125,51 @@ class EmergencyRepositoryImpl @Inject constructor(
             val userDoc = firestore.collection("users").document(userId).get().await()
             val helperName = userDoc.getString("name") ?: auth.currentUser?.displayName ?: "Helper"
             
-            LogOptimizer.d("EmergencyRepository", "Helper $helperName aceitando emergência $emergencyId")
+            LogOptimizer.d("EmergencyRepository", "Helper $helperName tentando aceitar emergência $emergencyId")
             
-            // Verificar se emergência ainda existe e está ativa
-            val emergencyDoc = firestore.collection("emergency_requests").document(emergencyId).get().await()
-            if (!emergencyDoc.exists()) {
-                LogOptimizer.e("EmergencyRepository", "Emergência $emergencyId não existe")
-                return Result.failure(Exception("Emergência não encontrada"))
-            }
-            
-            val isActive = emergencyDoc.getBoolean("active") ?: false
-            if (!isActive) {
-                LogOptimizer.e("EmergencyRepository", "Emergência $emergencyId não está ativa")
-                return Result.failure(Exception("Emergência não está ativa"))
-            }
-            
-            // Calcular novo expiresAt: 10 minutos a partir do match
-            val newExpiresAt = System.currentTimeMillis() + 600000 // 10 min
-            
-            // Atualizar status da emergência
-            firestore.collection("emergency_requests")
-                .document(emergencyId)
-                .update(
-                    "status", "matched",
-                    "helperId", userId,
-                    "helperName", helperName,
-                    "matchedAt", System.currentTimeMillis(),
-                    "expiresAt", newExpiresAt // Estender validade para 10 min a partir do match
+            // Usar transação atômica para evitar que 2 helpers aceitem a mesma emergência
+            firestore.runTransaction { transaction ->
+                val emergencyRef = firestore.collection("emergency_requests").document(emergencyId)
+                val emergencyDoc = transaction.get(emergencyRef)
+                
+                if (!emergencyDoc.exists()) {
+                    throw Exception("Emergência não encontrada")
+                }
+                
+                val isActive = emergencyDoc.getBoolean("active") ?: false
+                val currentHelperId = emergencyDoc.getString("helperId")
+                val currentStatus = emergencyDoc.getString("status") ?: ""
+                
+                // Verificar se já tem helper ou status não é "waiting"
+                if (!isActive) {
+                    throw Exception("Emergência não está ativa")
+                }
+                
+                if (currentHelperId != null || currentStatus != "waiting") {
+                    throw Exception("Emergência já foi aceita por outro helper")
+                }
+                
+                // Calcular novo expiresAt: 10 minutos a partir do match
+                val newExpiresAt = System.currentTimeMillis() + 600000 // 10 min
+                
+                // Atualizar atomicamente - só acontece se ninguém mais atualizou antes
+                transaction.update(
+                    emergencyRef,
+                    mapOf(
+                        "status" to "matched",
+                        "helperId" to userId,
+                        "helperName" to helperName,
+                        "matchedAt" to System.currentTimeMillis(),
+                        "expiresAt" to newExpiresAt
+                    )
                 )
-                .await()
+                
+                LogOptimizer.d("EmergencyRepository", "Emergência aceita com sucesso - Helper: $helperName")
+            }.await()
             
-            LogOptimizer.d("EmergencyRepository", "Emergência aceita com sucesso - Status: matched, expiresAt estendido")
             Result.success(true)
         } catch (e: Exception) {
-            LogOptimizer.e("EmergencyRepository", "Erro ao aceitar emergência", e)
+            LogOptimizer.e("EmergencyRepository", "Erro ao aceitar emergência: ${e.message}")
             Result.failure(e)
         }
     }

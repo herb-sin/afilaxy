@@ -31,8 +31,8 @@ android {
         applicationId = "com.afilaxy.app"
         minSdk = 23
         targetSdk = 35
-        versionCode = 11
-        versionName = "2.0.1"
+        versionCode = 14
+        versionName = "2.0.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
         // Firebase configuration from environment variables
@@ -91,11 +91,11 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { 
-        jvmTarget = "11"
+        jvmTarget = "17"
         freeCompilerArgs += listOf(
             "-opt-in=kotlin.RequiresOptIn",
             "-Xjvm-default=all"
@@ -196,9 +196,6 @@ dependencies {
     
     // Biometric Authentication
     implementation("androidx.biometric:biometric:1.1.0")
-    
-    // Geofencing
-    implementation("com.google.android.gms:play-services-location:21.0.1")
     
     // Image Compression
     implementation("id.zelory:compressor:3.0.1")

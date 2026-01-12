@@ -10,6 +10,7 @@ import androidx.navigation.NavHostController
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.*
+import com.afilaxy.security.SecureLogger
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -21,7 +22,7 @@ fun MapScreen(
     val defaultLocation = try {
         LatLng(-23.5505, -46.6333) // São Paulo como fallback seguro
     } catch (e: Exception) {
-        android.util.Log.e("MapScreen", "Erro ao criar localização padrão", e)
+        SecureLogger.e("MapScreen", "Erro ao criar localização padrão", e)
         LatLng(0.0, 0.0)
     }
     
@@ -29,7 +30,7 @@ fun MapScreen(
         try {
             position = CameraPosition.fromLatLngZoom(defaultLocation, 12f)
         } catch (e: Exception) {
-            android.util.Log.e("MapScreen", "Erro ao inicializar câmera do mapa", e)
+            SecureLogger.e("MapScreen", "Erro ao inicializar câmera do mapa", e)
             position = CameraPosition.fromLatLngZoom(LatLng(0.0, 0.0), 1f)
         }
     }

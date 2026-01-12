@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
@@ -16,6 +17,7 @@ import com.afilaxy.performance.AnrOptimizer
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.afilaxy.security.SecureLogger
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -25,8 +27,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // Enable edge-to-edge for Android 15 compatibility
+        enableEdgeToEdge()
+        
         try {
-            android.util.Log.d("MainActivity", "onCreate - Intent extras: ${intent?.extras?.keySet()}")
+            SecureLogger.d("MainActivity", "onCreate - Intent extras: ${intent?.extras?.keySet()}")
             
             setContent {
                 MainContent()
@@ -38,7 +43,7 @@ class MainActivity : ComponentActivity() {
             
             // WorkManagerInitializer.scheduleCleanupWork(this)
         } catch (e: Exception) {
-            android.util.Log.e("MainActivity", "Error in onCreate: ${e.javaClass.simpleName}")
+            SecureLogger.e("MainActivity", "Error in onCreate: ${e.javaClass.simpleName}")
             finish()
         }
     }
@@ -59,7 +64,7 @@ class MainActivity : ComponentActivity() {
                 
                 // Verificar se deve abrir resposta à emergência
                 LaunchedEffect(navController) {
-                    android.util.Log.d("MainActivity", "LaunchedEffect iniciado")
+                    SecureLogger.d("MainActivity", "LaunchedEffect iniciado")
                     // Aguardar NavController estar pronto
                     kotlinx.coroutines.delay(100)
                     checkEmergencyIntent(navController)
@@ -68,16 +73,16 @@ class MainActivity : ComponentActivity() {
                 // Reagir a mudanças no estado de navegação
                 LaunchedEffect(emergencyNavigationState.value) {
                     val route = emergencyNavigationState.value
-                    android.util.Log.d("MainActivity", "LaunchedEffect - Route: $route")
+                    SecureLogger.d("MainActivity", "LaunchedEffect - Route: $route")
                     
                     if (!route.isNullOrEmpty()) {
-                        android.util.Log.d("MainActivity", "LaunchedEffect - Navegando para: $route")
+                        SecureLogger.d("MainActivity", "LaunchedEffect - Navegando para: $route")
                         try {
                             navController.navigate(route)
-                            android.util.Log.d("MainActivity", "LaunchedEffect - Navegação executada com sucesso")
+                            SecureLogger.d("MainActivity", "LaunchedEffect - Navegação executada com sucesso")
                             emergencyNavigationState.value = null // Reset
                         } catch (e: Exception) {
-                            android.util.Log.e("MainActivity", "LaunchedEffect - Erro na navegação: ${e.message}")
+                            SecureLogger.e("MainActivity", "LaunchedEffect - Erro na navegação: ${e.message}")
                         }
                     }
                 }
@@ -93,38 +98,38 @@ class MainActivity : ComponentActivity() {
 
     
     private fun checkEmergencyIntent(navController: androidx.navigation.NavHostController) {
-        android.util.Log.d("MainActivity", "Intent extras: ${intent?.extras?.keySet()}")
+        SecureLogger.d("MainActivity", "Intent extras: ${intent?.extras?.keySet()}")
         val shouldOpenEmergencyResponse = intent?.getBooleanExtra("open_emergency_response", false) ?: false
         val emergencyId = intent?.getStringExtra("emergency_id")
         
-        android.util.Log.d("MainActivity", "Checking emergency response: $shouldOpenEmergencyResponse, ID: $emergencyId")
+        SecureLogger.d("MainActivity", "Checking emergency response: $shouldOpenEmergencyResponse, ID: $emergencyId")
         
         if (shouldOpenEmergencyResponse && !emergencyId.isNullOrEmpty()) {
-            android.util.Log.d("MainActivity", "Navigating to emergency response with ID: $emergencyId")
+            SecureLogger.d("MainActivity", "Navigating to emergency response with ID: $emergencyId")
             navController.navigate("emergency_response/$emergencyId/Helper")
         } else {
-            android.util.Log.d("MainActivity", "No emergency navigation needed, staying on home")
+            SecureLogger.d("MainActivity", "No emergency navigation needed, staying on home")
         }
     }
     
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        android.util.Log.d("MainActivity", "onNewIntent - Intent extras: ${intent.extras?.keySet()}")
+        SecureLogger.d("MainActivity", "onNewIntent - Intent extras: ${intent.extras?.keySet()}")
         setIntent(intent)
         
         // Verificar se é uma emergência (tanto response quanto request)
         val shouldOpenEmergencyResponse = intent.getBooleanExtra("open_emergency_response", false)
         val emergencyId = intent.getStringExtra("emergency_id")
         
-        android.util.Log.d("MainActivity", "onNewIntent - Emergency check: $shouldOpenEmergencyResponse, ID: $emergencyId")
+        SecureLogger.d("MainActivity", "onNewIntent - Emergency check: $shouldOpenEmergencyResponse, ID: $emergencyId")
         
         if (shouldOpenEmergencyResponse && !emergencyId.isNullOrEmpty()) {
             val requesterName = intent.getStringExtra("requester_name") ?: "Helper"
-            android.util.Log.d("MainActivity", "onNewIntent - Triggering navigation to: emergency_response/$emergencyId/$requesterName")
+            SecureLogger.d("MainActivity", "onNewIntent - Triggering navigation to: emergency_response/$emergencyId/$requesterName")
             emergencyNavigationState.value = "emergency_response/$emergencyId/$requesterName"
         } else if (!emergencyId.isNullOrEmpty()) {
             // Se tem emergencyId mas não é response, pode ser uma notificação normal
-            android.util.Log.d("MainActivity", "onNewIntent - Emergency ID found but not response, staying on home")
+            SecureLogger.d("MainActivity", "onNewIntent - Emergency ID found but not response, staying on home")
         }
     }
     

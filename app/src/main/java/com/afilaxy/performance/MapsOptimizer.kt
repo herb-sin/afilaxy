@@ -5,6 +5,7 @@ import com.google.maps.android.compose.MapProperties
 import com.google.maps.android.compose.MapType
 import com.google.maps.android.compose.MapUiSettings
 import kotlinx.coroutines.delay
+import com.afilaxy.security.SecureLogger
 
 /**
  * Otimizações específicas para Google Maps para prevenir ANR
@@ -44,7 +45,7 @@ object MapsOptimizer {
             operation()
         } catch (e: Exception) {
             // Log error but don't crash
-            android.util.Log.w("MapsOptimizer", "Camera operation failed", e)
+            SecureLogger.e("MapsOptimizer", "Camera operation failed", e)
         }
     }
     

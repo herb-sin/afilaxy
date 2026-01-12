@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.afilaxy.security.SecureLogger
 
 @HiltViewModel
 class LocationViewModel @Inject constructor() : ViewModel() {
@@ -21,7 +22,7 @@ class LocationViewModel @Inject constructor() : ViewModel() {
 
     fun startLocationUpdates(context: Context) {
         // Desabilitado temporariamente para melhor performance
-        android.util.Log.d("LocationViewModel", "Location updates disabled for performance")
+        SecureLogger.d("LocationViewModel", "Location updates disabled for performance")
     }
 
     fun stopLocationUpdates(context: Context) {

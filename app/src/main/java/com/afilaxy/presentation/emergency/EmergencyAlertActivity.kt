@@ -31,6 +31,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import com.afilaxy.security.SecureLogger
 
 class EmergencyAlertActivity : ComponentActivity() {
     
@@ -103,9 +104,9 @@ class EmergencyAlertActivity : ComponentActivity() {
     private fun startAlertSounds() {
         try {
             // Por enquanto, apenas vibração - som será adicionado depois
-            android.util.Log.d("EmergencyAlert", "Emergency alert started - sound will be added later")
+            SecureLogger.d("EmergencyAlert", "Emergency alert started - sound will be added later")
         } catch (e: Exception) {
-            android.util.Log.w("EmergencyAlert", "Could not initialize emergency sound: ${e.javaClass.simpleName}")
+            SecureLogger.w("EmergencyAlert", "Could not initialize emergency sound: ${e.javaClass.simpleName}")
         }
         
         // Vibração
@@ -126,7 +127,7 @@ class EmergencyAlertActivity : ComponentActivity() {
                 vibrator?.vibrate(pattern, 0)
             }
         } catch (e: Exception) {
-            android.util.Log.w("EmergencyAlert", "Could not vibrate: ${e.javaClass.simpleName}")
+            SecureLogger.w("EmergencyAlert", "Could not vibrate: ${e.javaClass.simpleName}")
         }
     }
     
@@ -142,7 +143,7 @@ class EmergencyAlertActivity : ComponentActivity() {
     private fun acceptEmergency(emergencyId: String) {
         stopAlertSounds()
         
-        android.util.Log.d("EmergencyAlert", "Accepting emergency: $emergencyId")
+        SecureLogger.d("EmergencyAlert", "Accepting emergency: $emergencyId")
         
         // Atualizar status no Firestore
         CoroutineScope(Dispatchers.IO).launch {
@@ -157,9 +158,9 @@ class EmergencyAlertActivity : ComponentActivity() {
                         "acceptedAt" to System.currentTimeMillis()
                     ))
                 
-                android.util.Log.d("EmergencyAlert", "Emergency status updated to accepted")
+                SecureLogger.d("EmergencyAlert", "Emergency status updated to accepted")
             } catch (e: Exception) {
-                android.util.Log.e("EmergencyAlert", "Failed to update emergency status: ${e.javaClass.simpleName}")
+                SecureLogger.e("EmergencyAlert", "Failed to update emergency status: ${e.javaClass.simpleName}")
             }
         }
         
@@ -172,7 +173,7 @@ class EmergencyAlertActivity : ComponentActivity() {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         
-        android.util.Log.d("EmergencyAlert", "Starting MainActivity with extras: emergencyId=$emergencyId, requesterName=$requesterName")
+        SecureLogger.d("EmergencyAlert", "Starting MainActivity with extras: emergencyId=$emergencyId, requesterName=$requesterName")
         startActivity(intent)
         finish()
     }

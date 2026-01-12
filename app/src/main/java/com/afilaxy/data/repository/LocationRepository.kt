@@ -7,9 +7,15 @@ import androidx.core.app.ActivityCompat
 import com.afilaxy.domain.repository.ILocationRepository
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.model.LatLng
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
+import javax.inject.Singleton
 
-class LocationRepository(private val context: Context) : ILocationRepository {
+@Singleton
+class LocationRepository @Inject constructor(
+    @ApplicationContext private val context: Context
+) : ILocationRepository {
     
     private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
     

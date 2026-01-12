@@ -25,7 +25,7 @@ class ComunidadeViewModel @Inject constructor() : ViewModel() {
             preco = BigDecimal("12.90"),
             precoOriginal = BigDecimal("18.50"),
             desconto = "30% OFF",
-            farmacia = "Drogasil",
+            farmacia = "Droga-Vitalis",
             categoria = "Medicamentos",
             cupom = "AFILAXY30",
             validadeCupom = "31/12/2024"
@@ -37,7 +37,7 @@ class ComunidadeViewModel @Inject constructor() : ViewModel() {
             preco = BigDecimal("25.90"),
             precoOriginal = BigDecimal("35.00"),
             desconto = "25% OFF",
-            farmacia = "Droga Raia",
+            farmacia = "OmniFarma",
             categoria = "Dispositivos",
             cupom = "AFILAXY25",
             validadeCupom = "31/12/2024"
@@ -49,7 +49,7 @@ class ComunidadeViewModel @Inject constructor() : ViewModel() {
             preco = BigDecimal("89.90"),
             precoOriginal = BigDecimal("129.90"),
             desconto = "30% OFF",
-            farmacia = "Pague Menos",
+            farmacia = "Drogaria Bem-Estar",
             categoria = "Equipamentos",
             cupom = "AFILAXY30",
             validadeCupom = "31/12/2024"
@@ -61,7 +61,7 @@ class ComunidadeViewModel @Inject constructor() : ViewModel() {
             preco = BigDecimal("45.90"),
             precoOriginal = BigDecimal("65.00"),
             desconto = "30% OFF",
-            farmacia = "Farmácias São João",
+            farmacia = "Droga-Vitalis",
             categoria = "Medicamentos",
             cupom = "AFILAXY30",
             validadeCupom = "31/12/2024"
@@ -73,7 +73,7 @@ class ComunidadeViewModel @Inject constructor() : ViewModel() {
             preco = BigDecimal("35.90"),
             precoOriginal = BigDecimal("49.90"),
             desconto = "28% OFF",
-            farmacia = "Ultrafarma",
+            farmacia = "OmniFarma",
             categoria = "Monitoramento",
             cupom = "AFILAXY28",
             validadeCupom = "31/12/2024"
@@ -81,33 +81,6 @@ class ComunidadeViewModel @Inject constructor() : ViewModel() {
     )
     
     val eventos = listOf(
-        Evento(
-            id = "1",
-            titulo = "Workshop: Controle da Asma no Inverno",
-            data = "15/12/2024",
-            descricao = "Como prevenir crises durante o período mais crítico do ano",
-            organizador = "ABRA - Associação Brasileira de Asmáticos",
-            local = "Online - Zoom",
-            horario = "14h às 16h"
-        ),
-        Evento(
-            id = "2",
-            titulo = "Palestra: Asma Grave - Novos Tratamentos",
-            data = "20/12/2024",
-            descricao = "Avanços na medicina para casos de asma grave e não controlada",
-            organizador = "ASBAG - Associação Brasileira de Asmáticos Graves",
-            local = "Hospital das Clínicas - SP",
-            horario = "19h às 21h"
-        ),
-        Evento(
-            id = "3",
-            titulo = "Live: Qualidade do Ar e Saúde Respiratória",
-            data = "28/12/2024",
-            descricao = "Impacto da poluição na saúde respiratória e dicas de proteção",
-            organizador = "Fundação ProAr",
-            local = "YouTube e Instagram",
-            horario = "20h às 21h30"
-        ),
         Evento(
             id = "4",
             titulo = "Encontro: Crônicos do Dia-a-Dia",
@@ -156,9 +129,7 @@ class ComunidadeViewModel @Inject constructor() : ViewModel() {
     )
     
     val projetos = listOf(
-        ProjetoInfo("1", "Site Afilaxy", ""),
-        ProjetoInfo("2", "Asma no SUS", ""),
-        ProjetoInfo("3", "Parque Tecnológico de Santos", "")
+        ProjetoInfo("1", "Site Afilaxy", "")
     )
     
     private fun getCommunityData(): CommunityData {

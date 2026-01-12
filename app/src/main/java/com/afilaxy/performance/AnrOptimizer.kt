@@ -3,6 +3,7 @@ package com.afilaxy.performance
 import android.content.Context
 import kotlinx.coroutines.*
 import java.util.concurrent.Executors
+import com.afilaxy.security.SecureLogger
 
 /**
  * Otimizador para prevenir ANRs (Application Not Responding)
@@ -20,7 +21,7 @@ object AnrOptimizer {
             try {
                 operation()
             } catch (e: Exception) {
-                android.util.Log.e("AnrOptimizer", "Background operation failed", e)
+                SecureLogger.e("AnrOptimizer", "Background operation failed", e)
             }
         }
     }
@@ -33,7 +34,7 @@ object AnrOptimizer {
             try {
                 operation()
             } catch (e: Exception) {
-                android.util.Log.e("AnrOptimizer", "Async operation failed", e)
+                SecureLogger.e("AnrOptimizer", "Async operation failed", e)
             }
         }
     }

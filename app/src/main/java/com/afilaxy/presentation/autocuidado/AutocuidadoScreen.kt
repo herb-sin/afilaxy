@@ -1,25 +1,19 @@
 package com.afilaxy.presentation.autocuidado
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.shrinkVertically
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.afilaxy.data.AsthmaFAQ
-import com.afilaxy.data.FAQItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -27,7 +21,7 @@ fun AutocuidadoScreen(
     navController: NavController,
     modifier: Modifier = Modifier
 ) {
-    var expandedIndex by remember { mutableStateOf(-1) }
+    val context = LocalContext.current
     
     Scaffold(
         topBar = {
@@ -82,85 +76,44 @@ fun AutocuidadoScreen(
             }
         }
 
-        Text(
-            text = "Perguntas frequentes sobre asma com orientações médicas baseadas em evidências científicas.",
-            style = MaterialTheme.typography.bodyMedium,
-            textAlign = TextAlign.Center,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth()
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            )
         ) {
-            AsthmaFAQ.faqItems.forEachIndexed { index, faqItem ->
-                FAQCard(
-                    faqItem = faqItem,
-                    isExpanded = expandedIndex == index,
-                    onExpandClick = { 
-                        expandedIndex = if (expandedIndex == index) -1 else index
-                    }
-                )
-            }
-        }
-        
-        }
-    }
-}
-
-@Composable
-fun FAQCard(
-    faqItem: FAQItem,
-    isExpanded: Boolean,
-    onExpandClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+            Column(
+                modifier = Modifier.padding(16.dp)
             ) {
                 Text(
-                    text = faqItem.question,
+                    text = "🏥 Asma no SUS",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.weight(1f)
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
                 )
-                IconButton(
-                    onClick = onExpandClick
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "O tratamento da asma é garantido pelo SUS (Sistema Único de Saúde), incluindo:\n\n" +
+                            "✅ Consultas com pneumologista\n" +
+                            "✅ Medicamentos gratuitos (broncodilatadores e corticoides)\n" +
+                            "✅ Acompanhamento em Unidades Básicas de Saúde\n" +
+                            "✅ Atendimento de emergência pelo SAMU (192)\n\n" +
+                            "Procure a UBS mais próxima para iniciar seu tratamento!",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedButton(
+                    onClick = {
+                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/a/asma"))
+                        context.startActivity(intent)
+                    },
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(
-                        imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                        contentDescription = if (isExpanded) "Recolher" else "Expandir"
-                    )
+                    Text("🔗 Mais informações no site do Ministério da Saúde")
                 }
             }
-            
-            Text(
-                text = faqItem.category,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-            
-            AnimatedVisibility(
-                visible = isExpanded,
-                enter = expandVertically(),
-                exit = shrinkVertically()
-            ) {
-                Text(
-                    text = faqItem.answer,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
+        }
+        
         }
     }
 }

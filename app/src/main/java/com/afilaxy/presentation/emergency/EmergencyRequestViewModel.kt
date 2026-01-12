@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.afilaxy.security.SecureLogger
 
 data class EmergencyRequestState(
     val status: String = "pending",
@@ -32,7 +33,7 @@ class EmergencyRequestViewModel @Inject constructor(
                     .document(emergencyId)
                     .addSnapshotListener { snapshot, error ->
                         if (error != null) {
-                            android.util.Log.e("EmergencyRequestVM", "Error monitoring status: ${error.javaClass.simpleName}")
+                            SecureLogger.e("EmergencyRequestVM", "Error monitoring status: ${error.javaClass.simpleName}")
                             _state.value = _state.value.copy(error = "Erro ao monitorar status")
                             return@addSnapshotListener
                         }
@@ -41,7 +42,7 @@ class EmergencyRequestViewModel @Inject constructor(
                             val status = snapshot.getString("status") ?: "pending"
                             val helperName = snapshot.getString("helperName")
                             
-                            android.util.Log.d("EmergencyRequestVM", "Status updated: $status")
+                            SecureLogger.d("EmergencyRequestVM", "Status updated: $status")
                             
                             _state.value = _state.value.copy(
                                 status = status,
@@ -52,7 +53,7 @@ class EmergencyRequestViewModel @Inject constructor(
                         }
                     }
             } catch (e: Exception) {
-                android.util.Log.e("EmergencyRequestVM", "Error setting up listener: ${e.javaClass.simpleName}")
+                SecureLogger.e("EmergencyRequestVM", "Error setting up listener: ${e.javaClass.simpleName}")
                 _state.value = _state.value.copy(error = "Erro ao conectar")
             }
         }

@@ -44,7 +44,7 @@ fun EmergencyResponseScreen(
     
     // Solicitar permissões automaticamente e inicializar ViewModel
     LaunchedEffect(Unit) {
-        viewModel.initialize(emergencyId, context.applicationContext as android.app.Application)
+        viewModel.initialize(emergencyId)
         if (!locationPermissions.allPermissionsGranted) {
             locationPermissions.launchMultiplePermissionRequest()
         }
@@ -61,6 +61,13 @@ fun EmergencyResponseScreen(
     LaunchedEffect(viewModel.helperLocation) {
         viewModel.helperLocation?.let { location ->
             cameraPositionState.position = CameraPosition.fromLatLngZoom(location, 15f)
+        }
+    }
+    
+    // Observar quando emergência for resolvida e navegar de volta
+    LaunchedEffect(viewModel.emergencyResolved) {
+        if (viewModel.emergencyResolved) {
+            navController.popBackStack()
         }
     }
     
@@ -169,18 +176,17 @@ fun EmergencyResponseScreen(
     if (viewModel.showResolveDialog) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissResolveDialog() },
-            title = { Text("Emergência Resolvida?") },
+            title = { Text("Finalizar Atendimento?") },
             text = { 
-                Text("Confirma que a emergência foi resolvida e a pessoa está bem?") 
+                Text("Deseja finalizar o atendimento desta emergência?") 
             },
             confirmButton = {
                 TextButton(
                     onClick = {
                         viewModel.confirmResolveEmergency()
-                        navController.popBackStack()
                     }
                 ) {
-                    Text("Sim, resolvida")
+                    Text("Sim, finalizar")
                 }
             },
             dismissButton = {

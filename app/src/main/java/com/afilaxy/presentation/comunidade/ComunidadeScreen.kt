@@ -151,9 +151,9 @@ fun ComunidadeScreen(
             
             Spacer(modifier = Modifier.height(24.dp))
             
-            // Sobre o Projeto Carrossel
+            // Website Carrossel
             Text(
-                "🎆 Sobre o Projeto",
+                "🌐 Website",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.fillMaxWidth()
             )

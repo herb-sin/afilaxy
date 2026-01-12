@@ -9,8 +9,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+import com.afilaxy.security.SecureLogger
 
-class PreparadorConsultaViewModel : ViewModel() {
+@HiltViewModel
+class PreparadorConsultaViewModel @Inject constructor(
+    private val firebaseAuth: FirebaseAuth
+) : ViewModel() {
     private val _uiState = MutableStateFlow<UiState>(UiState.Initial)
     val uiState: StateFlow<UiState> = _uiState
 
@@ -21,10 +27,9 @@ class PreparadorConsultaViewModel : ViewModel() {
 
     fun prepararResumoConsulta(input: String) {
         // Verificação crítica de autenticação
-        val auth = FirebaseAuth.getInstance()
-        val user = auth.currentUser
+        val user = firebaseAuth.currentUser
         if (user == null) {
-            android.util.Log.e("PreparadorConsultaViewModel", "Tentativa de usar IA sem autenticação")
+            SecureLogger.e("PreparadorConsultaViewModel", "Tentativa de usar IA sem autenticação")
             _uiState.value = UiState.Error("Usuário deve estar autenticado para usar a IA")
             return
         }

@@ -1,5 +1,7 @@
 package com.afilaxy.config
 
+import com.afilaxy.security.SecureLogger
+
 object AppConfig {
     const val IS_DEBUG = true
     const val ENABLE_CRASH_REPORTING = false
@@ -18,7 +20,7 @@ object AppConfig {
                 else -> defaultValue
             }
         } catch (e: Exception) {
-            android.util.Log.w("AppConfig", "Error getting config value: $key")
+            SecureLogger.w("AppConfig", "Error getting config value: $key")
             defaultValue
         }
     }

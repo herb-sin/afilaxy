@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.afilaxy.R
 import com.afilaxy.utils.LocationUtils
+import com.afilaxy.security.SecureLogger
 
 
 
@@ -82,12 +83,12 @@ fun LoginScreen(
         // Debug: verificar estado do card
         LaunchedEffect(uiState.showRegistrationSuccess) {
             if (uiState.showRegistrationSuccess) {
-                android.util.Log.d("LoginScreen", "Registration success card triggered")
+                SecureLogger.d("LoginScreen", "Registration success card triggered")
             }
         }
         
         if (uiState.showRegistrationSuccess) {
-            android.util.Log.d("LoginScreen", "Renderizando RegistrationSuccessCard")
+            SecureLogger.d("LoginScreen", "Renderizando RegistrationSuccessCard")
             RegistrationSuccessCard(onDismiss = viewModel::dismissRegistrationSuccess)
         }
     }  

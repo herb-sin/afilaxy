@@ -28,6 +28,13 @@ fun ProfileScreen(
         viewModel.loadProfile()
     }
     
+    // Navegar de volta após salvar perfil
+    LaunchedEffect(uiState.profileSaved) {
+        if (uiState.profileSaved) {
+            navController.popBackStack()
+        }
+    }
+    
     Column(
         modifier = modifier
             .fillMaxSize()
