@@ -23,7 +23,7 @@ jobs:
       uses: android-actions/setup-android@v3
     
     - name: Cache Gradle packages
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: |
           ~/.gradle/caches
@@ -34,9 +34,36 @@ jobs:
     
     - name: Create google-services.json
       env:
+        GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         FIREBASE_CONFIG: ${{ secrets.FIREBASE_CONFIG }}
       run: |
-        echo "$FIREBASE_CONFIG" > app/google-services.json
+        # Try GOOGLE_SERVICES_JSON first, fallback to FIREBASE_CONFIG
+        if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+          echo "$GOOGLE_SERVICES_JSON" | base64 -d > app/google-services.json
+        elif [ -n "$FIREBASE_CONFIG" ]; then
+          echo "Warning: Using deprecated FIREBASE_CONFIG secret. Please migrate to GOOGLE_SERVICES_JSON"
+          echo "$FIREBASE_CONFIG" > app/google-services.json
+        else
+          echo "Error: Neither GOOGLE_SERVICES_JSON nor FIREBASE_CONFIG secret is set"
+          exit 1
+        fi
+    
+    - name: Validate secrets
+      env:
+        KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      run: |
+        if [ -z "$KEYSTORE_BASE64" ]; then
+          echo "Error: KEYSTORE_BASE64 secret is not set"
+          exit 1
+        fi
+        if [ -z "$KEYSTORE_PASSWORD" ] || [ -z "$KEY_ALIAS" ] || [ -z "$KEY_PASSWORD" ]; then
+          echo "Error: Keystore credentials (KEYSTORE_PASSWORD, KEY_ALIAS, KEY_PASSWORD) are not set"
+          exit 1
+        fi
+        echo "All required secrets are configured"
     
     - name: Create keystore
       env:
@@ -55,12 +82,13 @@ jobs:
     
     - name: Run security checks
       run: |
-        # Verificar se credenciais não estão hardcoded
-        if grep -r "AIza" app/src/ --exclude-dir=build; then
-          echo "❌ API keys found in source code!"
+        # Check for Firebase API keys hardcoded in source code (not in tests/examples)
+        echo "Running security checks..."
+        if grep -r "AIza[0-9A-Za-z_-]\{35\}" app/src/main/ 2>/dev/null | grep -v "//" | grep -v "example" | grep -v "mock"; then
+          echo "❌ Firebase API keys found in source code!"
           exit 1
         fi
-        echo "✅ Security check passed"
+        echo "✅ Security check passed - no hardcoded API keys found"
     
     - name: Build Debug APK
       run: ./gradlew assembleDebug

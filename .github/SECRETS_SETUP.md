@@ -41,6 +41,12 @@ FIREBASE_SERVICE_ACCOUNT
 ```
 - **Valor**: JSON da conta de serviço do Firebase para App Distribution
 
+```
+FIREBASE_CONFIG
+```
+- **Valor**: (DEPRECATED) Use GOOGLE_SERVICES_JSON instead
+- **Observação**: Mantido apenas para compatibilidade com workflows antigos
+
 ### Android Signing
 ```
 KEYSTORE_BASE64
@@ -105,3 +111,30 @@ base64 -w 0 arquivo.json
 # Testar build local
 ./gradlew assembleRelease
 ```
+
+## 🔍 Troubleshooting
+
+### "GOOGLE_SERVICES_JSON secret is not configured"
+- Verifique se o secret foi criado em Settings → Secrets and variables → Actions
+- O valor deve ser o arquivo `google-services.json` codificado em base64
+- Comando: `base64 -w 0 app/google-services.json | pbcopy`
+
+### "GOOGLE_SERVICES_JSON is not valid JSON"
+- O conteúdo do secret pode estar corrompido
+- Recrie o secret usando: `base64 -w 0 app/google-services.json`
+- Certifique-se de copiar TODO o output sem quebras de linha
+
+### "KEYSTORE_BASE64 secret is not set"
+- Necessário para builds de produção (release)
+- Gere um keystore: `keytool -genkey -v -keystore app/keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias afilaxy`
+- Codifique: `base64 -w 0 app/keystore.jks`
+
+### "FIREBASE_SERVICE_ACCOUNT secret is not configured"
+- Necessário para deploy no Firebase App Distribution
+- Obtenha em: Firebase Console → Project Settings → Service Accounts
+- Gere uma nova chave privada e cole o conteúdo JSON completo no secret
+
+### "No hardcoded secrets detected" mas o workflow falha
+- Verifique se não há API keys do Firebase diretamente no código
+- Padrão detectado: `AIza` seguido de 35 caracteres
+- Todos os secrets devem estar em `local.properties` ou secrets do GitHub

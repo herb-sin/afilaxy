@@ -39,14 +39,30 @@ jobs:
     - name: Create local.properties
       run: echo "sdk.dir=$ANDROID_HOME" > local.properties
     
+    - name: Validate secrets
+      run: |
+        if [ -z "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
+          echo "❌ Error: GOOGLE_SERVICES_JSON secret is not configured"
+          echo "Please configure this secret in Settings → Secrets and variables → Actions"
+          echo "See .github/SECRETS_SETUP.md for instructions"
+          exit 1
+        fi
+        if [ -z "${{ secrets.FIREBASE_SERVICE_ACCOUNT }}" ]; then
+          echo "❌ Error: FIREBASE_SERVICE_ACCOUNT secret is not configured"
+          echo "This is required for Firebase App Distribution"
+          exit 1
+        fi
+        echo "✅ All required secrets are configured"
+    
     - name: Decode Firebase config
       run: |
-        if [ -n "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
-          echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
-        else
-          echo "Skipping deploy - secrets not configured"
-          exit 0
+        echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
+        # Validate the decoded file is valid JSON
+        if ! python3 -m json.tool app/google-services.json > /dev/null 2>&1; then
+          echo "❌ Error: GOOGLE_SERVICES_JSON is not valid JSON or base64 encoding is incorrect"
+          exit 1
         fi
+        echo "✅ Firebase configuration decoded successfully"
     
     - name: Build release APK
       run: ./gradlew assembleRelease
@@ -100,8 +116,35 @@ jobs:
     - name: Create local.properties
       run: echo "sdk.dir=$ANDROID_HOME" > local.properties
     
+    - name: Validate secrets for production deployment
+      run: |
+        if [ -z "${{ secrets.GOOGLE_SERVICES_JSON }}" ]; then
+          echo "❌ Error: GOOGLE_SERVICES_JSON secret is not configured"
+          exit 1
+        fi
+        if [ -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+          echo "❌ Error: KEYSTORE_BASE64 secret is not configured"
+          echo "Production builds require a signing keystore"
+          exit 1
+        fi
+        if [ -z "${{ secrets.KEYSTORE_PASSWORD }}" ] || [ -z "${{ secrets.KEY_ALIAS }}" ] || [ -z "${{ secrets.KEY_PASSWORD }}" ]; then
+          echo "❌ Error: Keystore credentials are incomplete"
+          exit 1
+        fi
+        if [ -z "${{ secrets.PLAY_STORE_SERVICE_ACCOUNT }}" ]; then
+          echo "❌ Error: PLAY_STORE_SERVICE_ACCOUNT secret is not configured"
+          echo "This is required for Play Store deployment"
+          exit 1
+        fi
+        echo "✅ All required secrets for production deployment are configured"
+    
     - name: Decode Firebase config
-      run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
+      run: |
+        echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 -d > app/google-services.json
+        if ! python3 -m json.tool app/google-services.json > /dev/null 2>&1; then
+          echo "❌ Error: Invalid GOOGLE_SERVICES_JSON"
+          exit 1
+        fi
     
     - name: Decode keystore
       run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > app/keystore.jks
