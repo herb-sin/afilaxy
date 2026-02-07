@@ -35,8 +35,19 @@ class SimpleHomeViewModel @Inject constructor(
     var permissionMessage by mutableStateOf("")
         private set
     
-    val isLoggedIn: Boolean
-        get() = auth.currentUser != null
+    var isLoggedIn by mutableStateOf(auth.currentUser != null)
+        private set
+    
+    init {
+        // Observar mudanças de autenticação
+        auth.addAuthStateListener { firebaseAuth ->
+            isLoggedIn = firebaseAuth.currentUser != null
+            if (!isLoggedIn) {
+                // Se deslogou, desativar helper
+                isHelper = false
+            }
+        }
+    }
     
     fun toggleHelper() {
         viewModelScope.launch {

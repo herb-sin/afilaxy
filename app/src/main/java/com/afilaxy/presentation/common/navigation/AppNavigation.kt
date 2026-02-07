@@ -25,7 +25,6 @@ import com.afilaxy.domain.model.Produto
 import com.afilaxy.domain.model.Evento
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.afilaxy.presentation.comunidade.ComunidadeViewModel
-// import com.afilaxy.presentation.emergency.EmergencyScreenMaps
 import com.afilaxy.presentation.helper.HelperResponseScreen
 import com.afilaxy.presentation.home.HomeScreen
 import com.afilaxy.presentation.login.LoginScreen

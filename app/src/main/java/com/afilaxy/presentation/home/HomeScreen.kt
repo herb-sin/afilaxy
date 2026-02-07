@@ -181,35 +181,36 @@ Row(
             style = MaterialTheme.typography.headlineMedium
         )
         
-        if (viewModel.isLoggedIn) {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(if (viewModel.isHelper) "Estou com a \"bombinha\"" else "Não estou com a \"bombinha\"")
-                        Text(
-                            if (viewModel.isHelper) "Receber pedidos de emergência" else "Não receber pedidos de emergência",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = viewModel.isHelper,
-                        onCheckedChange = { _ ->
-                            viewModel.toggleHelper()
-                        }
+                Column {
+                    Text(if (viewModel.isHelper) "Estou com a \"bombinha\"" else "Não estou com a \"bombinha\"")
+                    Text(
+                        if (viewModel.isHelper) "Receber pedidos de emergência" else "Não receber pedidos de emergência",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                Switch(
+                    checked = viewModel.isHelper,
+                    enabled = viewModel.isLoggedIn,
+                    onCheckedChange = { _ ->
+                        viewModel.toggleHelper()
+                    }
+                )
             }
         }
         
