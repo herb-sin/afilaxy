@@ -9,7 +9,7 @@ if (!admin.apps.length) {
 exports.sendEmergencyNotification = functions.firestore
     .document('emergency_requests/{requestId}')
     .onCreate(async (snap, context) => {
-    var _a;
+    var _a, _b, _c;
     const data = snap.data();
     const requestId = context.params.requestId;
     console.log('🔥 Firebase Function triggered:', {
@@ -18,6 +18,10 @@ exports.sendEmergencyNotification = functions.firestore
     });
     if (!data.active)
         return;
+    if (typeof data.latitude !== 'number' || typeof data.longitude !== 'number') {
+        console.warn('Emergency request sem coordenadas válidas. Notificação ignorada.', { requestId });
+        return;
+    }
     try {
         // Buscar helpers próximos
         const helpersSnapshot = await admin.firestore()
@@ -28,21 +32,28 @@ exports.sendEmergencyNotification = functions.firestore
         // Buscar helpers próximos e ordenar por distância
         for (const helperDoc of helpersSnapshot.docs) {
             const helper = helperDoc.data();
-            const helperId = helper.id;
+            const helperId = helperDoc.id || helper.id;
+            if (!helperId)
+                continue;
             // Pular o próprio usuário
             if (helperId === data.requesterId)
                 continue;
+            const helperLatitude = (_a = helper === null || helper === void 0 ? void 0 : helper.location) === null || _a === void 0 ? void 0 : _a.latitude;
+            const helperLongitude = (_b = helper === null || helper === void 0 ? void 0 : helper.location) === null || _b === void 0 ? void 0 : _b.longitude;
+            if (typeof helperLatitude !== 'number' || typeof helperLongitude !== 'number') {
+                continue;
+            }
             // Calcular distância
-            const distance = calculateDistance(data.latitude, data.longitude, helper.location.latitude, helper.location.longitude);
-            // Só considerar se estiver próximo (360m)
-            if (distance <= 0.36) {
+            const distance = calculateDistance(data.latitude, data.longitude, helperLatitude, helperLongitude);
+            // Só considerar se estiver próximo (250m)
+            if (distance <= 0.25) {
                 // Buscar token FCM do helper
                 const userDoc = await admin.firestore()
                     .collection('users')
                     .doc(helperId)
                     .get();
-                const fcmToken = (_a = userDoc.data()) === null || _a === void 0 ? void 0 : _a.fcmToken;
-                if (fcmToken) {
+                const fcmToken = (_c = userDoc.data()) === null || _c === void 0 ? void 0 : _c.fcmToken;
+                if (typeof fcmToken === 'string' && fcmToken.trim().length > 0) {
                     nearbyHelpers.push({ helper, helperId, distance, fcmToken });
                 }
             }
@@ -53,7 +64,7 @@ exports.sendEmergencyNotification = functions.firestore
             .slice(0, 3);
         const notifications = [];
         // Enviar notificações apenas para os 3 mais próximos
-        for (const { distance, fcmToken } of closestHelpers) {
+        for (const { distance, fcmToken, helperId } of closestHelpers) {
             const message = {
                 token: fcmToken,
                 data: {
@@ -61,18 +72,31 @@ exports.sendEmergencyNotification = functions.firestore
                     emergency_id: requestId,
                     requesterName: data.requesterName || 'Alguém',
                     distance: Math.round(distance * 1000).toString(),
-                    isEmergencyResponse: 'true'
+                    isEmergencyResponse: 'true',
+                    helper_id: helperId
                 }
             };
             console.log('📨 Sending FCM to closest helper:', {
                 token: fcmToken.substring(0, 20) + '...',
                 emergency_id: requestId,
-                distance: Math.round(distance * 1000) + 'm'
+                distance: Math.round(distance * 1000) + 'm',
+                helper_id: helperId
             });
             notifications.push(admin.messaging().send(message));
         }
+        // Armazenar helpers notificados para cancelamento posterior
+        await admin.firestore()
+            .collection('emergency_requests')
+            .doc(requestId)
+            .update({
+            notifiedHelpers: closestHelpers.map(h => ({
+                helperId: h.helperId,
+                fcmToken: h.fcmToken,
+                distance: h.distance
+            }))
+        });
         await Promise.all(notifications);
-        console.log(`Enviadas ${notifications.length} notificações para os helpers mais próximos (máx 3, raio 360m)`);
+        console.log(`Enviadas ${notifications.length} notificações para os helpers mais próximos (máx 3, raio 250m)`);
     }
     catch (error) {
         console.error('Erro ao enviar notificações:', error);
