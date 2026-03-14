@@ -17,6 +17,11 @@ export const sendEmergencyNotification = functions.firestore
     });
     
     if (!data.active) return;
+
+    if (typeof data.latitude !== 'number' || typeof data.longitude !== 'number') {
+      console.warn('Emergency request sem coordenadas válidas. Notificação ignorada.', { requestId });
+      return;
+    }
     
     try {
       // Buscar helpers próximos
@@ -30,15 +35,24 @@ export const sendEmergencyNotification = functions.firestore
       // Buscar helpers próximos e ordenar por distância
       for (const helperDoc of helpersSnapshot.docs) {
         const helper = helperDoc.data();
-        const helperId = helper.id;
+        const helperId = helperDoc.id || helper.id;
+
+        if (!helperId) continue;
         
         // Pular o próprio usuário
         if (helperId === data.requesterId) continue;
+
+        const helperLatitude = helper?.location?.latitude;
+        const helperLongitude = helper?.location?.longitude;
+
+        if (typeof helperLatitude !== 'number' || typeof helperLongitude !== 'number') {
+          continue;
+        }
         
         // Calcular distância
         const distance = calculateDistance(
           data.latitude, data.longitude,
-          helper.location.latitude, helper.location.longitude
+          helperLatitude, helperLongitude
         );
         
         // Só considerar se estiver próximo (250m)
@@ -51,7 +65,7 @@ export const sendEmergencyNotification = functions.firestore
           
           const fcmToken = userDoc.data()?.fcmToken;
           
-          if (fcmToken) {
+          if (typeof fcmToken === 'string' && fcmToken.trim().length > 0) {
             nearbyHelpers.push({ helper, helperId, distance, fcmToken });
           }
         }

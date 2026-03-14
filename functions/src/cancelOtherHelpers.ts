@@ -1,6 +1,10 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
 export const cancelOtherHelpers = functions.firestore
   .document('emergency_requests/{requestId}')
   .onUpdate(async (change, context) => {
@@ -17,7 +21,9 @@ export const cancelOtherHelpers = functions.firestore
       
       // Filtrar helpers que não aceitaram
       const otherHelpers = notifiedHelpers.filter((helper: any) => 
-        helper.helperId !== acceptedHelperId
+        helper.helperId !== acceptedHelperId &&
+        typeof helper.fcmToken === 'string' &&
+        helper.fcmToken.trim().length > 0
       );
       
       console.log(`📤 Sending cancellation to ${otherHelpers.length} other helpers`);
